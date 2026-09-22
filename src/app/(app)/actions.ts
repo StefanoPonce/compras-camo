@@ -230,28 +230,47 @@ export async function eliminarMaterial(_prev: EstadoForm, datos: FormData): Prom
 
 /* ----------------------------- ÓRDENES DE COMPRA ----------------------------- */
 
-export async function crearOrden(_prev: EstadoForm, datos: FormData): Promise<EstadoForm> {
-  const sesion = await sesionObligatoria();
-  const proveedorId = Number(datos.get("proveedorId"));
-  const dependencia = String(datos.get("dependencia") || "").trim();
-  const lugar = String(datos.get("lugar") || "").trim();
-  const justificacion = String(datos.get("justificacion") || "").trim();
+/** Elige automáticamente el proveedor de la orden desde el material del primer
+ *  renglón: en el formulario ya no se elige proveedor, se completa solo. */
+async function resolverProveedorDeItems(items: { materialId: number }[]): Promise<{ ok: true; id: number } | { ok: false; error: string }> {
+  const materiales = await prisma.material.findMany({
+    where: { id: { in: items.map((it) => it.materialId) } },
+    select: { id: true, proveedorId: true },
+  });
+  const porId = new Map(materiales.map((m) => [m.id, m]));
+  const primero = porId.get(items[0].materialId);
+  if (!primero?.proveedorId) {
+    return { ok: false, error: "El material del primer renglón no tiene proveedor asignado. Asígnalo en el catálogo de materiales." };
+  }
+  return { ok: true, id: primero.proveedorId };
+}
+
+function leerItems(datos: FormData) {
   const materialIds = datos.getAll("materialId") as string[];
   const cantidades = datos.getAll("cantidad") as string[];
   const precios = datos.getAll("precio") as string[];
-
-  const items = materialIds
+  return materialIds
     .map((mid, i) => ({
       materialId: Number(mid),
       cantidad: Number(cantidades[i]),
       precio: Number(precios[i]),
     }))
     .filter((it) => it.materialId && it.cantidad > 0);
+}
 
-  if (!proveedorId) return { error: "Elige un proveedor." };
+export async function crearOrden(_prev: EstadoForm, datos: FormData): Promise<EstadoForm> {
+  const sesion = await sesionObligatoria();
+  const dependencia = String(datos.get("dependencia") || "").trim();
+  const lugar = String(datos.get("lugar") || "").trim();
+  const justificacion = String(datos.get("justificacion") || "").trim();
+  const items = leerItems(datos);
+
   if (!dependencia) return { error: "La dependencia es obligatoria." };
   if (!lugar) return { error: "El lugar es obligatorio." };
   if (!items.length) return { error: "Agrega al menos un material con cantidad mayor a cero." };
+
+  const proveedor = await resolverProveedorDeItems(items);
+  if (!proveedor.ok) return proveedor;
 
   const total = items.reduce((s, it) => s + it.cantidad * it.precio, 0);
   const anio = new Date().getFullYear();
@@ -263,7 +282,7 @@ export async function crearOrden(_prev: EstadoForm, datos: FormData): Promise<Es
 
     const orden = await prisma.ordenCompra.create({
       data: {
-        folio, proveedorId, dependencia: dependencia || null, lugar: lugar || null, justificacion,
+        folio, proveedorId: proveedor.id, dependencia: dependencia || null, lugar: lugar || null, justificacion,
         solicitanteId: Number(sesion.user.id),
         total,
         items: { create: items },
@@ -283,8 +302,66 @@ export async function crearOrden(_prev: EstadoForm, datos: FormData): Promise<Es
   redirect(`/ordenes/${ordenId}`);
 }
 
+export async function editarOrden(id: number, _prev: EstadoForm, datos: FormData): Promise<EstadoForm> {
+  const sesion = await sesionObligatoria();
+  const esAdmin = sesion.user.rol === "administrador";
+
+  const orden = await prisma.ordenCompra.findUniqueOrThrow({ where: { id } });
+  if (orden.estado !== "Pendiente" && orden.estado !== "Rechazada") {
+    return { error: "Una orden aprobada o recibida no puede editarse." };
+  }
+  if (!esAdmin && orden.solicitanteId !== Number(sesion.user.id)) {
+    return { error: "Solo el solicitante o un administrador pueden editar esta orden." };
+  }
+
+  const dependencia = String(datos.get("dependencia") || "").trim();
+  const lugar = String(datos.get("lugar") || "").trim();
+  const justificacion = String(datos.get("justificacion") || "").trim();
+  const items = leerItems(datos);
+
+  if (!dependencia) return { error: "La dependencia es obligatoria." };
+  if (!lugar) return { error: "El lugar es obligatorio." };
+  if (!items.length) return { error: "Agrega al menos un material con cantidad mayor a cero." };
+
+  const proveedor = await resolverProveedorDeItems(items);
+  if (!proveedor.ok) return proveedor;
+
+  const total = items.reduce((s, it) => s + it.cantidad * it.precio, 0);
+
+  try {
+    await prisma.$transaction([
+      prisma.detalleOrden.deleteMany({ where: { ordenId: id } }),
+      ...items.map((it) =>
+        prisma.detalleOrden.create({ data: { ordenId: id, materialId: it.materialId, cantidad: it.cantidad, precio: it.precio } })
+      ),
+      prisma.ordenCompra.update({
+        where: { id },
+        data: {
+          proveedorId: proveedor.id, dependencia, lugar, justificacion, total,
+          estado: "Pendiente", revisorId: null, fechaRevision: null, comentario: null,
+        },
+      }),
+    ]);
+    await registrarMovimiento({
+      usuarioId: Number(sesion.user.id), modulo: "Órdenes", accion: "Editó orden",
+      detalle: `${orden.folio} — se actualizaron los materiales y quedó pendiente de revisión.`,
+    });
+  } catch {
+    return { error: "No se pudo guardar la orden. Verifica los datos e intenta de nuevo." };
+  }
+
+  revalidatePath("/ordenes");
+  revalidatePath(`/ordenes/${id}`);
+  redirect(`/ordenes/${id}`);
+}
+
 export async function resolverOrden(id: number, nuevoEstado: "Aprobada" | "Rechazada", comentario: string) {
   const sesion = await exigirAdmin();
+  const actual = await prisma.ordenCompra.findUniqueOrThrow({ where: { id } });
+  if (actual.estado !== "Pendiente") {
+    throw new Error("Esta orden ya fue revisada (aprobada o rechazada).");
+  }
+
   const orden = await prisma.ordenCompra.update({
     where: { id },
     data: { estado: nuevoEstado, revisorId: Number(sesion.user.id), fechaRevision: new Date(), comentario },
@@ -305,6 +382,9 @@ export async function recibirOrden(id: number) {
     where: { id },
     include: { items: true },
   });
+  if (orden.estado !== "Aprobada") {
+    throw new Error("Solo se puede marcar como recibida una orden aprobada.");
+  }
 
   await prisma.$transaction([
     ...orden.items.map((it) =>
@@ -313,7 +393,10 @@ export async function recibirOrden(id: number) {
         data: { existencia: { increment: it.cantidad }, precioUltimo: it.precio },
       })
     ),
-    prisma.ordenCompra.update({ where: { id }, data: { estado: "Recibida" } }),
+    prisma.ordenCompra.update({
+      where: { id },
+      data: { estado: "Recibida", fechaRecepcion: new Date(), recibidoPorId: Number(sesion.user.id) },
+    }),
   ]);
 
   await registrarMovimiento({

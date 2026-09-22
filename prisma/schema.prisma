@@ -36,6 +36,7 @@ model Usuario {
 
   ordenesPedidas OrdenCompra[] @relation("solicitante")
   ordenesRevisadas OrdenCompra[] @relation("revisor")
+  ordenesRecibidas OrdenCompra[] @relation("receptor")
   movimientos    Movimiento[]
 
   @@map("usuarios")
@@ -88,6 +89,7 @@ model OrdenCompra {
   estado         EstadoOrden    @default(Pendiente)
   total          Decimal        @default(0) @db.Decimal(12, 2)
   fechaRevision  DateTime?
+  fechaRecepcion DateTime?
   comentario     String?
   creadoEn       DateTime       @default(now())
 
@@ -99,6 +101,9 @@ model OrdenCompra {
 
   revisorId      Int?
   revisor        Usuario?       @relation("revisor", fields: [revisorId], references: [id])
+
+  recibidoPorId  Int?
+  recibidoPor    Usuario?       @relation("receptor", fields: [recibidoPorId], references: [id])
 
   items          DetalleOrden[]
 

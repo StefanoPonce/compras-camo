@@ -19,7 +19,8 @@ export default async function Requisicion({ params }: { params: { id: string } }
       proveedor: true,
       solicitante: true,
       revisor: true,
-      items: { include: { material: true }, orderBy: { id: "asc" } },
+      recibidoPor: true,
+      items: { include: { material: { include: { proveedor: true } } }, orderBy: { id: "asc" } },
     },
   });
 
@@ -54,8 +55,6 @@ export default async function Requisicion({ params }: { params: { id: string } }
             <tr>
               <td className="py-1 pr-2 font-medium whitespace-nowrap">Folio:</td>
               <td className="py-1 border-b border-tinta font-mono">{o.folio}</td>
-              <td className="py-1 pl-4 pr-2 font-medium whitespace-nowrap">Proveedor:</td>
-              <td className="py-1 border-b border-tinta">{o.proveedor.nombre}</td>
             </tr>
           </tbody>
         </table>
@@ -70,6 +69,7 @@ export default async function Requisicion({ params }: { params: { id: string } }
               <th className="border border-tinta px-2 py-1 w-24">Código</th>
               <th className="border border-tinta px-2 py-1 w-24">Unidad</th>
               <th className="border border-tinta px-2 py-1 w-24">Cantidad</th>
+              <th className="border border-tinta px-2 py-1 text-left">Proveedor</th>
             </tr>
           </thead>
           <tbody>
@@ -80,12 +80,14 @@ export default async function Requisicion({ params }: { params: { id: string } }
                 <td className="border border-tinta px-2 py-1 text-center font-mono">{it.material.codigo}</td>
                 <td className="border border-tinta px-2 py-1 text-center">{it.material.unidad}</td>
                 <td className="border border-tinta px-2 py-1 text-center">{it.cantidad}</td>
+                <td className="border border-tinta px-2 py-1">{it.material.proveedor?.nombre || "—"}</td>
               </tr>
             ))}
             {/* filas vacías para completar la hoja, como en el formato físico */}
             {Array.from({ length: Math.max(0, 4 - o.items.length) }).map((_, i) => (
               <tr key={"vacia" + i}>
                 <td className="border border-tinta px-2 py-3">&nbsp;</td>
+                <td className="border border-tinta px-2 py-3"></td>
                 <td className="border border-tinta px-2 py-3"></td>
                 <td className="border border-tinta px-2 py-3"></td>
                 <td className="border border-tinta px-2 py-3"></td>
@@ -104,22 +106,22 @@ export default async function Requisicion({ params }: { params: { id: string } }
           <div className="border-r border-b border-tinta p-2.5">
             <p>Solicitado por:</p>
             <p className="mt-3">Nombre: <span className="font-medium">{o.solicitante.nombre}</span></p>
-            <p className="mt-4">Firma: ______________________________</p>
+            <p className="mt-3">Fecha de solicitud: <span className="font-medium">{fecha(o.fecha)}</span></p>
           </div>
           <div className="border-b border-tinta p-2.5">
             <p>Aprobado por:</p>
-            <p className="mt-3">Nombre: <span className="font-medium">{o.revisor?.nombre || ""}</span></p>
-            <p className="mt-4">Firma: ______________________________</p>
+            <p className="mt-3">Nombre: <span className="font-medium">{o.revisor?.nombre || "—"}</span></p>
+            <p className="mt-3">Fecha de aprobación: <span className="font-medium">{o.fechaRevision ? fecha(o.fechaRevision) : "—"}</span></p>
           </div>
           <div className="border-r border-tinta p-2.5">
             <p>Entregado por:</p>
-            <p className="mt-3">Cargo: ______________________________</p>
-            <p className="mt-4">Firma: ______________________________</p>
+            <p className="mt-3">Nombre: <span className="font-medium">{o.proveedor.nombre}</span></p>
+            <p className="mt-3">Fecha de entrega: <span className="font-medium">{o.fechaRecepcion ? fecha(o.fechaRecepcion) : "—"}</span></p>
           </div>
           <div className="p-2.5">
             <p>Recibí por:</p>
-            <p className="mt-3">Firma: ______________________________</p>
-            <p className="mt-4">Fecha: ______________________________</p>
+            <p className="mt-3">Nombre: <span className="font-medium">{o.recibidoPor?.nombre || "—"}</span></p>
+            <p className="mt-3">Fecha de recepción: <span className="font-medium">{o.fechaRecepcion ? fecha(o.fechaRecepcion) : "—"}</span></p>
           </div>
         </div>
       </div>

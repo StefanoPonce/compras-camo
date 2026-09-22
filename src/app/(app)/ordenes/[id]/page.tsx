@@ -32,11 +32,22 @@ export default async function DetalleOrden({ params }: { params: { id: string } 
         {o.proveedor.nombre} · {fecha(o.fecha)} · <span className={"etiqueta et-" + o.estado.toLowerCase()}>{o.estado}</span>
       </p>
 
-      <div className="mb-4">
+      <div className="mb-4 flex gap-2 flex-wrap">
         <Link href={`/ordenes/${o.id}/requisicion`} className="btn-secundario btn-chico">
           Ver requisición para imprimir
         </Link>
+        {(o.estado === "Pendiente" || o.estado === "Rechazada") && (
+          <Link href={`/ordenes/${o.id}/editar`} className="btn-secundario btn-chico">
+            Editar orden
+          </Link>
+        )}
       </div>
+      {o.estado === "Aprobada" && (
+        <p className="text-xs text-tinta2 mb-4">Una vez aprobada, la orden ya no puede editarse.</p>
+      )}
+      {o.estado === "Recibida" && (
+        <p className="text-xs text-tinta2 mb-4">Orden recibida: ya no puede editarse.</p>
+      )}
 
       {o.justificacion && <p className="mb-4">{o.justificacion}</p>}
 
