@@ -1,0 +1,39 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Sora:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap');
+
+body {
+  background: #EEF1EC;
+  color: #17211E;
+  font-family: 'IBM Plex Sans', system-ui, sans-serif;
+}
+
+.etiqueta { @apply inline-block px-2 py-0.5 rounded-full text-xs font-medium whitespace-nowrap; }
+.et-admin { @apply bg-azulclaro text-azul; }
+.et-usuario { @apply bg-verdeclaro text-verde; }
+.et-pendiente { @apply bg-ambarclaro text-ambar; }
+.et-aprobada { @apply bg-verdeclaro text-verde; }
+.et-rechazada { @apply bg-rojoclaro text-rojo; }
+.et-recibida { @apply bg-azulclaro text-azul; }
+
+.tarjeta { @apply bg-superficie border border-borde rounded-xl shadow-sm; }
+.btn { @apply inline-flex items-center justify-center gap-1 border border-verde bg-verde text-white px-4 py-2 rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50; }
+.btn-secundario { @apply btn bg-transparent text-tinta border-borde; }
+.btn-peligro { @apply btn bg-transparent text-rojo border-rojo; }
+.btn-chico { @apply px-2.5 py-1 text-xs; }
+.campo-input { @apply w-full px-3 py-2 border border-borde rounded-lg bg-superficie text-tinta text-sm; }
+.tabla th { @apply text-left text-xs text-tinta2 font-semibold px-3.5 py-2.5 border-b border-borde bg-superficie2 whitespace-nowrap; }
+.tabla td { @apply px-3.5 py-2.5 border-b border-borde align-top text-sm; }
+
+/* Impresión / "Guardar como PDF" del navegador: se usa en /reportes */
+.solo-impresion { display: none; }
+@media print {
+  header, nav, footer, .no-imprimir { display: none !important; }
+  .solo-impresion { display: block !important; }
+  body { background: #fff; }
+  main { max-width: none !important; padding: 0 !important; }
+  .tarjeta { box-shadow: none !important; border-color: #ccc !important; }
+  a { color: inherit !important; text-decoration: none !important; }
+}

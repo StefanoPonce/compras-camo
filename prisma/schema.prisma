@@ -1,0 +1,135 @@
+// Esquema de la base de datos — Sistema de compras Fundación CAMO
+// Ejecuta:  npx prisma migrate dev --name inicial
+// para crear las tablas en PostgreSQL a partir de este archivo.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Rol {
+  usuario
+  administrador
+}
+
+enum EstadoOrden {
+  Pendiente
+  Aprobada
+  Rechazada
+  Recibida
+}
+
+model Usuario {
+  id             Int           @id @default(autoincrement())
+  usuario        String        @unique
+  claveHash      String
+  nombre         String
+  correo         String?
+  rol            Rol           @default(usuario)
+  activo         Boolean       @default(true)
+  ultimoIngreso  DateTime?
+  creadoEn       DateTime      @default(now())
+
+  ordenesPedidas OrdenCompra[] @relation("solicitante")
+  ordenesRevisadas OrdenCompra[] @relation("revisor")
+  movimientos    Movimiento[]
+
+  @@map("usuarios")
+}
+
+model Proveedor {
+  id         Int         @id @default(autoincrement())
+  nombre     String
+  rtn        String?     @unique
+  contacto   String?
+  telefono   String?
+  correo     String?
+  direccion  String?
+  activo     Boolean     @default(true)
+  creadoEn   DateTime    @default(now())
+
+  materiales Material[]
+  ordenes    OrdenCompra[]
+
+  @@map("proveedores")
+}
+
+model Material {
+  id            Int             @id @default(autoincrement())
+  codigo        String          @unique
+  nombre        String
+  categoria     String          @default("General")
+  unidad        String          @default("Unidad")
+  existencia    Int             @default(0)
+  minimo        Int             @default(0)
+  precioUltimo  Decimal         @default(0) @db.Decimal(12, 2)
+  activo        Boolean         @default(true)
+  creadoEn      DateTime        @default(now())
+
+  proveedorId   Int?
+  proveedor     Proveedor?      @relation(fields: [proveedorId], references: [id])
+
+  detalles      DetalleOrden[]
+
+  @@map("materiales")
+}
+
+model OrdenCompra {
+  id             Int            @id @default(autoincrement())
+  folio          String         @unique
+  fecha          DateTime       @default(now())
+  dependencia    String?
+  lugar          String?
+  justificacion  String?
+  estado         EstadoOrden    @default(Pendiente)
+  total          Decimal        @default(0) @db.Decimal(12, 2)
+  fechaRevision  DateTime?
+  comentario     String?
+  creadoEn       DateTime       @default(now())
+
+  proveedorId    Int
+  proveedor      Proveedor      @relation(fields: [proveedorId], references: [id])
+
+  solicitanteId  Int
+  solicitante    Usuario        @relation("solicitante", fields: [solicitanteId], references: [id])
+
+  revisorId      Int?
+  revisor        Usuario?       @relation("revisor", fields: [revisorId], references: [id])
+
+  items          DetalleOrden[]
+
+  @@map("ordenes_compra")
+}
+
+model DetalleOrden {
+  id          Int         @id @default(autoincrement())
+  cantidad    Int
+  precio      Decimal     @db.Decimal(12, 2)
+
+  ordenId     Int
+  orden       OrdenCompra @relation(fields: [ordenId], references: [id], onDelete: Cascade)
+
+  materialId  Int
+  material    Material    @relation(fields: [materialId], references: [id])
+
+  @@map("detalle_orden")
+}
+
+model Movimiento {
+  id          Int       @id @default(autoincrement())
+  fecha       DateTime  @default(now())
+  usuarioTxt  String
+  rolTxt      String
+  modulo      String
+  accion      String
+  detalle     String?
+
+  usuarioId   Int?
+  usuario     Usuario?  @relation(fields: [usuarioId], references: [id])
+
+  @@map("movimientos")
+}
