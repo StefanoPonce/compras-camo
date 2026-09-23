@@ -5,6 +5,7 @@ import { puede } from "@/lib/permisos";
 import FormularioCrearMaterial from "./formulario-crear";
 import BotonEliminarMaterial from "./boton-eliminar";
 import ImagenMaterial from "../imagen-material";
+import BotonExportarExcel from "../boton-exportar-excel";
 import Link from "next/link";
 
 function lps(n: number) {
@@ -51,6 +52,9 @@ export default async function Materiales({ searchParams }: { searchParams: { q?:
             Catálogo de lo que la fundación compra, con la existencia actual y el mínimo que debe mantenerse en bodega.
             Los productos con la misma familia son variantes de un mismo artículo (distinto tamaño, volumen o presentación).
           </p>
+        </div>
+        <div className="ml-auto self-center">
+          <BotonExportarExcel href="/materiales/exportar" />
         </div>
       </div>
 

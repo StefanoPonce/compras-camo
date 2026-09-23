@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { puede } from "@/lib/permisos";
 import FormularioCrearProveedor from "./formulario-crear";
 import BotonEliminarProveedor from "./boton-eliminar";
+import BotonExportarExcel from "../boton-exportar-excel";
 
 export default async function Proveedores({ searchParams }: { searchParams: { q?: string } }) {
   const sesion = await getServerSession(authOptions);
@@ -34,6 +35,9 @@ export default async function Proveedores({ searchParams }: { searchParams: { q?
               ? "Registro de las empresas a las que la fundación compra."
               : "Consulta los datos de contacto de cada proveedor."}
           </p>
+        </div>
+        <div className="ml-auto self-center">
+          <BotonExportarExcel href="/proveedores/exportar" />
         </div>
       </div>
 
