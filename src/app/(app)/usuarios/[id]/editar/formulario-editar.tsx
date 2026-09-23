@@ -1,8 +1,9 @@
 "use client";
 import { useFormState, useFormStatus } from "react-dom";
 import { editarUsuario } from "../../../actions";
+import { ROLES, type Rol } from "@/lib/permisos";
 
-type Usuario = { id: number; nombre: string; usuario: string; rol: "usuario" | "administrador" };
+type Usuario = { id: number; nombre: string; usuario: string; rol: Rol };
 
 function BotonGuardar() {
   const { pending } = useFormStatus();
@@ -19,8 +20,9 @@ export default function FormularioEditarUsuario({ u }: { u: Usuario }) {
       <input className="campo-input" name="nombre" defaultValue={u.nombre} required />
       <input className="campo-input bg-superficie2" value={u.usuario} disabled />
       <select className="campo-input" name="rol" defaultValue={u.rol}>
-        <option value="usuario">Usuario</option>
-        <option value="administrador">Administrador</option>
+        {ROLES.map((r) => (
+          <option key={r.valor} value={r.valor}>{r.etiqueta}</option>
+        ))}
       </select>
       <input className="campo-input" name="clave" placeholder="Nueva contraseña (opcional)" />
       <div className="flex gap-2 justify-end">

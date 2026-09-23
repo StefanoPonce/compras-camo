@@ -18,6 +18,8 @@ export default function FormularioCrearProveedor() {
           <div className="sm:col-span-2 bg-rojoclaro text-rojo text-sm px-3 py-2 rounded-lg">{estado.error}</div>
         )}
         <input className="campo-input sm:col-span-2" name="nombre" placeholder="Nombre o razón social" required />
+        <input className="campo-input" name="codigo" placeholder="Código (se genera si lo dejas vacío)" />
+        <input className="campo-input" name="tipoProducto" placeholder="Tipo de producto (Papelería, Dental…)" />
         <input className="campo-input" name="rtn" placeholder="RTN" />
         <input className="campo-input" name="telefono" placeholder="Teléfono" />
         <input className="campo-input" name="contacto" placeholder="Persona de contacto" />

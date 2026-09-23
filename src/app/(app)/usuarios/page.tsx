@@ -3,12 +3,13 @@ import Link from "next/link";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { puede, nombreRol, claseRol } from "@/lib/permisos";
 import FormularioCrearUsuario from "./formulario-crear";
 import BotonAlternarUsuario from "./boton-alternar";
 
 export default async function Usuarios() {
   const sesion = await getServerSession(authOptions);
-  if (sesion?.user.rol !== "administrador") redirect("/");
+  if (!sesion || !puede(sesion.user.rol, "usuarios.gestionar")) redirect("/");
 
   const usuarios = await prisma.usuario.findMany({
     include: { _count: { select: { movimientos: true } } },
@@ -19,7 +20,8 @@ export default async function Usuarios() {
     <>
       <h2 className="text-xl font-sora font-semibold">Usuarios</h2>
       <p className="text-tinta2 text-sm mt-1 mb-4 max-w-[62ch]">
-        Quién puede entrar al sistema y con qué permisos. El usuario solicita compras; el administrador aprueba y ve la bitácora.
+        Quién puede entrar al sistema y con qué permisos. Solo el administrador crea usuarios, da permisos y
+        resetea contraseñas; los demás roles entran según la función que se les asigne.
       </p>
 
       <FormularioCrearUsuario />
@@ -32,7 +34,7 @@ export default async function Usuarios() {
               <tr key={u.id}>
                 <td><strong>{u.nombre}</strong></td>
                 <td className="font-mono">{u.usuario}</td>
-                <td><span className={"etiqueta " + (u.rol === "administrador" ? "et-admin" : "et-usuario")}>{u.rol}</span></td>
+                <td><span className={"etiqueta " + claseRol(u.rol)}>{nombreRol(u.rol)}</span></td>
                 <td><span className={"etiqueta " + (u.activo ? "et-aprobada" : "et-rechazada")}>{u.activo ? "Activo" : "Desactivado"}</span></td>
                 <td className="text-right">{u._count.movimientos}</td>
                 <td className="whitespace-nowrap">

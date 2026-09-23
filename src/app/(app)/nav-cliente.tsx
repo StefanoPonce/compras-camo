@@ -3,21 +3,29 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { signOut } from "next-auth/react";
 import Image from "next/image";
+import { puede, nombreRol, claseRol, type Permiso, type Rol } from "@/lib/permisos";
 
 export default function NavCliente({
   nombre, rol,
-}: { nombre: string; rol: "usuario" | "administrador" }) {
+}: { nombre: string; rol: Rol }) {
   const ruta = usePathname();
   const router = useRouter();
-  const esAdmin = rol === "administrador";
 
-  const items: [string, string][] = [
-    ["/", "Panel"],
-    ["/ordenes", "Órdenes de compra"],
-    ["/proveedores", "Proveedores"],
-    ["/materiales", "Materiales"],
+  // Cada sección se muestra solo a quien tiene el permiso que la rodea.
+  // "Panel", "Órdenes", "Proveedores" y "Materiales" son de consulta para
+  // todos los roles.
+  const items: [string, string, Permiso | null][] = [
+    ["/", "Panel", null],
+    ["/ordenes", "Órdenes de compra", "ordenes.crear"],
+    ["/proveedores", "Proveedores", null],
+    ["/materiales", "Materiales", null],
+    ["/inventario", "Descargo de inventario", "inventario.descargar"],
+    ["/reportes", "Reportes", "reportes.ver"],
+    ["/bitacora", "Bitácora", "bitacora.ver"],
+    ["/usuarios", "Usuarios", "usuarios.gestionar"],
   ];
-  if (esAdmin) { items.push(["/reportes", "Reportes"], ["/bitacora", "Bitácora"], ["/usuarios", "Usuarios"]); }
+
+  const visibles = items.filter(([, , permiso]) => !permiso || puede(rol, permiso));
 
   return (
     <>
@@ -34,8 +42,8 @@ export default function NavCliente({
             </div>
         <div className="ml-auto flex items-center gap-2.5 text-sm text-tinta2">
           <span>{nombre}</span>
-          <span className={"etiqueta " + (esAdmin ? "et-admin" : "et-usuario")}>
-            {esAdmin ? "Administrador" : "Usuario"}
+          <span className={"etiqueta " + claseRol(rol)}>
+            {nombreRol(rol)}
           </span>
           <button
             className="btn-secundario btn-chico"
@@ -46,7 +54,7 @@ export default function NavCliente({
         </div>
       </header>
       <nav className="bg-superficie border-b border-borde px-3 flex gap-0.5 overflow-x-auto">
-        {items.map(([href, etiqueta]) => (
+        {visibles.map(([href, etiqueta]) => (
           <Link
             key={href}
             href={href}

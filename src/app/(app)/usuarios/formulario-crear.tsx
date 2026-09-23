@@ -1,6 +1,7 @@
 "use client";
 import { useFormState, useFormStatus } from "react-dom";
 import { crearUsuario } from "../actions";
+import { ROLES } from "@/lib/permisos";
 
 function BotonGuardar() {
   const { pending } = useFormStatus();
@@ -19,9 +20,10 @@ export default function FormularioCrearUsuario() {
         )}
         <input className="campo-input" name="nombre" placeholder="Nombre completo" required />
         <input className="campo-input" name="usuario" placeholder="Cuenta de acceso" autoCapitalize="none" required />
-        <select className="campo-input" name="rol" defaultValue="usuario">
-          <option value="usuario">Usuario</option>
-          <option value="administrador">Administrador</option>
+        <select className="campo-input" name="rol" defaultValue="responsable_solicitante">
+          {ROLES.map((r) => (
+            <option key={r.valor} value={r.valor}>{r.etiqueta}</option>
+          ))}
         </select>
         <input className="campo-input" name="clave" placeholder="Contraseña (mínimo 6 caracteres)" required />
         <BotonGuardar />

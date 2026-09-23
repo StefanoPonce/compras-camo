@@ -2,11 +2,12 @@ import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { puede } from "@/lib/permisos";
 import FormularioEditarUsuario from "./formulario-editar";
 
 export default async function EditarUsuario({ params }: { params: { id: string } }) {
   const sesion = await getServerSession(authOptions);
-  if (sesion?.user.rol !== "administrador") redirect("/usuarios");
+  if (!puede(sesion?.user.rol, "usuarios.gestionar")) redirect("/usuarios");
 
   const u = await prisma.usuario.findUniqueOrThrow({ where: { id: Number(params.id) } });
 

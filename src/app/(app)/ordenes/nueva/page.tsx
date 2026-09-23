@@ -3,10 +3,10 @@ import { crearOrden } from "../../actions";
 import FormularioOrden from "../formulario-orden";
 
 export default async function NuevaOrden() {
-  const materiales = await prisma.material.findMany({
-    include: { proveedor: true },
-    orderBy: { codigo: "asc" },
-  });
+  const [materiales, proveedores] = await Promise.all([
+    prisma.material.findMany({ include: { proveedor: true }, orderBy: { codigo: "asc" } }),
+    prisma.proveedor.findMany({ orderBy: { nombre: "asc" } }),
+  ]);
 
   return (
     <>
@@ -14,6 +14,7 @@ export default async function NuevaOrden() {
       <FormularioOrden
         accion={crearOrden}
         materiales={materiales.map((m) => ({ ...m, precioUltimo: Number(m.precioUltimo) }))}
+        proveedores={proveedores}
       />
     </>
   );

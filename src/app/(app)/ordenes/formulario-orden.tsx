@@ -2,13 +2,16 @@
 import { useState } from "react";
 import { useFormState, useFormStatus } from "react-dom";
 import type { EstadoForm } from "../actions";
+import ImagenMaterial from "../imagen-material";
 
 type MaterialOrden = {
   id: number;
   codigo: string;
   nombre: string;
   unidad: string;
+  variante: string | null;
   precioUltimo: number;
+  imagenUrl: string | null;
   proveedor: { id: number; nombre: string } | null;
 };
 
@@ -19,7 +22,10 @@ export type LineaOrden = {
   unidad: string;
   precio: number;
   cantidad: number;
-  proveedor: string;
+  /** Proveedor elegido para este renglón. Vacío = el material no tiene
+   *  proveedor asignado y hay que escogerlo en la columna Proveedor. */
+  proveedorId: number | "";
+  imagenUrl: string | null;
 };
 
 type InicialOrden = {
@@ -29,16 +35,19 @@ type InicialOrden = {
   lineas: LineaOrden[];
 };
 
+type Proveedor = { id: number; nombre: string };
+
 type FormularioProps = {
   accion: (prev: EstadoForm, datos: FormData) => Promise<EstadoForm>;
   materiales: MaterialOrden[];
+  proveedores: Proveedor[];
   inicial?: InicialOrden;
   cancelarHref?: string;
   textoEnviar?: string;
 };
 
 function lineaVacia(): LineaOrden {
-  return { materialId: "", codigo: "", nombre: "", unidad: "", precio: 0, cantidad: 1, proveedor: "" };
+  return { materialId: "", codigo: "", nombre: "", unidad: "", precio: 0, cantidad: 1, proveedorId: "", imagenUrl: null };
 }
 
 function BotonEnviar({ texto }: { texto: string }) {
@@ -46,7 +55,7 @@ function BotonEnviar({ texto }: { texto: string }) {
   return <button className="btn" disabled={pending}>{pending ? "Enviando…" : texto}</button>;
 }
 
-export default function FormularioOrden({ accion, materiales, inicial, cancelarHref = "/ordenes", textoEnviar = "Enviar solicitud" }: FormularioProps) {
+export default function FormularioOrden({ accion, materiales, proveedores, inicial, cancelarHref = "/ordenes", textoEnviar = "Enviar solicitud" }: FormularioProps) {
   const [estado, envia] = useFormState(accion, { error: null });
   const [lineas, setLineas] = useState<LineaOrden[]>(inicial?.lineas || [lineaVacia()]);
 
@@ -57,7 +66,7 @@ export default function FormularioOrden({ accion, materiales, inicial, cancelarH
       const l = copia[i];
       const m = materiales.find((x) => x.id === nuevoId);
       if (!m) {
-        copia[i] = { ...l, materialId: "", codigo: "", nombre: "", unidad: "", proveedor: "" };
+        copia[i] = { ...l, materialId: "", codigo: "", nombre: "", unidad: "", proveedorId: "", imagenUrl: null };
         return copia;
       }
       copia[i] = {
@@ -67,8 +76,19 @@ export default function FormularioOrden({ accion, materiales, inicial, cancelarH
         nombre: m.nombre,
         unidad: m.unidad,
         precio: l.materialId === m.id ? l.precio : Number(m.precioUltimo),
-        proveedor: m.proveedor?.nombre || "—",
+        // Al cambiar de material se toma su proveedor; si no tiene, queda
+        // vacío y hay que elegirlo en la columna Proveedor.
+        proveedorId: l.materialId === m.id ? l.proveedorId : (m.proveedor?.id ?? ""),
+        imagenUrl: m.imagenUrl,
       };
+      return copia;
+    });
+  }
+
+  function cambiarProveedor(i: number, valor: string) {
+    setLineas((prev) => {
+      const copia = [...prev];
+      copia[i] = { ...copia[i], proveedorId: valor === "" ? "" : Number(valor) };
       return copia;
     });
   }
@@ -109,9 +129,11 @@ export default function FormularioOrden({ accion, materiales, inicial, cancelarH
       <div className="overflow-x-auto">
         <label className="block text-sm text-tinta2 mb-1.5 font-medium">Materiales</label>
         <p className="text-xs text-tinta2 mb-2">
-          Elige cada material de la lista; la unidad, el precio y el proveedor de la línea se llenan solos.
+          Elige cada material de la lista; la unidad y el precio se llenan solos. El proveedor se completa con el del material
+          y, si el material no tiene, escógelo en esa misma columna.
         </p>
-        <div className="grid gap-x-2 gap-y-1.5 mb-1.5" style={{ gridTemplateColumns: "minmax(230px, 2fr) 120px 1fr 64px 100px 34px", minWidth: 700 }}>
+        <div className="grid gap-x-2 gap-y-1.5 mb-1.5" style={{ gridTemplateColumns: "54px minmax(210px, 2fr) 120px 1fr 64px 100px 34px", minWidth: 760 }}>
+          <div className="text-xs text-tinta2 font-semibold">Imagen</div>
           <div className="text-xs text-tinta2 font-semibold">Material (código · producto)</div>
           <div className="text-xs text-tinta2 font-semibold">Unidad</div>
           <div className="text-xs text-tinta2 font-semibold">Proveedor</div>
@@ -120,6 +142,7 @@ export default function FormularioOrden({ accion, materiales, inicial, cancelarH
           <div></div>
           {lineas.map((l, i) => (
             <div key={i} className="contents">
+              <ImagenMaterial src={l.imagenUrl} alt={l.nombre || "Material elegido"} className="h-9 w-9" />
               <select
                 className="campo-input font-mono"
                 name="materialId"
@@ -128,13 +151,32 @@ export default function FormularioOrden({ accion, materiales, inicial, cancelarH
               >
                 <option value="">Elige un material…</option>
                 {materiales.map((m) => (
-                  <option key={m.id} value={m.id}>{m.codigo} · {m.nombre}</option>
+                  <option key={m.id} value={m.id}>
+                    {m.codigo} · {m.nombre}
+                    {m.variante ? ` — ${m.variante}` : ""}
+                  </option>
                 ))}
               </select>
               <input className="campo-input" placeholder="Unidad" value={l.unidad} readOnly tabIndex={-1} />
-              <input className="campo-input" placeholder="Proveedor" value={l.proveedor} readOnly tabIndex={-1} />
+              <select
+                className="campo-input"
+                name="proveedorId"
+                value={l.proveedorId === "" ? "" : String(l.proveedorId)}
+                onChange={(e) => cambiarProveedor(i, e.target.value)}
+                required={l.materialId !== "" && l.proveedorId === ""}
+              >
+                <option value="">Elige proveedor…</option>
+                {proveedores.map((p) => <option key={p.id} value={p.id}>{p.nombre}</option>)}
+              </select>
               <input className="campo-input text-right" type="number" name="cantidad" min={1} value={l.cantidad} onChange={(e) => actualizarLinea(i, "cantidad", Number(e.target.value))} />
-              <input className="campo-input text-right" type="number" name="precio" min={0} step="0.01" value={l.precio} onChange={(e) => actualizarLinea(i, "precio", Number(e.target.value))} />
+              {/* Sin precio registrado (sin material o en 0) el campo queda en
+                  blanco para que el placeholder explique qué va ahí. */}
+              <input
+                className="campo-input text-right" type="number" name="precio" min={0} step="0.01"
+                value={l.materialId === "" || l.precio === 0 ? "" : l.precio}
+                placeholder="Precio unitario (L)"
+                onChange={(e) => actualizarLinea(i, "precio", Number(e.target.value))}
+              />
               <button type="button" onClick={() => quitar(i)} className="border border-borde text-rojo rounded-lg h-9" aria-label="Quitar">×</button>
             </div>
           ))}

@@ -1,0 +1,1932 @@
+{
+ "respaldadoEn": "2026-09-22T19:41:34.714Z",
+ "usuarios": [
+  {
+   "id": 3,
+   "usuario": "stefano ponce",
+   "claveHash": "$2a$10$SULhyzLqrB5uIotJiTKBv.lFDtu4FlGXsFDObcxvjWK4Sc4b8G7Ly",
+   "nombre": "Stefano Abener Ponce Menjivar",
+   "correo": null,
+   "rol": "responsable_solicitante",
+   "activo": true,
+   "ultimoIngreso": "2026-09-18T20:53:24.226Z",
+   "creadoEn": "2026-09-18T15:48:21.263Z"
+  },
+  {
+   "id": 1,
+   "usuario": "admin",
+   "claveHash": "$2a$10$51MpDl1AGW0zMRdwThCn1upq.4isLqVo7p5Sn6.zhTcqv1V6OG8DC",
+   "nombre": "Nubia Cuellar",
+   "correo": null,
+   "rol": "administrador",
+   "activo": true,
+   "ultimoIngreso": "2026-09-22T19:26:19.682Z",
+   "creadoEn": "2026-09-17T19:04:12.163Z"
+  },
+  {
+   "id": 5,
+   "usuario": "subadmin",
+   "claveHash": "$2a$10$V9V95GXLLiuDFfztADq0Iu.Lfjpwo7u2md5EZWE34yAfV0HWFF5Ja",
+   "nombre": "Sub Administrador de compras",
+   "correo": null,
+   "rol": "sub_administrador",
+   "activo": true,
+   "ultimoIngreso": "2026-09-22T19:26:20.318Z",
+   "creadoEn": "2026-09-22T19:23:58.215Z"
+  },
+  {
+   "id": 6,
+   "usuario": "jefe",
+   "claveHash": "$2a$10$V9V95GXLLiuDFfztADq0Iu.Lfjpwo7u2md5EZWE34yAfV0HWFF5Ja",
+   "nombre": "Jefe inmediato",
+   "correo": null,
+   "rol": "jefe_inmediato",
+   "activo": true,
+   "ultimoIngreso": "2026-09-22T19:26:20.703Z",
+   "creadoEn": "2026-09-22T19:23:58.770Z"
+  },
+  {
+   "id": 2,
+   "usuario": "compras",
+   "claveHash": "$2a$10$9dXlnkgxfOdQ6GKCd4jPf.sAL0K8TWQK4Zbsl5KY93krwBSQOaSza",
+   "nombre": "Encargado de compras",
+   "correo": null,
+   "rol": "responsable_solicitante",
+   "activo": true,
+   "ultimoIngreso": "2026-09-22T19:26:21.110Z",
+   "creadoEn": "2026-09-17T19:04:12.983Z"
+  }
+ ],
+ "proveedores": [
+  {
+   "id": 2,
+   "nombre": "Papelería y Suministros El Progreso",
+   "rtn": "0801200567890",
+   "contacto": "Luis Zelaya",
+   "telefono": "2661-3344",
+   "correo": "info@papeleriaprogreso.hn",
+   "direccion": "Barrio El Centro",
+   "activo": true,
+   "creadoEn": "2026-09-17T19:04:14.315Z"
+  },
+  {
+   "id": 3,
+   "nombre": "Ferretería La Constructora",
+   "rtn": "0401198834567",
+   "contacto": "Óscar Rivera",
+   "telefono": "2662-7788",
+   "correo": "ventas@laconstructora.hn",
+   "direccion": "Carretera a San Pedro",
+   "activo": true,
+   "creadoEn": "2026-09-17T19:04:14.825Z"
+  },
+  {
+   "id": 1,
+   "nombre": "Distribuidora Médica de Occidente",
+   "rtn": "0501199012345",
+   "contacto": "Marta Fernández",
+   "telefono": "2662-1010",
+   "correo": "ventas@dimeoccidente.hn",
+   "direccion": "Santa Rosa de Copán",
+   "activo": false,
+   "creadoEn": "2026-09-17T19:04:13.495Z"
+  },
+  {
+   "id": 4,
+   "nombre": "Distribuidor de madera",
+   "rtn": "08231-234021",
+   "contacto": "Manuel Sanchez",
+   "telefono": "3121-2314",
+   "correo": "maderas@gmail.com",
+   "direccion": "Santa Rosa de Copan",
+   "activo": true,
+   "creadoEn": "2026-09-18T16:05:45.275Z"
+  }
+ ],
+ "materiales": [
+  {
+   "id": 5,
+   "codigo": "OFI-002",
+   "nombre": "Tóner impresora láser negro",
+   "categoria": "Papelería",
+   "unidad": "Unidad",
+   "existencia": 3,
+   "minimo": 2,
+   "precioUltimo": "1450",
+   "activo": true,
+   "creadoEn": "2026-09-17T19:04:17.553Z",
+   "imagenUrl": null,
+   "proveedorId": 2
+  },
+  {
+   "id": 2,
+   "codigo": "MED-002",
+   "nombre": "Mascarilla quirúrgica tricapa",
+   "categoria": "Insumo médico",
+   "unidad": "Caja de 50",
+   "existencia": 14,
+   "minimo": 25,
+   "precioUltimo": "95",
+   "activo": true,
+   "creadoEn": "2026-09-17T19:04:16.156Z",
+   "imagenUrl": null,
+   "proveedorId": 1
+  },
+  {
+   "id": 3,
+   "codigo": "MED-003",
+   "nombre": "Alcohol en gel 1 litro",
+   "categoria": "Insumo médico",
+   "unidad": "Unidad",
+   "existencia": 42,
+   "minimo": 15,
+   "precioUltimo": "65",
+   "activo": true,
+   "creadoEn": "2026-09-17T19:04:16.649Z",
+   "imagenUrl": null,
+   "proveedorId": 1
+  },
+  {
+   "id": 1,
+   "codigo": "MED-001",
+   "nombre": "Guantes de látex talla M",
+   "categoria": "Insumo médico",
+   "unidad": "Caja de 100",
+   "existencia": 26,
+   "minimo": 20,
+   "precioUltimo": "180",
+   "activo": true,
+   "creadoEn": "2026-09-17T19:04:15.338Z",
+   "imagenUrl": null,
+   "proveedorId": 1
+  },
+  {
+   "id": 7,
+   "codigo": "FER-002",
+   "nombre": "Pintura de aceite blanco",
+   "categoria": "Mantenimiento",
+   "unidad": "Galón",
+   "existencia": 7,
+   "minimo": 6,
+   "precioUltimo": "520",
+   "activo": true,
+   "creadoEn": "2026-09-17T19:04:18.491Z",
+   "imagenUrl": "https://mideuniedorbncxwclwm.supabase.co/storage/v1/object/public/materiales/material-1790096677189-q99851.jpg",
+   "proveedorId": 3
+  },
+  {
+   "id": 6,
+   "codigo": "FER-001",
+   "nombre": "Bombillo LED 12W",
+   "categoria": "Mantenimiento",
+   "unidad": "Unidad",
+   "existencia": 34,
+   "minimo": 12,
+   "precioUltimo": "65",
+   "activo": true,
+   "creadoEn": "2026-09-17T19:04:18.001Z",
+   "imagenUrl": null,
+   "proveedorId": 3
+  },
+  {
+   "id": 4,
+   "codigo": "OFI-001",
+   "nombre": "Resma de papel bond carta",
+   "categoria": "Papelería",
+   "unidad": "Resma",
+   "existencia": 11,
+   "minimo": 10,
+   "precioUltimo": "120",
+   "activo": true,
+   "creadoEn": "2026-09-17T19:04:17.123Z",
+   "imagenUrl": null,
+   "proveedorId": 2
+  }
+ ],
+ "ordenes": [
+  {
+   "id": 1,
+   "folio": "OC-2026-0001",
+   "fecha": "2026-09-17T20:39:55.458Z",
+   "dependencia": null,
+   "lugar": null,
+   "justificacion": "nECESIDAD",
+   "estado": "Rechazada",
+   "total": "129.96",
+   "fechaRevision": "2026-09-18T13:50:47.320Z",
+   "fechaRecepcion": null,
+   "comentario": "porque no se necesita el producto realmente",
+   "creadoEn": "2026-09-17T20:39:55.458Z",
+   "proveedorId": 1,
+   "solicitanteId": 1,
+   "revisorId": 1,
+   "recibidoPorId": null,
+   "items": [
+    {
+     "id": 1,
+     "cantidad": 2,
+     "precio": "64.98",
+     "ordenId": 1,
+     "materialId": 6
+    }
+   ]
+  },
+  {
+   "id": 2,
+   "folio": "OC-2026-0002",
+   "fecha": "2026-09-18T14:07:02.552Z",
+   "dependencia": null,
+   "lugar": null,
+   "justificacion": "",
+   "estado": "Pendiente",
+   "total": "2130",
+   "fechaRevision": null,
+   "fechaRecepcion": null,
+   "comentario": null,
+   "creadoEn": "2026-09-18T14:07:02.552Z",
+   "proveedorId": 1,
+   "solicitanteId": 1,
+   "revisorId": null,
+   "recibidoPorId": null,
+   "items": [
+    {
+     "id": 2,
+     "cantidad": 1,
+     "precio": "520",
+     "ordenId": 2,
+     "materialId": 5
+    },
+    {
+     "id": 3,
+     "cantidad": 1,
+     "precio": "65",
+     "ordenId": 2,
+     "materialId": 6
+    },
+    {
+     "id": 4,
+     "cantidad": 1,
+     "precio": "95",
+     "ordenId": 2,
+     "materialId": 2
+    },
+    {
+     "id": 5,
+     "cantidad": 1,
+     "precio": "1450",
+     "ordenId": 2,
+     "materialId": 5
+    }
+   ]
+  },
+  {
+   "id": 3,
+   "folio": "OC-2026-0003",
+   "fecha": "2026-09-18T14:07:08.150Z",
+   "dependencia": null,
+   "lugar": null,
+   "justificacion": "",
+   "estado": "Rechazada",
+   "total": "2130",
+   "fechaRevision": "2026-09-18T14:12:43.658Z",
+   "fechaRecepcion": null,
+   "comentario": "no",
+   "creadoEn": "2026-09-18T14:07:08.150Z",
+   "proveedorId": 1,
+   "solicitanteId": 1,
+   "revisorId": 1,
+   "recibidoPorId": null,
+   "items": [
+    {
+     "id": 6,
+     "cantidad": 1,
+     "precio": "520",
+     "ordenId": 3,
+     "materialId": 5
+    },
+    {
+     "id": 7,
+     "cantidad": 1,
+     "precio": "65",
+     "ordenId": 3,
+     "materialId": 6
+    },
+    {
+     "id": 8,
+     "cantidad": 1,
+     "precio": "95",
+     "ordenId": 3,
+     "materialId": 2
+    },
+    {
+     "id": 9,
+     "cantidad": 1,
+     "precio": "1450",
+     "ordenId": 3,
+     "materialId": 5
+    }
+   ]
+  },
+  {
+   "id": 5,
+   "folio": "OC-2026-0005",
+   "fecha": "2026-09-18T14:15:19.324Z",
+   "dependencia": null,
+   "lugar": null,
+   "justificacion": "se necesita",
+   "estado": "Pendiente",
+   "total": "65",
+   "fechaRevision": null,
+   "fechaRecepcion": null,
+   "comentario": null,
+   "creadoEn": "2026-09-18T14:15:19.324Z",
+   "proveedorId": 1,
+   "solicitanteId": 1,
+   "revisorId": null,
+   "recibidoPorId": null,
+   "items": [
+    {
+     "id": 11,
+     "cantidad": 1,
+     "precio": "65",
+     "ordenId": 5,
+     "materialId": 6
+    }
+   ]
+  },
+  {
+   "id": 6,
+   "folio": "OC-2026-0006",
+   "fecha": "2026-09-18T14:16:19.977Z",
+   "dependencia": null,
+   "lugar": null,
+   "justificacion": "",
+   "estado": "Pendiente",
+   "total": "520",
+   "fechaRevision": null,
+   "fechaRecepcion": null,
+   "comentario": null,
+   "creadoEn": "2026-09-18T14:16:19.977Z",
+   "proveedorId": 3,
+   "solicitanteId": 2,
+   "revisorId": null,
+   "recibidoPorId": null,
+   "items": [
+    {
+     "id": 12,
+     "cantidad": 1,
+     "precio": "520",
+     "ordenId": 6,
+     "materialId": 7
+    }
+   ]
+  },
+  {
+   "id": 8,
+   "folio": "OC-2026-0008",
+   "fecha": "2026-09-18T14:17:44.326Z",
+   "dependencia": null,
+   "lugar": null,
+   "justificacion": "",
+   "estado": "Recibida",
+   "total": "95",
+   "fechaRevision": "2026-09-18T14:18:17.653Z",
+   "fechaRecepcion": null,
+   "comentario": "",
+   "creadoEn": "2026-09-18T14:17:44.326Z",
+   "proveedorId": 1,
+   "solicitanteId": 2,
+   "revisorId": 1,
+   "recibidoPorId": null,
+   "items": [
+    {
+     "id": 14,
+     "cantidad": 1,
+     "precio": "95",
+     "ordenId": 8,
+     "materialId": 2
+    }
+   ]
+  },
+  {
+   "id": 7,
+   "folio": "OC-2026-0007",
+   "fecha": "2026-09-18T14:16:20.962Z",
+   "dependencia": null,
+   "lugar": null,
+   "justificacion": "",
+   "estado": "Aprobada",
+   "total": "520",
+   "fechaRevision": "2026-09-18T14:19:48.287Z",
+   "fechaRecepcion": null,
+   "comentario": "",
+   "creadoEn": "2026-09-18T14:16:20.962Z",
+   "proveedorId": 3,
+   "solicitanteId": 2,
+   "revisorId": 1,
+   "recibidoPorId": null,
+   "items": [
+    {
+     "id": 13,
+     "cantidad": 1,
+     "precio": "520",
+     "ordenId": 7,
+     "materialId": 7
+    }
+   ]
+  },
+  {
+   "id": 9,
+   "folio": "OC-2026-0009",
+   "fecha": "2026-09-18T14:23:14.261Z",
+   "dependencia": null,
+   "lugar": null,
+   "justificacion": "porque casi no hay",
+   "estado": "Recibida",
+   "total": "360",
+   "fechaRevision": "2026-09-18T14:23:51.967Z",
+   "fechaRecepcion": null,
+   "comentario": "Esta aceptado porque eh visto que si se necesita",
+   "creadoEn": "2026-09-18T14:23:14.261Z",
+   "proveedorId": 3,
+   "solicitanteId": 2,
+   "revisorId": 1,
+   "recibidoPorId": null,
+   "items": [
+    {
+     "id": 15,
+     "cantidad": 3,
+     "precio": "120",
+     "ordenId": 9,
+     "materialId": 4
+    }
+   ]
+  },
+  {
+   "id": 10,
+   "folio": "OC-2026-0010",
+   "fecha": "2026-09-18T19:39:05.114Z",
+   "dependencia": "Servicio de salud",
+   "lugar": "Santa Rosa de copan",
+   "justificacion": "se necesita",
+   "estado": "Aprobada",
+   "total": "95",
+   "fechaRevision": "2026-09-18T19:54:48.494Z",
+   "fechaRecepcion": null,
+   "comentario": "",
+   "creadoEn": "2026-09-18T19:39:05.114Z",
+   "proveedorId": 2,
+   "solicitanteId": 1,
+   "revisorId": 1,
+   "recibidoPorId": null,
+   "items": [
+    {
+     "id": 16,
+     "cantidad": 1,
+     "precio": "95",
+     "ordenId": 10,
+     "materialId": 2
+    }
+   ]
+  },
+  {
+   "id": 11,
+   "folio": "OC-2026-0011",
+   "fecha": "2026-09-18T20:55:27.988Z",
+   "dependencia": "Mantenimiento",
+   "lugar": "Santa Rosa de Copan",
+   "justificacion": "",
+   "estado": "Recibida",
+   "total": "650",
+   "fechaRevision": "2026-09-18T20:56:39.877Z",
+   "fechaRecepcion": null,
+   "comentario": "",
+   "creadoEn": "2026-09-18T20:55:27.988Z",
+   "proveedorId": 4,
+   "solicitanteId": 3,
+   "revisorId": 1,
+   "recibidoPorId": null,
+   "items": [
+    {
+     "id": 17,
+     "cantidad": 1,
+     "precio": "65",
+     "ordenId": 11,
+     "materialId": 6
+    },
+    {
+     "id": 18,
+     "cantidad": 1,
+     "precio": "520",
+     "ordenId": 11,
+     "materialId": 7
+    },
+    {
+     "id": 19,
+     "cantidad": 1,
+     "precio": "65",
+     "ordenId": 11,
+     "materialId": 3
+    }
+   ]
+  },
+  {
+   "id": 12,
+   "folio": "OC-2026-0012",
+   "fecha": "2026-09-21T16:07:35.287Z",
+   "dependencia": "Mantenimiento y servicio de salud",
+   "lugar": "Santa Rosa de Copan",
+   "justificacion": "se necesita",
+   "estado": "Recibida",
+   "total": "615",
+   "fechaRevision": "2026-09-21T16:08:57.120Z",
+   "fechaRecepcion": null,
+   "comentario": "",
+   "creadoEn": "2026-09-21T16:07:35.287Z",
+   "proveedorId": 3,
+   "solicitanteId": 1,
+   "revisorId": 1,
+   "recibidoPorId": null,
+   "items": [
+    {
+     "id": 20,
+     "cantidad": 1,
+     "precio": "520",
+     "ordenId": 12,
+     "materialId": 7
+    },
+    {
+     "id": 21,
+     "cantidad": 1,
+     "precio": "95",
+     "ordenId": 12,
+     "materialId": 2
+    }
+   ]
+  },
+  {
+   "id": 13,
+   "folio": "OC-2026-0013",
+   "fecha": "2026-09-21T18:37:43.609Z",
+   "dependencia": "Mantenimiento y servicio de salud",
+   "lugar": "Santa Rosa de Copan",
+   "justificacion": "Falta de producto",
+   "estado": "Aprobada",
+   "total": "1725",
+   "fechaRevision": "2026-09-21T18:37:54.480Z",
+   "fechaRecepcion": null,
+   "comentario": "",
+   "creadoEn": "2026-09-21T18:37:43.609Z",
+   "proveedorId": 2,
+   "solicitanteId": 1,
+   "revisorId": 1,
+   "recibidoPorId": null,
+   "items": [
+    {
+     "id": 22,
+     "cantidad": 1,
+     "precio": "180",
+     "ordenId": 13,
+     "materialId": 1
+    },
+    {
+     "id": 23,
+     "cantidad": 1,
+     "precio": "95",
+     "ordenId": 13,
+     "materialId": 2
+    },
+    {
+     "id": 24,
+     "cantidad": 1,
+     "precio": "1450",
+     "ordenId": 13,
+     "materialId": 5
+    }
+   ]
+  },
+  {
+   "id": 14,
+   "folio": "OC-2026-0014",
+   "fecha": "2026-09-21T20:04:27.072Z",
+   "dependencia": "Mantenimiento y servicio de salud",
+   "lugar": "Santa Rosa de Copan",
+   "justificacion": "",
+   "estado": "Rechazada",
+   "total": "180",
+   "fechaRevision": "2026-09-21T20:04:51.152Z",
+   "fechaRecepcion": null,
+   "comentario": "No me convence el precio",
+   "creadoEn": "2026-09-21T20:04:27.072Z",
+   "proveedorId": 4,
+   "solicitanteId": 1,
+   "revisorId": 1,
+   "recibidoPorId": null,
+   "items": [
+    {
+     "id": 25,
+     "cantidad": 1,
+     "precio": "180",
+     "ordenId": 14,
+     "materialId": 1
+    }
+   ]
+  },
+  {
+   "id": 15,
+   "folio": "OC-2026-0015",
+   "fecha": "2026-09-21T20:44:03.837Z",
+   "dependencia": "Servicios",
+   "lugar": "Santa Rosa de Copan",
+   "justificacion": "se necestia producto",
+   "estado": "Recibida",
+   "total": "245",
+   "fechaRevision": "2026-09-21T20:45:34.709Z",
+   "fechaRecepcion": null,
+   "comentario": "",
+   "creadoEn": "2026-09-21T20:44:03.837Z",
+   "proveedorId": 2,
+   "solicitanteId": 1,
+   "revisorId": 1,
+   "recibidoPorId": null,
+   "items": [
+    {
+     "id": 26,
+     "cantidad": 1,
+     "precio": "65",
+     "ordenId": 15,
+     "materialId": 6
+    },
+    {
+     "id": 27,
+     "cantidad": 1,
+     "precio": "180",
+     "ordenId": 15,
+     "materialId": 1
+    }
+   ]
+  },
+  {
+   "id": 4,
+   "folio": "OC-2026-0004",
+   "fecha": "2026-09-18T14:08:18.059Z",
+   "dependencia": "Servicios",
+   "lugar": "Santa Rosa de Copan",
+   "justificacion": "",
+   "estado": "Pendiente",
+   "total": "275",
+   "fechaRevision": null,
+   "fechaRecepcion": null,
+   "comentario": null,
+   "creadoEn": "2026-09-18T14:08:18.059Z",
+   "proveedorId": 1,
+   "solicitanteId": 2,
+   "revisorId": null,
+   "recibidoPorId": null,
+   "items": [
+    {
+     "id": 28,
+     "cantidad": 1,
+     "precio": "180",
+     "ordenId": 4,
+     "materialId": 1
+    },
+    {
+     "id": 29,
+     "cantidad": 1,
+     "precio": "95",
+     "ordenId": 4,
+     "materialId": 2
+    }
+   ]
+  },
+  {
+   "id": 16,
+   "folio": "OC-2026-0016",
+   "fecha": "2026-09-22T06:04:33.517Z",
+   "dependencia": "servicios",
+   "lugar": "santa Rosa",
+   "justificacion": "",
+   "estado": "Recibida",
+   "total": "130",
+   "fechaRevision": "2026-09-22T06:30:54.903Z",
+   "fechaRecepcion": "2026-09-22T06:31:25.388Z",
+   "comentario": "",
+   "creadoEn": "2026-09-22T06:04:33.517Z",
+   "proveedorId": 3,
+   "solicitanteId": 1,
+   "revisorId": 1,
+   "recibidoPorId": 1,
+   "items": [
+    {
+     "id": 30,
+     "cantidad": 1,
+     "precio": "65",
+     "ordenId": 16,
+     "materialId": 6
+    },
+    {
+     "id": 31,
+     "cantidad": 1,
+     "precio": "65",
+     "ordenId": 16,
+     "materialId": 3
+    }
+   ]
+  },
+  {
+   "id": 17,
+   "folio": "OC-2026-0017",
+   "fecha": "2026-09-22T06:36:10.763Z",
+   "dependencia": "servicios de salud y mantenimiento",
+   "lugar": "Santa Rosa de Copan",
+   "justificacion": "",
+   "estado": "Recibida",
+   "total": "245",
+   "fechaRevision": "2026-09-22T06:36:48.783Z",
+   "fechaRecepcion": "2026-09-22T06:37:05.524Z",
+   "comentario": "",
+   "creadoEn": "2026-09-22T06:36:10.763Z",
+   "proveedorId": 3,
+   "solicitanteId": 1,
+   "revisorId": 1,
+   "recibidoPorId": 1,
+   "items": [
+    {
+     "id": 32,
+     "cantidad": 1,
+     "precio": "65",
+     "ordenId": 17,
+     "materialId": 6
+    },
+    {
+     "id": 33,
+     "cantidad": 1,
+     "precio": "180",
+     "ordenId": 17,
+     "materialId": 1
+    }
+   ]
+  },
+  {
+   "id": 18,
+   "folio": "OC-2026-0018",
+   "fecha": "2026-09-22T17:05:32.241Z",
+   "dependencia": "Salud",
+   "lugar": "Santa",
+   "justificacion": "",
+   "estado": "Pendiente",
+   "total": "65",
+   "fechaRevision": null,
+   "fechaRecepcion": null,
+   "comentario": null,
+   "creadoEn": "2026-09-22T17:05:32.241Z",
+   "proveedorId": 3,
+   "solicitanteId": 1,
+   "revisorId": null,
+   "recibidoPorId": null,
+   "items": [
+    {
+     "id": 34,
+     "cantidad": 1,
+     "precio": "65",
+     "ordenId": 18,
+     "materialId": 6
+    }
+   ]
+  }
+ ],
+ "descargos": [],
+ "movimientos": [
+  {
+   "id": 1,
+   "fecha": "2026-09-17T19:06:22.427Z",
+   "usuarioTxt": "Administrador del sistema",
+   "rolTxt": "administrador",
+   "modulo": "Sesión",
+   "accion": "Inicio de sesión",
+   "detalle": "Entró al sistema como administrador",
+   "usuarioId": 1
+  },
+  {
+   "id": 2,
+   "fecha": "2026-09-17T19:10:06.284Z",
+   "usuarioTxt": "Administrador del sistema",
+   "rolTxt": "administrador",
+   "modulo": "Sesión",
+   "accion": "Inicio de sesión",
+   "detalle": "Entró al sistema como administrador",
+   "usuarioId": 1
+  },
+  {
+   "id": 3,
+   "fecha": "2026-09-17T20:36:41.657Z",
+   "usuarioTxt": "Encargado de compras",
+   "rolTxt": "usuario",
+   "modulo": "Sesión",
+   "accion": "Inicio de sesión",
+   "detalle": "Entró al sistema como usuario",
+   "usuarioId": 2
+  },
+  {
+   "id": 4,
+   "fecha": "2026-09-17T20:38:57.213Z",
+   "usuarioTxt": "Administrador del sistema",
+   "rolTxt": "administrador",
+   "modulo": "Sesión",
+   "accion": "Inicio de sesión",
+   "detalle": "Entró al sistema como administrador",
+   "usuarioId": 1
+  },
+  {
+   "id": 5,
+   "fecha": "2026-09-17T20:39:56.625Z",
+   "usuarioTxt": "Administrador del sistema",
+   "rolTxt": "administrador",
+   "modulo": "Órdenes",
+   "accion": "Creó orden",
+   "detalle": "OC-2026-0001 por L 129.96 (1 material(es))",
+   "usuarioId": 1
+  },
+  {
+   "id": 6,
+   "fecha": "2026-09-18T13:49:49.769Z",
+   "usuarioTxt": "Administrador del sistema",
+   "rolTxt": "administrador",
+   "modulo": "Sesión",
+   "accion": "Inicio de sesión",
+   "detalle": "Entró al sistema como administrador",
+   "usuarioId": 1
+  },
+  {
+   "id": 7,
+   "fecha": "2026-09-18T13:50:47.646Z",
+   "usuarioTxt": "Administrador del sistema",
+   "rolTxt": "administrador",
+   "modulo": "Órdenes",
+   "accion": "Rechazó orden",
+   "detalle": "OC-2026-0001 por L 129.96 — porque no se necesita el producto realmente",
+   "usuarioId": 1
+  },
+  {
+   "id": 8,
+   "fecha": "2026-09-18T14:07:03.370Z",
+   "usuarioTxt": "Administrador del sistema",
+   "rolTxt": "administrador",
+   "modulo": "Órdenes",
+   "accion": "Creó orden",
+   "detalle": "OC-2026-0002 por L 2,130.00 (4 material(es))",
+   "usuarioId": 1
+  },
+  {
+   "id": 9,
+   "fecha": "2026-09-18T14:07:08.886Z",
+   "usuarioTxt": "Administrador del sistema",
+   "rolTxt": "administrador",
+   "modulo": "Órdenes",
+   "accion": "Creó orden",
+   "detalle": "OC-2026-0003 por L 2,130.00 (4 material(es))",
+   "usuarioId": 1
+  },
+  {
+   "id": 10,
+   "fecha": "2026-09-18T14:07:50.921Z",
+   "usuarioTxt": "Encargado de compras",
+   "rolTxt": "usuario",
+   "modulo": "Sesión",
+   "accion": "Inicio de sesión",
+   "detalle": "Entró al sistema como usuario",
+   "usuarioId": 2
+  },
+  {
+   "id": 11,
+   "fecha": "2026-09-18T14:08:18.777Z",
+   "usuarioTxt": "Encargado de compras",
+   "rolTxt": "usuario",
+   "modulo": "Órdenes",
+   "accion": "Creó orden",
+   "detalle": "OC-2026-0004 por L 180.00 (1 material(es))",
+   "usuarioId": 2
+  },
+  {
+   "id": 12,
+   "fecha": "2026-09-18T14:11:36.551Z",
+   "usuarioTxt": "Administrador del sistema",
+   "rolTxt": "administrador",
+   "modulo": "Sesión",
+   "accion": "Inicio de sesión",
+   "detalle": "Entró al sistema como administrador",
+   "usuarioId": 1
+  },
+  {
+   "id": 13,
+   "fecha": "2026-09-18T14:12:44.002Z",
+   "usuarioTxt": "Administrador del sistema",
+   "rolTxt": "administrador",
+   "modulo": "Órdenes",
+   "accion": "Rechazó orden",
+   "detalle": "OC-2026-0003 por L 2,130.00 — no",
+   "usuarioId": 1
+  },
+  {
+   "id": 14,
+   "fecha": "2026-09-18T14:13:12.014Z",
+   "usuarioTxt": "Encargado de compras",
+   "rolTxt": "usuario",
+   "modulo": "Sesión",
+   "accion": "Inicio de sesión",
+   "detalle": "Entró al sistema como usuario",
+   "usuarioId": 2
+  },
+  {
+   "id": 15,
+   "fecha": "2026-09-18T14:13:42.834Z",
+   "usuarioTxt": "Administrador del sistema",
+   "rolTxt": "administrador",
+   "modulo": "Órdenes",
+   "accion": "Rechazó orden",
+   "detalle": "OC-2026-0004 por L 180.00 — .",
+   "usuarioId": 1
+  },
+  {
+   "id": 16,
+   "fecha": "2026-09-18T14:15:19.951Z",
+   "usuarioTxt": "Administrador del sistema",
+   "rolTxt": "administrador",
+   "modulo": "Órdenes",
+   "accion": "Creó orden",
+   "detalle": "OC-2026-0005 por L 65.00 (1 material(es))",
+   "usuarioId": 1
+  },
+  {
+   "id": 17,
+   "fecha": "2026-09-18T14:16:20.677Z",
+   "usuarioTxt": "Encargado de compras",
+   "rolTxt": "usuario",
+   "modulo": "Órdenes",
+   "accion": "Creó orden",
+   "detalle": "OC-2026-0006 por L 520.00 (1 material(es))",
+   "usuarioId": 2
+  },
+  {
+   "id": 18,
+   "fecha": "2026-09-18T14:16:21.386Z",
+   "usuarioTxt": "Encargado de compras",
+   "rolTxt": "usuario",
+   "modulo": "Órdenes",
+   "accion": "Creó orden",
+   "detalle": "OC-2026-0007 por L 520.00 (1 material(es))",
+   "usuarioId": 2
+  },
+  {
+   "id": 19,
+   "fecha": "2026-09-18T14:17:44.745Z",
+   "usuarioTxt": "Encargado de compras",
+   "rolTxt": "usuario",
+   "modulo": "Órdenes",
+   "accion": "Creó orden",
+   "detalle": "OC-2026-0008 por L 95.00 (1 material(es))",
+   "usuarioId": 2
+  },
+  {
+   "id": 20,
+   "fecha": "2026-09-18T14:18:18.514Z",
+   "usuarioTxt": "Administrador del sistema",
+   "rolTxt": "administrador",
+   "modulo": "Órdenes",
+   "accion": "Aprobó orden",
+   "detalle": "OC-2026-0008 por L 95.00",
+   "usuarioId": 1
+  },
+  {
+   "id": 21,
+   "fecha": "2026-09-18T14:18:25.088Z",
+   "usuarioTxt": "Administrador del sistema",
+   "rolTxt": "administrador",
+   "modulo": "Inventario",
+   "accion": "Recibió materiales",
+   "detalle": "OC-2026-0008 — se sumaron 1 material(es) a la existencia",
+   "usuarioId": 1
+  },
+  {
+   "id": 22,
+   "fecha": "2026-09-18T14:19:48.584Z",
+   "usuarioTxt": "Administrador del sistema",
+   "rolTxt": "administrador",
+   "modulo": "Órdenes",
+   "accion": "Aprobó orden",
+   "detalle": "OC-2026-0007 por L 520.00",
+   "usuarioId": 1
+  },
+  {
+   "id": 23,
+   "fecha": "2026-09-18T14:23:14.927Z",
+   "usuarioTxt": "Encargado de compras",
+   "rolTxt": "usuario",
+   "modulo": "Órdenes",
+   "accion": "Creó orden",
+   "detalle": "OC-2026-0009 por L 360.00 (1 material(es))",
+   "usuarioId": 2
+  },
+  {
+   "id": 24,
+   "fecha": "2026-09-18T14:23:52.317Z",
+   "usuarioTxt": "Administrador del sistema",
+   "rolTxt": "administrador",
+   "modulo": "Órdenes",
+   "accion": "Aprobó orden",
+   "detalle": "OC-2026-0009 por L 360.00 — Esta aceptado porque eh visto que si se necesita",
+   "usuarioId": 1
+  },
+  {
+   "id": 25,
+   "fecha": "2026-09-18T14:24:47.460Z",
+   "usuarioTxt": "Administrador del sistema",
+   "rolTxt": "administrador",
+   "modulo": "Inventario",
+   "accion": "Recibió materiales",
+   "detalle": "OC-2026-0009 — se sumaron 1 material(es) a la existencia",
+   "usuarioId": 1
+  },
+  {
+   "id": 26,
+   "fecha": "2026-09-18T14:29:47.051Z",
+   "usuarioTxt": "Administrador del sistema",
+   "rolTxt": "administrador",
+   "modulo": "Proveedores",
+   "accion": "Editó proveedor",
+   "detalle": "Distribuidora Médica de Occidente",
+   "usuarioId": 1
+  },
+  {
+   "id": 27,
+   "fecha": "2026-09-18T14:51:40.217Z",
+   "usuarioTxt": "Administrador del sistema",
+   "rolTxt": "administrador",
+   "modulo": "Sesión",
+   "accion": "Inicio de sesión",
+   "detalle": "Entró al sistema como administrador",
+   "usuarioId": 1
+  },
+  {
+   "id": 28,
+   "fecha": "2026-09-18T15:48:21.610Z",
+   "usuarioTxt": "Administrador del sistema",
+   "rolTxt": "administrador",
+   "modulo": "Usuarios",
+   "accion": "Creó usuario",
+   "detalle": "Stefano Abener Ponce Menjivar (stefano ponce) con rol usuario",
+   "usuarioId": 1
+  },
+  {
+   "id": 29,
+   "fecha": "2026-09-18T15:48:49.667Z",
+   "usuarioTxt": "Stefano Abener Ponce Menjivar",
+   "rolTxt": "usuario",
+   "modulo": "Sesión",
+   "accion": "Inicio de sesión",
+   "detalle": "Entró al sistema como usuario",
+   "usuarioId": 3
+  },
+  {
+   "id": 30,
+   "fecha": "2026-09-18T16:05:46.705Z",
+   "usuarioTxt": "Administrador del sistema",
+   "rolTxt": "administrador",
+   "modulo": "Proveedores",
+   "accion": "Registró proveedor",
+   "detalle": "Distribuidor de madera (RTN 08231-234021)",
+   "usuarioId": 1
+  },
+  {
+   "id": 31,
+   "fecha": "2026-09-18T16:06:24.391Z",
+   "usuarioTxt": "Administrador del sistema",
+   "rolTxt": "administrador",
+   "modulo": "Proveedores",
+   "accion": "Editó proveedor",
+   "detalle": "Distribuidor de madera",
+   "usuarioId": 1
+  },
+  {
+   "id": 32,
+   "fecha": "2026-09-18T16:12:53.448Z",
+   "usuarioTxt": "Administrador del sistema",
+   "rolTxt": "administrador",
+   "modulo": "Sesión",
+   "accion": "Inicio de sesión",
+   "detalle": "Entró al sistema como administrador",
+   "usuarioId": 1
+  },
+  {
+   "id": 33,
+   "fecha": "2026-09-18T16:16:24.353Z",
+   "usuarioTxt": "Administrador del sistema",
+   "rolTxt": "administrador",
+   "modulo": "Sesión",
+   "accion": "Inicio de sesión",
+   "detalle": "Entró al sistema como administrador",
+   "usuarioId": 1
+  },
+  {
+   "id": 34,
+   "fecha": "2026-09-18T17:01:49.000Z",
+   "usuarioTxt": "Stefano Abener Ponce Menjivar",
+   "rolTxt": "usuario",
+   "modulo": "Sesión",
+   "accion": "Inicio de sesión",
+   "detalle": "Entró al sistema como usuario",
+   "usuarioId": 3
+  },
+  {
+   "id": 35,
+   "fecha": "2026-09-18T17:18:52.630Z",
+   "usuarioTxt": "Administrador del sistema",
+   "rolTxt": "administrador",
+   "modulo": "Sesión",
+   "accion": "Inicio de sesión",
+   "detalle": "Entró al sistema como administrador",
+   "usuarioId": 1
+  },
+  {
+   "id": 36,
+   "fecha": "2026-09-18T19:00:20.904Z",
+   "usuarioTxt": "Administrador del sistema",
+   "rolTxt": "administrador",
+   "modulo": "Sesión",
+   "accion": "Inicio de sesión",
+   "detalle": "Entró al sistema como administrador",
+   "usuarioId": 1
+  },
+  {
+   "id": 37,
+   "fecha": "2026-09-18T19:08:16.673Z",
+   "usuarioTxt": "Administrador del sistema",
+   "rolTxt": "administrador",
+   "modulo": "Materiales",
+   "accion": "Registró material",
+   "detalle": "FER-003 — Taladro Electrico",
+   "usuarioId": 1
+  },
+  {
+   "id": 38,
+   "fecha": "2026-09-18T19:31:00.843Z",
+   "usuarioTxt": "Administrador del sistema",
+   "rolTxt": "administrador",
+   "modulo": "Materiales",
+   "accion": "Registró material",
+   "detalle": "FER-004 — Taladro Electrico",
+   "usuarioId": 1
+  },
+  {
+   "id": 39,
+   "fecha": "2026-09-18T19:31:29.091Z",
+   "usuarioTxt": "Administrador del sistema",
+   "rolTxt": "administrador",
+   "modulo": "Materiales",
+   "accion": "Eliminó material",
+   "detalle": "FER-004 — Taladro Electrico",
+   "usuarioId": 1
+  },
+  {
+   "id": 40,
+   "fecha": "2026-09-18T19:31:38.207Z",
+   "usuarioTxt": "Administrador del sistema",
+   "rolTxt": "administrador",
+   "modulo": "Materiales",
+   "accion": "Eliminó material",
+   "detalle": "FER-003 — Taladro Electrico",
+   "usuarioId": 1
+  },
+  {
+   "id": 41,
+   "fecha": "2026-09-18T19:33:11.266Z",
+   "usuarioTxt": "Administrador del sistema",
+   "rolTxt": "administrador",
+   "modulo": "Proveedores",
+   "accion": "Registró proveedor",
+   "detalle": "Distribuidora Médica de Occidente",
+   "usuarioId": 1
+  },
+  {
+   "id": 42,
+   "fecha": "2026-09-18T19:33:33.671Z",
+   "usuarioTxt": "Administrador del sistema",
+   "rolTxt": "administrador",
+   "modulo": "Proveedores",
+   "accion": "Eliminó proveedor",
+   "detalle": "Distribuidora Médica de Occidente",
+   "usuarioId": 1
+  },
+  {
+   "id": 43,
+   "fecha": "2026-09-18T19:39:05.971Z",
+   "usuarioTxt": "Administrador del sistema",
+   "rolTxt": "administrador",
+   "modulo": "Órdenes",
+   "accion": "Creó orden",
+   "detalle": "OC-2026-0010 por L 95.00 (1 material(es))",
+   "usuarioId": 1
+  },
+  {
+   "id": 44,
+   "fecha": "2026-09-18T19:54:48.919Z",
+   "usuarioTxt": "Administrador del sistema",
+   "rolTxt": "administrador",
+   "modulo": "Órdenes",
+   "accion": "Aprobó orden",
+   "detalle": "OC-2026-0010 por L 95.00",
+   "usuarioId": 1
+  },
+  {
+   "id": 45,
+   "fecha": "2026-09-18T20:07:49.121Z",
+   "usuarioTxt": "Administrador del sistema",
+   "rolTxt": "administrador",
+   "modulo": "Sesión",
+   "accion": "Inicio de sesión",
+   "detalle": "Entró al sistema como administrador",
+   "usuarioId": 1
+  },
+  {
+   "id": 46,
+   "fecha": "2026-09-18T20:53:24.666Z",
+   "usuarioTxt": "Stefano Abener Ponce Menjivar",
+   "rolTxt": "usuario",
+   "modulo": "Sesión",
+   "accion": "Inicio de sesión",
+   "detalle": "Entró al sistema como usuario",
+   "usuarioId": 3
+  },
+  {
+   "id": 47,
+   "fecha": "2026-09-18T20:55:29.011Z",
+   "usuarioTxt": "Stefano Abener Ponce Menjivar",
+   "rolTxt": "usuario",
+   "modulo": "Órdenes",
+   "accion": "Creó orden",
+   "detalle": "OC-2026-0011 por L 650.00 (3 material(es))",
+   "usuarioId": 3
+  },
+  {
+   "id": 48,
+   "fecha": "2026-09-18T20:56:12.634Z",
+   "usuarioTxt": "Administrador del sistema",
+   "rolTxt": "administrador",
+   "modulo": "Sesión",
+   "accion": "Inicio de sesión",
+   "detalle": "Entró al sistema como administrador",
+   "usuarioId": 1
+  },
+  {
+   "id": 49,
+   "fecha": "2026-09-18T20:56:40.282Z",
+   "usuarioTxt": "Administrador del sistema",
+   "rolTxt": "administrador",
+   "modulo": "Órdenes",
+   "accion": "Aprobó orden",
+   "detalle": "OC-2026-0011 por L 650.00",
+   "usuarioId": 1
+  },
+  {
+   "id": 50,
+   "fecha": "2026-09-18T21:10:35.049Z",
+   "usuarioTxt": "Administrador del sistema",
+   "rolTxt": "administrador",
+   "modulo": "Sesión",
+   "accion": "Inicio de sesión",
+   "detalle": "Entró al sistema como administrador",
+   "usuarioId": 1
+  },
+  {
+   "id": 51,
+   "fecha": "2026-09-18T21:27:19.903Z",
+   "usuarioTxt": "Administrador del sistema",
+   "rolTxt": "administrador",
+   "modulo": "Sesión",
+   "accion": "Inicio de sesión",
+   "detalle": "Entró al sistema como administrador",
+   "usuarioId": 1
+  },
+  {
+   "id": 52,
+   "fecha": "2026-09-18T21:44:08.909Z",
+   "usuarioTxt": "Administrador del sistema",
+   "rolTxt": "administrador",
+   "modulo": "Inventario",
+   "accion": "Recibió materiales",
+   "detalle": "OC-2026-0011 — se sumaron 3 material(es) a la existencia",
+   "usuarioId": 1
+  },
+  {
+   "id": 53,
+   "fecha": "2026-09-21T14:36:36.473Z",
+   "usuarioTxt": "Administrador del sistema",
+   "rolTxt": "administrador",
+   "modulo": "Sesión",
+   "accion": "Inicio de sesión",
+   "detalle": "Entró al sistema como administrador",
+   "usuarioId": 1
+  },
+  {
+   "id": 54,
+   "fecha": "2026-09-21T15:05:21.971Z",
+   "usuarioTxt": "Administrador del sistema",
+   "rolTxt": "administrador",
+   "modulo": "Sesión",
+   "accion": "Inicio de sesión",
+   "detalle": "Entró al sistema como administrador",
+   "usuarioId": 1
+  },
+  {
+   "id": 55,
+   "fecha": "2026-09-21T15:54:47.944Z",
+   "usuarioTxt": "Administrador del sistema",
+   "rolTxt": "administrador",
+   "modulo": "Sesión",
+   "accion": "Inicio de sesión",
+   "detalle": "Entró al sistema como administrador",
+   "usuarioId": 1
+  },
+  {
+   "id": 56,
+   "fecha": "2026-09-21T16:05:34.120Z",
+   "usuarioTxt": "Administrador del sistema",
+   "rolTxt": "administrador",
+   "modulo": "Sesión",
+   "accion": "Inicio de sesión",
+   "detalle": "Entró al sistema como administrador",
+   "usuarioId": 1
+  },
+  {
+   "id": 57,
+   "fecha": "2026-09-21T16:07:47.273Z",
+   "usuarioTxt": "Administrador del sistema",
+   "rolTxt": "administrador",
+   "modulo": "Órdenes",
+   "accion": "Creó orden",
+   "detalle": "OC-2026-0012 por L 615.00 (2 material(es))",
+   "usuarioId": 1
+  },
+  {
+   "id": 58,
+   "fecha": "2026-09-21T16:08:57.555Z",
+   "usuarioTxt": "Administrador del sistema",
+   "rolTxt": "administrador",
+   "modulo": "Órdenes",
+   "accion": "Aprobó orden",
+   "detalle": "OC-2026-0012 por L 615.00",
+   "usuarioId": 1
+  },
+  {
+   "id": 59,
+   "fecha": "2026-09-21T16:10:09.706Z",
+   "usuarioTxt": "Administrador del sistema",
+   "rolTxt": "administrador",
+   "modulo": "Inventario",
+   "accion": "Recibió materiales",
+   "detalle": "OC-2026-0012 — se sumaron 2 material(es) a la existencia",
+   "usuarioId": 1
+  },
+  {
+   "id": 60,
+   "fecha": "2026-09-21T16:11:42.422Z",
+   "usuarioTxt": "Administrador del sistema",
+   "rolTxt": "administrador",
+   "modulo": "Materiales",
+   "accion": "Registró material",
+   "detalle": "FER-004 — Martillo",
+   "usuarioId": 1
+  },
+  {
+   "id": 61,
+   "fecha": "2026-09-21T16:18:42.620Z",
+   "usuarioTxt": "Administrador del sistema",
+   "rolTxt": "administrador",
+   "modulo": "Usuarios",
+   "accion": "Desactivó usuario",
+   "detalle": "Encargado de compras (compras)",
+   "usuarioId": 1
+  },
+  {
+   "id": 62,
+   "fecha": "2026-09-21T16:19:48.652Z",
+   "usuarioTxt": "Administrador del sistema",
+   "rolTxt": "administrador",
+   "modulo": "Sesión",
+   "accion": "Inicio de sesión",
+   "detalle": "Entró al sistema como administrador",
+   "usuarioId": 1
+  },
+  {
+   "id": 63,
+   "fecha": "2026-09-21T16:19:55.396Z",
+   "usuarioTxt": "Administrador del sistema",
+   "rolTxt": "administrador",
+   "modulo": "Usuarios",
+   "accion": "Activó usuario",
+   "detalle": "Encargado de compras (compras)",
+   "usuarioId": 1
+  },
+  {
+   "id": 64,
+   "fecha": "2026-09-21T16:20:13.069Z",
+   "usuarioTxt": "Encargado de compras",
+   "rolTxt": "usuario",
+   "modulo": "Sesión",
+   "accion": "Inicio de sesión",
+   "detalle": "Entró al sistema como usuario",
+   "usuarioId": 2
+  },
+  {
+   "id": 65,
+   "fecha": "2026-09-21T18:32:23.469Z",
+   "usuarioTxt": "Administrador del sistema",
+   "rolTxt": "administrador",
+   "modulo": "Sesión",
+   "accion": "Inicio de sesión",
+   "detalle": "Entró al sistema como administrador",
+   "usuarioId": 1
+  },
+  {
+   "id": 66,
+   "fecha": "2026-09-21T18:37:44.430Z",
+   "usuarioTxt": "Administrador del sistema",
+   "rolTxt": "administrador",
+   "modulo": "Órdenes",
+   "accion": "Creó orden",
+   "detalle": "OC-2026-0013 por L 1,725.00 (3 material(es))",
+   "usuarioId": 1
+  },
+  {
+   "id": 67,
+   "fecha": "2026-09-21T18:37:54.714Z",
+   "usuarioTxt": "Administrador del sistema",
+   "rolTxt": "administrador",
+   "modulo": "Órdenes",
+   "accion": "Aprobó orden",
+   "detalle": "OC-2026-0013 por L 1,725.00",
+   "usuarioId": 1
+  },
+  {
+   "id": 68,
+   "fecha": "2026-09-21T20:02:16.599Z",
+   "usuarioTxt": "Administrador del sistema",
+   "rolTxt": "administrador",
+   "modulo": "Materiales",
+   "accion": "Eliminó material",
+   "detalle": "FER-004 — Martillo",
+   "usuarioId": 1
+  },
+  {
+   "id": 69,
+   "fecha": "2026-09-21T20:04:28.188Z",
+   "usuarioTxt": "Administrador del sistema",
+   "rolTxt": "administrador",
+   "modulo": "Órdenes",
+   "accion": "Creó orden",
+   "detalle": "OC-2026-0014 por L 180.00 (1 material(es))",
+   "usuarioId": 1
+  },
+  {
+   "id": 70,
+   "fecha": "2026-09-21T20:04:51.547Z",
+   "usuarioTxt": "Administrador del sistema",
+   "rolTxt": "administrador",
+   "modulo": "Órdenes",
+   "accion": "Rechazó orden",
+   "detalle": "OC-2026-0014 por L 180.00 — No me convence el precio",
+   "usuarioId": 1
+  },
+  {
+   "id": 71,
+   "fecha": "2026-09-21T20:09:10.208Z",
+   "usuarioTxt": "Administrador del sistema",
+   "rolTxt": "administrador",
+   "modulo": "Usuarios",
+   "accion": "Desactivó usuario",
+   "detalle": "Stefano Abener Ponce Menjivar (stefano ponce)",
+   "usuarioId": 1
+  },
+  {
+   "id": 72,
+   "fecha": "2026-09-21T20:10:08.476Z",
+   "usuarioTxt": "Administrador del sistema",
+   "rolTxt": "administrador",
+   "modulo": "Sesión",
+   "accion": "Inicio de sesión",
+   "detalle": "Entró al sistema como administrador",
+   "usuarioId": 1
+  },
+  {
+   "id": 73,
+   "fecha": "2026-09-21T20:10:21.587Z",
+   "usuarioTxt": "Administrador del sistema",
+   "rolTxt": "administrador",
+   "modulo": "Usuarios",
+   "accion": "Activó usuario",
+   "detalle": "Stefano Abener Ponce Menjivar (stefano ponce)",
+   "usuarioId": 1
+  },
+  {
+   "id": 74,
+   "fecha": "2026-09-21T20:12:48.126Z",
+   "usuarioTxt": "Nubia Cuella",
+   "rolTxt": "administrador",
+   "modulo": "Usuarios",
+   "accion": "Editó usuario",
+   "detalle": "Nubia Cuella",
+   "usuarioId": 1
+  },
+  {
+   "id": 75,
+   "fecha": "2026-09-21T20:12:59.592Z",
+   "usuarioTxt": "Nubia Cuellar",
+   "rolTxt": "administrador",
+   "modulo": "Usuarios",
+   "accion": "Editó usuario",
+   "detalle": "Nubia Cuellar",
+   "usuarioId": 1
+  },
+  {
+   "id": 76,
+   "fecha": "2026-09-21T20:13:32.055Z",
+   "usuarioTxt": "Nubia Cuellar",
+   "rolTxt": "administrador",
+   "modulo": "Sesión",
+   "accion": "Inicio de sesión",
+   "detalle": "Entró al sistema como administrador",
+   "usuarioId": 1
+  },
+  {
+   "id": 77,
+   "fecha": "2026-09-21T20:39:41.580Z",
+   "usuarioTxt": "Nubia Cuellar",
+   "rolTxt": "administrador",
+   "modulo": "Sesión",
+   "accion": "Inicio de sesión",
+   "detalle": "Entró al sistema como administrador",
+   "usuarioId": 1
+  },
+  {
+   "id": 78,
+   "fecha": "2026-09-21T20:44:04.964Z",
+   "usuarioTxt": "Nubia Cuellar",
+   "rolTxt": "administrador",
+   "modulo": "Órdenes",
+   "accion": "Creó orden",
+   "detalle": "OC-2026-0015 por L 245.00 (2 material(es))",
+   "usuarioId": 1
+  },
+  {
+   "id": 79,
+   "fecha": "2026-09-21T20:45:36.004Z",
+   "usuarioTxt": "Nubia Cuellar",
+   "rolTxt": "administrador",
+   "modulo": "Órdenes",
+   "accion": "Aprobó orden",
+   "detalle": "OC-2026-0015 por L 245.00",
+   "usuarioId": 1
+  },
+  {
+   "id": 80,
+   "fecha": "2026-09-21T20:45:56.277Z",
+   "usuarioTxt": "Nubia Cuellar",
+   "rolTxt": "administrador",
+   "modulo": "Inventario",
+   "accion": "Recibió materiales",
+   "detalle": "OC-2026-0015 — se sumaron 2 material(es) a la existencia",
+   "usuarioId": 1
+  },
+  {
+   "id": 81,
+   "fecha": "2026-09-22T05:54:31.703Z",
+   "usuarioTxt": "Nubia Cuellar",
+   "rolTxt": "administrador",
+   "modulo": "Sesión",
+   "accion": "Inicio de sesión",
+   "detalle": "Entró al sistema como administrador",
+   "usuarioId": 1
+  },
+  {
+   "id": 82,
+   "fecha": "2026-09-22T05:56:30.993Z",
+   "usuarioTxt": "Encargado de compras",
+   "rolTxt": "usuario",
+   "modulo": "Sesión",
+   "accion": "Inicio de sesión",
+   "detalle": "Entró al sistema como usuario",
+   "usuarioId": 2
+  },
+  {
+   "id": 83,
+   "fecha": "2026-09-22T05:57:16.933Z",
+   "usuarioTxt": "Encargado de compras",
+   "rolTxt": "usuario",
+   "modulo": "Órdenes",
+   "accion": "Editó orden",
+   "detalle": "OC-2026-0004 — se actualizaron los materiales y quedó pendiente de revisión.",
+   "usuarioId": 2
+  },
+  {
+   "id": 84,
+   "fecha": "2026-09-22T06:04:34.556Z",
+   "usuarioTxt": "Nubia Cuellar",
+   "rolTxt": "administrador",
+   "modulo": "Órdenes",
+   "accion": "Creó orden",
+   "detalle": "OC-2026-0016 por L 130.00 (2 material(es))",
+   "usuarioId": 1
+  },
+  {
+   "id": 85,
+   "fecha": "2026-09-22T06:20:19.976Z",
+   "usuarioTxt": "Nubia Cuellar",
+   "rolTxt": "administrador",
+   "modulo": "Sesión",
+   "accion": "Inicio de sesión",
+   "detalle": "Entró al sistema como administrador",
+   "usuarioId": 1
+  },
+  {
+   "id": 86,
+   "fecha": "2026-09-22T06:30:55.248Z",
+   "usuarioTxt": "Nubia Cuellar",
+   "rolTxt": "administrador",
+   "modulo": "Órdenes",
+   "accion": "Aprobó orden",
+   "detalle": "OC-2026-0016 por L 130.00",
+   "usuarioId": 1
+  },
+  {
+   "id": 87,
+   "fecha": "2026-09-22T06:31:26.357Z",
+   "usuarioTxt": "Nubia Cuellar",
+   "rolTxt": "administrador",
+   "modulo": "Inventario",
+   "accion": "Recibió materiales",
+   "detalle": "OC-2026-0016 — se sumaron 2 material(es) a la existencia",
+   "usuarioId": 1
+  },
+  {
+   "id": 88,
+   "fecha": "2026-09-22T06:36:11.667Z",
+   "usuarioTxt": "Nubia Cuellar",
+   "rolTxt": "administrador",
+   "modulo": "Órdenes",
+   "accion": "Creó orden",
+   "detalle": "OC-2026-0017 por L 245.00 (2 material(es))",
+   "usuarioId": 1
+  },
+  {
+   "id": 89,
+   "fecha": "2026-09-22T06:36:49.049Z",
+   "usuarioTxt": "Nubia Cuellar",
+   "rolTxt": "administrador",
+   "modulo": "Órdenes",
+   "accion": "Aprobó orden",
+   "detalle": "OC-2026-0017 por L 245.00",
+   "usuarioId": 1
+  },
+  {
+   "id": 90,
+   "fecha": "2026-09-22T06:37:06.425Z",
+   "usuarioTxt": "Nubia Cuellar",
+   "rolTxt": "administrador",
+   "modulo": "Inventario",
+   "accion": "Recibió materiales",
+   "detalle": "OC-2026-0017 — se sumaron 2 material(es) a la existencia",
+   "usuarioId": 1
+  },
+  {
+   "id": 91,
+   "fecha": "2026-09-22T16:19:48.907Z",
+   "usuarioTxt": "Nubia Cuellar",
+   "rolTxt": "administrador",
+   "modulo": "Sesión",
+   "accion": "Inicio de sesión",
+   "detalle": "Entró al sistema como administrador",
+   "usuarioId": 1
+  },
+  {
+   "id": 92,
+   "fecha": "2026-09-22T16:53:54.118Z",
+   "usuarioTxt": "Nubia Cuellar",
+   "rolTxt": "administrador",
+   "modulo": "Sesión",
+   "accion": "Inicio de sesión",
+   "detalle": "Entró al sistema como administrador",
+   "usuarioId": 1
+  },
+  {
+   "id": 93,
+   "fecha": "2026-09-22T16:54:59.367Z",
+   "usuarioTxt": "Nubia Cuellar",
+   "rolTxt": "administrador",
+   "modulo": "Sesión",
+   "accion": "Inicio de sesión",
+   "detalle": "Entró al sistema como administrador",
+   "usuarioId": 1
+  },
+  {
+   "id": 94,
+   "fecha": "2026-09-22T16:55:27.113Z",
+   "usuarioTxt": "Nubia Cuellar",
+   "rolTxt": "administrador",
+   "modulo": "Sesión",
+   "accion": "Inicio de sesión",
+   "detalle": "Entró al sistema como administrador",
+   "usuarioId": 1
+  },
+  {
+   "id": 95,
+   "fecha": "2026-09-22T16:56:18.403Z",
+   "usuarioTxt": "Nubia Cuellar",
+   "rolTxt": "administrador",
+   "modulo": "Sesión",
+   "accion": "Inicio de sesión",
+   "detalle": "Entró al sistema como administrador",
+   "usuarioId": 1
+  },
+  {
+   "id": 96,
+   "fecha": "2026-09-22T16:57:15.216Z",
+   "usuarioTxt": "Nubia Cuellar",
+   "rolTxt": "administrador",
+   "modulo": "Sesión",
+   "accion": "Inicio de sesión",
+   "detalle": "Entró al sistema como administrador",
+   "usuarioId": 1
+  },
+  {
+   "id": 97,
+   "fecha": "2026-09-22T16:58:00.861Z",
+   "usuarioTxt": "Nubia Cuellar",
+   "rolTxt": "administrador",
+   "modulo": "Sesión",
+   "accion": "Inicio de sesión",
+   "detalle": "Entró al sistema como administrador",
+   "usuarioId": 1
+  },
+  {
+   "id": 98,
+   "fecha": "2026-09-22T17:00:58.422Z",
+   "usuarioTxt": "Nubia Cuellar",
+   "rolTxt": "administrador",
+   "modulo": "Sesión",
+   "accion": "Inicio de sesión",
+   "detalle": "Entró al sistema como administrador",
+   "usuarioId": 1
+  },
+  {
+   "id": 99,
+   "fecha": "2026-09-22T17:03:56.181Z",
+   "usuarioTxt": "Nubia Cuellar",
+   "rolTxt": "administrador",
+   "modulo": "Materiales",
+   "accion": "Editó material",
+   "detalle": "FER-001 — Bombillo LED 12W (cambio de imagen)",
+   "usuarioId": 1
+  },
+  {
+   "id": 100,
+   "fecha": "2026-09-22T17:04:38.147Z",
+   "usuarioTxt": "Nubia Cuellar",
+   "rolTxt": "administrador",
+   "modulo": "Materiales",
+   "accion": "Editó material",
+   "detalle": "FER-002 — Pintura de aceite blanco (cambio de imagen)",
+   "usuarioId": 1
+  },
+  {
+   "id": 101,
+   "fecha": "2026-09-22T17:05:32.929Z",
+   "usuarioTxt": "Nubia Cuellar",
+   "rolTxt": "administrador",
+   "modulo": "Órdenes",
+   "accion": "Creó orden",
+   "detalle": "OC-2026-0018 por L 65.00 (1 material(es))",
+   "usuarioId": 1
+  },
+  {
+   "id": 102,
+   "fecha": "2026-09-22T17:06:57.970Z",
+   "usuarioTxt": "Nubia Cuellar",
+   "rolTxt": "administrador",
+   "modulo": "Sesión",
+   "accion": "Inicio de sesión",
+   "detalle": "Entró al sistema como administrador",
+   "usuarioId": 1
+  },
+  {
+   "id": 104,
+   "fecha": "2026-09-22T17:10:57.500Z",
+   "usuarioTxt": "Nubia Cuellar",
+   "rolTxt": "administrador",
+   "modulo": "Sesión",
+   "accion": "Inicio de sesión",
+   "detalle": "Entró al sistema como administrador",
+   "usuarioId": 1
+  },
+  {
+   "id": 105,
+   "fecha": "2026-09-22T17:11:09.268Z",
+   "usuarioTxt": "Nubia Cuellar",
+   "rolTxt": "administrador",
+   "modulo": "Sesión",
+   "accion": "Inicio de sesión",
+   "detalle": "Entró al sistema como administrador",
+   "usuarioId": 1
+  },
+  {
+   "id": 106,
+   "fecha": "2026-09-22T17:16:21.934Z",
+   "usuarioTxt": "Nubia Cuellar",
+   "rolTxt": "administrador",
+   "modulo": "Materiales",
+   "accion": "Editó material",
+   "detalle": "FER-001 — Bombillo LED 12W (se quitó la imagen)",
+   "usuarioId": 1
+  },
+  {
+   "id": 107,
+   "fecha": "2026-09-22T19:24:59.157Z",
+   "usuarioTxt": "Nubia Cuellar",
+   "rolTxt": "Administrador",
+   "modulo": "Sesión",
+   "accion": "Inicio de sesión",
+   "detalle": "Entró al sistema como Administrador",
+   "usuarioId": 1
+  },
+  {
+   "id": 108,
+   "fecha": "2026-09-22T19:24:59.676Z",
+   "usuarioTxt": "Sub Administrador de compras",
+   "rolTxt": "Sub Administrador",
+   "modulo": "Sesión",
+   "accion": "Inicio de sesión",
+   "detalle": "Entró al sistema como Sub Administrador",
+   "usuarioId": 5
+  },
+  {
+   "id": 109,
+   "fecha": "2026-09-22T19:25:00.118Z",
+   "usuarioTxt": "Jefe inmediato",
+   "rolTxt": "Jefe inmediato",
+   "modulo": "Sesión",
+   "accion": "Inicio de sesión",
+   "detalle": "Entró al sistema como Jefe inmediato",
+   "usuarioId": 6
+  },
+  {
+   "id": 110,
+   "fecha": "2026-09-22T19:25:00.545Z",
+   "usuarioTxt": "Encargado de compras",
+   "rolTxt": "Responsable de solicitar",
+   "modulo": "Sesión",
+   "accion": "Inicio de sesión",
+   "detalle": "Entró al sistema como Responsable de solicitar",
+   "usuarioId": 2
+  },
+  {
+   "id": 111,
+   "fecha": "2026-09-22T19:26:19.980Z",
+   "usuarioTxt": "Nubia Cuellar",
+   "rolTxt": "Administrador",
+   "modulo": "Sesión",
+   "accion": "Inicio de sesión",
+   "detalle": "Entró al sistema como Administrador",
+   "usuarioId": 1
+  },
+  {
+   "id": 112,
+   "fecha": "2026-09-22T19:26:20.469Z",
+   "usuarioTxt": "Sub Administrador de compras",
+   "rolTxt": "Sub Administrador",
+   "modulo": "Sesión",
+   "accion": "Inicio de sesión",
+   "detalle": "Entró al sistema como Sub Administrador",
+   "usuarioId": 5
+  },
+  {
+   "id": 113,
+   "fecha": "2026-09-22T19:26:20.855Z",
+   "usuarioTxt": "Jefe inmediato",
+   "rolTxt": "Jefe inmediato",
+   "modulo": "Sesión",
+   "accion": "Inicio de sesión",
+   "detalle": "Entró al sistema como Jefe inmediato",
+   "usuarioId": 6
+  },
+  {
+   "id": 114,
+   "fecha": "2026-09-22T19:26:21.264Z",
+   "usuarioTxt": "Encargado de compras",
+   "rolTxt": "Responsable de solicitar",
+   "modulo": "Sesión",
+   "accion": "Inicio de sesión",
+   "detalle": "Entró al sistema como Responsable de solicitar",
+   "usuarioId": 2
+  }
+ ]
+}

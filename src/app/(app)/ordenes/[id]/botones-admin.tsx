@@ -3,7 +3,19 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { resolverOrden, recibirOrden } from "../../actions";
 
-export default function BotonesAdmin({ id, estado }: { id: number; estado: string }) {
+/** Botones de revisión: autorizar (aprobar/rechazar) y recibir.
+ *  Cada grupo se muestra según el permiso que traiga el rol en sesión. */
+export default function BotonesOrden({
+  id,
+  estado,
+  puedeAutorizar,
+  puedeRecibir,
+}: {
+  id: number;
+  estado: string;
+  puedeAutorizar: boolean;
+  puedeRecibir: boolean;
+}) {
   const [comentario, setComentario] = useState("");
   const [ocupado, setOcupado] = useState(false);
   const router = useRouter();
@@ -36,7 +48,7 @@ export default function BotonesAdmin({ id, estado }: { id: number; estado: strin
     }
   }
 
-  if (estado === "Pendiente") {
+  if (estado === "Pendiente" && puedeAutorizar) {
     return (
       <div className="tarjeta p-4 mt-4">
         <label className="block text-sm text-tinta2 mb-1.5 font-medium">Comentario (obligatorio para rechazar)</label>
@@ -48,7 +60,7 @@ export default function BotonesAdmin({ id, estado }: { id: number; estado: strin
       </div>
     );
   }
-  if (estado === "Aprobada") {
+  if (estado === "Aprobada" && puedeRecibir) {
     return (
       <div className="flex justify-end mt-4">
         <button disabled={ocupado} className="btn" onClick={recibir}>Marcar como recibida</button>

@@ -5,6 +5,7 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { registrarMovimiento } from "@/lib/bitacora";
+import { nombreRol, type Rol } from "@/lib/permisos";
 
 export const authOptions: NextAuthOptions = {
   session: { strategy: "jwt" },
@@ -35,7 +36,7 @@ export const authOptions: NextAuthOptions = {
           usuarioId: encontrado.id,
           modulo: "Sesión",
           accion: "Inicio de sesión",
-          detalle: `Entró al sistema como ${encontrado.rol}`,
+          detalle: `Entró al sistema como ${nombreRol(encontrado.rol)}`,
         });
 
         return {
@@ -51,18 +52,42 @@ export const authOptions: NextAuthOptions = {
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id;
-        // @ts-expect-error -- campos propios añadidos en authorize()
         token.usuario = user.usuario;
-        // @ts-expect-error
         token.rol = user.rol;
       }
       return token;
     },
     async session({ session, token }) {
       if (session.user) {
-        session.user.id = token.id as string;
+        // La seed con --limpiar borra y vuelve a crear los usuarios, lo que
+        // les asigna ids nuevos y deja el JWT con un id viejo. Ese id obsoleto
+        // rompe después las llaves foráneas (descargos, solicitante de la
+        // orden…), así que aquí se revalida contra la base: primero por id y,
+        // si ya no existe, por nombre de cuenta para retomar el id actual.
+        let id = String(token.id ?? "");
+        let rol = token.rol as Rol;
+
+        const porId = Number.isInteger(Number(id))
+          ? await prisma.usuario.findUnique({ where: { id: Number(id) }, select: { id: true, rol: true } })
+          : null;
+
+        if (porId) {
+          id = String(porId.id);
+          rol = porId.rol;
+        } else if (token.usuario) {
+          const porCuenta = await prisma.usuario.findUnique({
+            where: { usuario: String(token.usuario) },
+            select: { id: true, rol: true },
+          });
+          if (porCuenta) {
+            id = String(porCuenta.id);
+            rol = porCuenta.rol;
+          }
+        }
+
+        session.user.id = id;
         session.user.usuario = token.usuario as string;
-        session.user.rol = token.rol as "usuario" | "administrador";
+        session.user.rol = rol;
       }
       return session;
     },

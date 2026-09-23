@@ -1,9 +1,22 @@
 # Compras — Fundación CAMO
 
-Sistema de proceso de compras con dos roles (usuario y administrador),
-catálogo de proveedores y materiales, órdenes de compra, y una bitácora
-que registra todo lo que hace cada usuario. Hecho con **Next.js 14**,
+Sistema de proceso de compras con cuatro roles (Administrador, Sub
+Administrador, Jefe inmediato y Responsable de solicitar), catálogo de
+proveedores y materiales, órdenes de compra, descargo de inventario y una
+bitácora que registra todo lo que hace cada usuario. Hecho con **Next.js 14**,
 **Prisma** y **PostgreSQL**.
+
+## Roles y permisos
+
+La matriz vive en un solo archivo: `src/lib/permisos.ts`. Todo el sistema
+(menú, páginas y acciones del servidor) consulta esa matriz.
+
+| # | Rol | Función |
+|---|-----|---------|
+| 1 | **Administrador** | Acceso total: da permisos, resetea contraseñas, crea usuarios, ve bitácora, reportes, proveedores, materiales, órdenes e inventario. |
+| 2 | **Sub Administrador** | Genera reportes; realiza, modifica y autoriza órdenes; alimenta la base de datos (crea proveedores e insumos) y descarga inventario. |
+| 3 | **Jefe inmediato** | Realiza, modifica y autoriza órdenes, y genera reportes. |
+| 4 | **Responsable de solicitar** | Realiza requisiciones (órdenes de compra) y descarga inventario. |
 
 ## 1. Requisitos
 
@@ -74,10 +87,12 @@ sesión.
 
 **Cuentas de prueba** (creadas por el seed):
 
-| Cuenta    | Contraseña   | Rol            |
-|-----------|--------------|----------------|
-| `admin`   | `admin123`   | Administrador  |
-| `compras` | `compras123` | Usuario        |
+| Cuenta     | Contraseña   | Rol                     |
+|------------|--------------|-------------------------|
+| `admin`    | `admin123`   | Administrador           |
+| `subadmin` | `compras123` | Sub Administrador       |
+| `jefe`     | `compras123` | Jefe inmediato          |
+| `compras`  | `compras123` | Responsable de solicitar|
 
 Cambia estas contraseñas antes de entregar el sistema a la fundación,
 desde la sección **Usuarios** (solo visible para el administrador).
@@ -88,28 +103,58 @@ desde la sección **Usuarios** (solo visible para el administrador).
 compras-camo/
 ├─ prisma/
 │  ├─ schema.prisma      → definición de las tablas (usuarios, proveedores,
-│  │                        materiales, órdenes, bitácora)
+│  │                        materiales, órdenes, descargos, bitácora)
+│  ├─ migracion-roles.sql→ SQL que migró el enum de roles al catálogo actual
 │  └─ seed.ts            → datos de prueba
 ├─ src/
 │  ├─ lib/
 │  │  ├─ prisma.ts       → conexión a la base de datos
 │  │  ├─ auth.ts         → configuración del inicio de sesión (NextAuth)
+│  │  ├─ permisos.ts     → matriz de permisos por rol (el centro de todo)
+│  │  ├─ imagenes.ts     → subida/borrado de fotos en Supabase Storage
 │  │  └─ bitacora.ts     → función para registrar cada movimiento
 │  ├─ middleware.ts      → exige sesión para entrar a la aplicación
 │  └─ app/
 │     ├─ login/          → pantalla de inicio de sesión
 │     └─ (app)/          → todo lo que requiere sesión iniciada
 │        ├─ actions.ts   → toda la lógica: crear, aprobar, rechazar, recibir…
+│        ├─ imagen-material.tsx → miniatura compartida de productos
+│        ├─ imagenes-cliente.ts → compresión de fotos en el navegador
 │        ├─ page.tsx     → panel principal
 │        ├─ proveedores/
 │        ├─ materiales/
 │        ├─ ordenes/
+│        ├─ inventario/  → descargo de inventario (salida de bodega)
+│        ├─ reportes/    → reportes de gestión y de insumos
 │        ├─ bitacora/    → solo administrador
 │        └─ usuarios/    → solo administrador
 └─ .env.example
 ```
 
-## 7. Ver la base de datos visualmente
+## 7. Imágenes de los materiales
+
+Las fotos de los productos se guardan en **Supabase Storage** (bucket
+público `materiales`, que la app crea sola la primera vez):
+
+- En **Materiales → + Nuevo material** hay un campo *Imagen del producto*
+  con vista previa (también al editar un material, donde se puede
+  reemplazar o quitar).
+- Las imágenes se reducen automáticamente a 1200 px en el navegador
+  antes de subirse, para no pesar de más.
+- En **Órdenes**, la foto del producto se muestra en cada renglón al
+  momento de pedirlo y en el detalle de la orden creada.
+
+Para que funcione, `.env` debe traer estas dos claves (consola de
+Supabase → *Project Settings → API*):
+
+```
+SUPABASE_URL="https://xxxxxxxx.supabase.co"
+SUPABASE_SERVICE_ROLE_KEY="eyJhbGciOi..."
+```
+
+Si faltan, el formulario avisa y el resto del sistema sigue funcionando.
+
+## 8. Ver la base de datos visualmente
 
 Prisma trae su propio panel para ver y editar filas sin escribir SQL:
 
@@ -117,7 +162,7 @@ Prisma trae su propio panel para ver y editar filas sin escribir SQL:
 npm run prisma:studio
 ```
 
-## 8. Publicar el sistema para que la fundación lo use
+## 9. Publicar el sistema para que la fundación lo use
 
 Cuando esté listo:
 
@@ -133,7 +178,7 @@ Cuando esté listo:
    crear las tablas, y `npm run prisma:seed` una sola vez si quieres
    dejar los datos de ejemplo (o créalos manualmente desde la app).
 
-## 9. Respaldos
+## 10. Respaldos
 
 Con acceso a la base, un respaldo completo se hace con:
 

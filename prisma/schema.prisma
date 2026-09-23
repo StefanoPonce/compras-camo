@@ -11,9 +11,13 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// Los 4 roles del sistema y lo que cada uno puede hacer.
+// La matriz de permisos vive en src/lib/permisos.ts — aquí solo el nombre.
 enum Rol {
-  usuario
   administrador
+  sub_administrador
+  jefe_inmediato
+  responsable_solicitante
 }
 
 enum EstadoOrden {
@@ -29,7 +33,7 @@ model Usuario {
   claveHash      String
   nombre         String
   correo         String?
-  rol            Rol           @default(usuario)
+  rol            Rol           @default(responsable_solicitante)
   activo         Boolean       @default(true)
   ultimoIngreso  DateTime?
   creadoEn       DateTime      @default(now())
@@ -38,23 +42,30 @@ model Usuario {
   ordenesRevisadas OrdenCompra[] @relation("revisor")
   ordenesRecibidas OrdenCompra[] @relation("receptor")
   movimientos    Movimiento[]
+  descargos      DescargoInventario[]
 
   @@map("usuarios")
 }
 
 model Proveedor {
   id         Int         @id @default(autoincrement())
+  // Código interno del proveedor. El Excel de la fundación trae la columna
+  // vacía, así que la seed genera códigos ficticios (PROV-001, PROV-002…).
+  codigo       String?    @unique
   nombre     String
   rtn        String?     @unique
   contacto   String?
   telefono   String?
   correo     String?
   direccion  String?
+  // Tipo de producto que maneja el proveedor (viene en el Excel).
+  tipoProducto String?
   activo     Boolean     @default(true)
   creadoEn   DateTime    @default(now())
 
   materiales Material[]
   ordenes    OrdenCompra[]
+  detalles    DetalleOrden[]
 
   @@map("proveedores")
 }
@@ -65,16 +76,29 @@ model Material {
   nombre        String
   categoria     String          @default("General")
   unidad        String          @default("Unidad")
+
+  // Variantes: agrupa productos que son el mismo artículo en distinta
+  // presentación. Ej: familia "BOLSA PLASTICA" con variantes 4X8, 6X10,
+  // 9X16…; familia "GEL DESINFECTANTE" con variantes BOTE y GALON.
+  // Ambos son opcionales: lo que la seed no pudo derivar se llena a mano.
+  familia       String?
+  variante      String?
+
   existencia    Int             @default(0)
   minimo        Int             @default(0)
   precioUltimo  Decimal         @default(0) @db.Decimal(12, 2)
   activo        Boolean         @default(true)
   creadoEn      DateTime        @default(now())
 
+  // URL pública de la foto del producto guardada en Supabase Storage
+  // (bucket "materiales"). Null cuando el material todavía no tiene imagen.
+  imagenUrl     String?
+
   proveedorId   Int?
   proveedor     Proveedor?      @relation(fields: [proveedorId], references: [id])
 
   detalles      DetalleOrden[]
+  descargos     DescargoInventario[]
 
   @@map("materiales")
 }
@@ -115,6 +139,12 @@ model DetalleOrden {
   cantidad    Int
   precio      Decimal     @db.Decimal(12, 2)
 
+  // Proveedor elegido para ESTE renglón en el formulario (la orden guarda
+  // además uno propio, que es el del primer renglón con proveedor). En las
+  // órdenes viejas queda null y la impresión cae al proveedor de la orden.
+  proveedorId Int?
+  proveedor   Proveedor?  @relation(fields: [proveedorId], references: [id])
+
   ordenId     Int
   orden       OrdenCompra @relation(fields: [ordenId], references: [id], onDelete: Cascade)
 
@@ -122,6 +152,27 @@ model DetalleOrden {
   material    Material    @relation(fields: [materialId], references: [id])
 
   @@map("detalle_orden")
+}
+
+// Salida de productos del bodega: cada vez que alguien resta existencia
+// queda un renglón aquí con cuánto había, cuánto se llevó y quién lo hizo.
+// La existencia nueva se guarda en la columna correspondiente para tener
+// el histórico aunque después se agregue más stock al material.
+model DescargoInventario {
+  id                Int       @id @default(autoincrement())
+  fecha             DateTime  @default(now())
+  cantidad          Int
+  motivo            String?
+  existenciaAntes   Int
+  existenciaDespues Int
+
+  materialId        Int
+  material          Material  @relation(fields: [materialId], references: [id])
+
+  usuarioId         Int
+  usuario           Usuario   @relation(fields: [usuarioId], references: [id])
+
+  @@map("descargos_inventario")
 }
 
 model Movimiento {

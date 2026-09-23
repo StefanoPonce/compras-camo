@@ -12,11 +12,16 @@ body {
 
 .etiqueta { @apply inline-block px-2 py-0.5 rounded-full text-xs font-medium whitespace-nowrap; }
 .et-admin { @apply bg-azulclaro text-azul; }
+.et-subadmin { @apply bg-ambarclaro text-ambar; }
+.et-jefe { @apply bg-verdeclaro text-verde; }
+.et-responsable { @apply bg-superficie2 text-tinta border border-borde; }
 .et-usuario { @apply bg-verdeclaro text-verde; }
 .et-pendiente { @apply bg-ambarclaro text-ambar; }
 .et-aprobada { @apply bg-verdeclaro text-verde; }
 .et-rechazada { @apply bg-rojoclaro text-rojo; }
 .et-recibida { @apply bg-azulclaro text-azul; }
+/* Píldora neutra para la variante de un producto (4X8, 150 ml, BOTE…) */
+.et-variante { @apply bg-superficie2 text-tinta border border-borde; }
 
 .tarjeta { @apply bg-superficie border border-borde rounded-xl shadow-sm; }
 .btn { @apply inline-flex items-center justify-center gap-1 border border-verde bg-verde text-white px-4 py-2 rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50; }

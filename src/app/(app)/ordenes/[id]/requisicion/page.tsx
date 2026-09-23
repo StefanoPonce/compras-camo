@@ -20,7 +20,7 @@ export default async function Requisicion({ params }: { params: { id: string } }
       solicitante: true,
       revisor: true,
       recibidoPor: true,
-      items: { include: { material: { include: { proveedor: true } } }, orderBy: { id: "asc" } },
+      items: { include: { material: { include: { proveedor: true } }, proveedor: true }, orderBy: { id: "asc" } },
     },
   });
 
@@ -80,7 +80,7 @@ export default async function Requisicion({ params }: { params: { id: string } }
                 <td className="border border-tinta px-2 py-1 text-center font-mono">{it.material.codigo}</td>
                 <td className="border border-tinta px-2 py-1 text-center">{it.material.unidad}</td>
                 <td className="border border-tinta px-2 py-1 text-center">{it.cantidad}</td>
-                <td className="border border-tinta px-2 py-1">{it.material.proveedor?.nombre || "—"}</td>
+                <td className="border border-tinta px-2 py-1">{it.proveedor?.nombre || o.proveedor?.nombre || "—"}</td>
               </tr>
             ))}
             {/* filas vacías para completar la hoja, como en el formato físico */}

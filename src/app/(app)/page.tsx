@@ -2,6 +2,7 @@ import { getServerSession } from "next-auth";
 import Link from "next/link";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { puede } from "@/lib/permisos";
 
 function lps(n: number) {
   return "L " + n.toLocaleString("es-HN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -21,7 +22,9 @@ function Indicador({ n, t, alerta }: { n: string | number; t: string; alerta?: b
 
 export default async function Panel() {
   const sesion = await getServerSession(authOptions);
-  const esAdmin = sesion!.user.rol === "administrador";
+  const veTodas = puede(sesion!.user.rol, "ordenes.verTodas");
+  const vePendientes = puede(sesion!.user.rol, "ordenes.autorizar");
+  const veGastos = puede(sesion!.user.rol, "reportes.ver");
   const uid = Number(sesion!.user.id);
 
   const [pendientes, proveedoresActivos, totalMateriales, bajos, ordenesRecientes] = await Promise.all([
@@ -33,7 +36,7 @@ export default async function Panel() {
       include: { proveedor: true },
     }).then((ms) => ms.filter((m) => m.existencia <= m.minimo)),
     prisma.ordenCompra.findMany({
-      where: esAdmin ? {} : { solicitanteId: uid },
+      where: veTodas ? {} : { solicitanteId: uid },
       include: { proveedor: true, solicitante: true },
       orderBy: { fecha: "desc" },
       take: 5,
@@ -54,7 +57,7 @@ export default async function Panel() {
             Hola, {(sesion!.user.name || "").split(" ")[0]}
           </h2>
           <p className="text-tinta2 text-sm mt-1 max-w-[60ch]">
-            {esAdmin
+            {vePendientes
               ? `Tienes ${pendientes} orden(es) esperando tu revisión.`
               : "Desde aquí solicitas materiales y sigues el estado de tus órdenes."}
           </p>
@@ -70,23 +73,27 @@ export default async function Panel() {
     gridTemplateColumns: "repeat(auto-fit, minmax(190px,1fr))",
   }}
 >
-  {/* Solo el administrador puede ver estas dos cards */}
-  {esAdmin && (
+  {/* Quien autoriza ve las órdenes pendientes; quien genera reportes ve el gasto */}
+  {(vePendientes || veGastos) && (
     <>
-      <Indicador
-        n={pendientes}
-        t="Órdenes pendientes de aprobar"
-        alerta={pendientes > 0}
-      />
+      {vePendientes && (
+        <Indicador
+          n={pendientes}
+          t="Órdenes pendientes de aprobar"
+          alerta={pendientes > 0}
+        />
+      )}
 
-      <Indicador
-        n={lps(Number(gastoMes._sum.total || 0))}
-        t="Comprado este mes"
-      />
+      {veGastos && (
+        <Indicador
+          n={lps(Number(gastoMes._sum.total || 0))}
+          t="Comprado este mes"
+        />
+      )}
     </>
   )}
 
-  {/* Estas cards las pueden ver ambos roles */}
+  {/* Estas cards las pueden ver todos los roles */}
   <Indicador
     n={proveedoresActivos}
     t="Proveedores activos"
@@ -126,7 +133,7 @@ export default async function Panel() {
         </>
       )}
 
-      <h3 className="text-base font-sora font-semibold mb-2.5">{esAdmin ? "Últimas órdenes" : "Mis últimas órdenes"}</h3>
+      <h3 className="text-base font-sora font-semibold mb-2.5">{veTodas ? "Últimas órdenes" : "Mis últimas órdenes"}</h3>
       {ordenesRecientes.length ? (
         <div className="tarjeta overflow-x-auto">
           <table className="w-full tabla" style={{ minWidth: 620 }}>

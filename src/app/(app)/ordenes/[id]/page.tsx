@@ -1,8 +1,11 @@
 import { getServerSession } from "next-auth";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import BotonesAdmin from "./botones-admin";
+import { puede } from "@/lib/permisos";
+import BotonesOrden from "./botones-admin";
+import ImagenMaterial from "../../imagen-material";
 
 function lps(n: number) {
   return "L " + n.toLocaleString("es-HN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -16,12 +19,34 @@ function fechaHora(d: Date) {
 
 export default async function DetalleOrden({ params }: { params: { id: string } }) {
   const sesion = await getServerSession(authOptions);
-  const esAdmin = sesion!.user.rol === "administrador";
+  const veTodas = puede(sesion!.user.rol, "ordenes.verTodas");
+  const puedeAutorizar = puede(sesion!.user.rol, "ordenes.autorizar");
+  const puedeRecibir = puede(sesion!.user.rol, "ordenes.recibir");
+  const puedeEditar = puede(sesion!.user.rol, "ordenes.editarTodas");
+  const puedeEditarAprobada = puede(sesion!.user.rol, "ordenes.editarAprobadas");
 
   const o = await prisma.ordenCompra.findUniqueOrThrow({
     where: { id: Number(params.id) },
-    include: { proveedor: true, solicitante: true, revisor: true, items: { include: { material: true } } },
+    include: {
+      proveedor: true,
+      solicitante: true,
+      revisor: true,
+      items: { include: { material: true, proveedor: true } },
+    },
   });
+
+  // Quien no ve todas las órdenes solo puede consultar las suyas propias.
+  if (!veTodas && o.solicitanteId !== Number(sesion!.user.id)) {
+    redirect("/ordenes");
+  }
+
+  const esPropia = o.solicitanteId === Number(sesion!.user.id);
+  // Recibida: nadie la edita. Aprobada: solo administración. Las demás: su
+  // solicitante o quien puede editar todas.
+  const puedeModificar =
+    o.estado === "Recibida" ? false
+    : o.estado === "Aprobada" ? puedeEditarAprobada
+    : (puedeEditar || esPropia);
 
   return (
     <div className="max-w-2xl">
@@ -36,14 +61,17 @@ export default async function DetalleOrden({ params }: { params: { id: string } 
         <Link href={`/ordenes/${o.id}/requisicion`} className="btn-secundario btn-chico">
           Ver requisición para imprimir
         </Link>
-        {(o.estado === "Pendiente" || o.estado === "Rechazada") && (
+        {puedeModificar && (
           <Link href={`/ordenes/${o.id}/editar`} className="btn-secundario btn-chico">
             Editar orden
           </Link>
         )}
       </div>
-      {o.estado === "Aprobada" && (
-        <p className="text-xs text-tinta2 mb-4">Una vez aprobada, la orden ya no puede editarse.</p>
+      {o.estado === "Aprobada" && !puedeModificar && (
+        <p className="text-xs text-tinta2 mb-4">Una vez aprobada, solo el administrador o el sub administrador pueden editarla.</p>
+      )}
+      {o.estado === "Aprobada" && puedeModificar && (
+        <p className="text-xs text-tinta2 mb-4">La orden está aprobada: puedes corregirla y conservará su estado.</p>
       )}
       {o.estado === "Recibida" && (
         <p className="text-xs text-tinta2 mb-4">Orden recibida: ya no puede editarse.</p>
@@ -53,17 +81,20 @@ export default async function DetalleOrden({ params }: { params: { id: string } 
 
       <div className="tarjeta overflow-x-auto mb-3">
         <table className="w-full tabla">
-          <thead><tr><th>Material</th><th className="text-right">Cant.</th><th className="text-right">Precio</th><th className="text-right">Subtotal</th></tr></thead>
+          <thead><tr><th>Imagen</th><th>Material</th><th>Unidad</th><th>Proveedor</th><th className="text-right">Cant.</th><th className="text-right">Precio</th></tr></thead>
           <tbody>
             {o.items.map((it) => (
               <tr key={it.id}>
+                <td><ImagenMaterial src={it.material.imagenUrl} alt={it.material.nombre} className="h-12 w-12" /></td>
                 <td>{it.material.nombre}<div className="text-xs text-tinta2 font-mono">{it.material.codigo}</div></td>
+                <td>{it.material.unidad}</td>
+                {/* Proveedor del renglón; en órdenes viejas, el de la orden. */}
+                <td>{it.proveedor?.nombre || o.proveedor.nombre}</td>
                 <td className="text-right">{it.cantidad}</td>
                 <td className="text-right">{lps(Number(it.precio))}</td>
-                <td className="text-right">{lps(it.cantidad * Number(it.precio))}</td>
               </tr>
             ))}
-            <tr><td colSpan={3} className="text-right font-semibold">Total</td><td className="text-right font-semibold">{lps(Number(o.total))}</td></tr>
+            <tr><td colSpan={5} className="text-right font-semibold">Total</td><td className="text-right font-semibold">{lps(Number(o.total))}</td></tr>
           </tbody>
         </table>
       </div>
@@ -74,7 +105,9 @@ export default async function DetalleOrden({ params }: { params: { id: string } 
       </p>
       {o.comentario && <p className="bg-superficie2 px-3 py-2.5 rounded-lg text-sm mt-2">{o.comentario}</p>}
 
-      {esAdmin && <BotonesAdmin id={o.id} estado={o.estado} />}
+      {(puedeAutorizar || puedeRecibir) && (
+        <BotonesOrden id={o.id} estado={o.estado} puedeAutorizar={puedeAutorizar} puedeRecibir={puedeRecibir} />
+      )}
     </div>
   );
 }

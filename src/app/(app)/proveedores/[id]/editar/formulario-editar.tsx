@@ -3,8 +3,9 @@ import { useFormState, useFormStatus } from "react-dom";
 import { editarProveedor } from "../../../actions";
 
 type Proveedor = {
-  id: number; nombre: string; rtn: string | null; contacto: string | null;
-  telefono: string | null; correo: string | null; direccion: string | null; activo: boolean;
+  id: number; nombre: string; codigo: string | null; rtn: string | null; contacto: string | null;
+  telefono: string | null; correo: string | null; direccion: string | null;
+  tipoProducto: string | null; activo: boolean;
 };
 
 function BotonGuardar() {
@@ -21,6 +22,8 @@ export default function FormularioEditarProveedor({ p }: { p: Proveedor }) {
       {estado.error && <div className="bg-rojoclaro text-rojo text-sm px-3 py-2 rounded-lg">{estado.error}</div>}
       <input className="campo-input" name="nombre" defaultValue={p.nombre} required />
       <div className="grid sm:grid-cols-2 gap-3.5">
+        <input className="campo-input" name="codigo" placeholder="Código" defaultValue={p.codigo || ""} />
+        <input className="campo-input" name="tipoProducto" placeholder="Tipo de producto" defaultValue={p.tipoProducto || ""} />
         <input className="campo-input" name="rtn" placeholder="RTN" defaultValue={p.rtn || ""} />
         <input className="campo-input" name="telefono" placeholder="Teléfono" defaultValue={p.telefono || ""} />
         <input className="campo-input" name="contacto" placeholder="Contacto" defaultValue={p.contacto || ""} />

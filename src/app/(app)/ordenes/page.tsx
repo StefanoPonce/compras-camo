@@ -2,6 +2,7 @@ import Link from "next/link";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { puede } from "@/lib/permisos";
 
 function lps(n: number) {
   return "L " + n.toLocaleString("es-HN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -12,13 +13,13 @@ function fecha(d: Date) {
 
 export default async function Ordenes({ searchParams }: { searchParams: { estado?: string } }) {
   const sesion = await getServerSession(authOptions);
-  const esAdmin = sesion!.user.rol === "administrador";
+  const veTodas = puede(sesion!.user.rol, "ordenes.verTodas");
   const uid = Number(sesion!.user.id);
   const filtro = searchParams.estado || "";
 
   const ordenes = await prisma.ordenCompra.findMany({
     where: {
-      ...(esAdmin ? {} : { solicitanteId: uid }),
+      ...(veTodas ? {} : { solicitanteId: uid }),
       ...(filtro ? { estado: filtro as "Pendiente" | "Aprobada" | "Rechazada" | "Recibida" } : {}),
     },
     include: { proveedor: true, solicitante: true, items: true },
@@ -33,7 +34,7 @@ export default async function Ordenes({ searchParams }: { searchParams: { estado
         <div>
           <h2 className="text-xl font-sora font-semibold">Órdenes de compra</h2>
           <p className="text-tinta2 text-sm mt-1 max-w-[62ch]">
-            {esAdmin
+            {veTodas
               ? "Revisa, aprueba o rechaza las solicitudes. Al marcar una orden como recibida se suma la cantidad al inventario."
               : "Aquí aparecen las órdenes que tú has solicitado y en qué estado van."}
           </p>
