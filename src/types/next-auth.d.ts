@@ -16,6 +16,7 @@ declare module "next-auth" {
     usuario: string;
     rol: Rol;
     modulosPermitidos: Modulo[];
+    sesionToken: string;
   }
 }
 
@@ -25,5 +26,6 @@ declare module "next-auth/jwt" {
     usuario: string;
     rol: Rol;
     modulosPermitidos?: string[];
+    sesionToken?: string;
   }
 }

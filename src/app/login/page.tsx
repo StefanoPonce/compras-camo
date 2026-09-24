@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { signIn } from "next-auth/react";
+import { MENSAJES_AUTENTICACION } from "@/lib/auth-errors";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 
@@ -18,7 +19,10 @@ export default function PaginaIngreso() {
     const res = await signIn("credentials", { usuario, clave, redirect: false });
     setEnviando(false);
     if (res?.error) {
-      setError("Usuario o contraseña incorrectos. Verifica y vuelve a intentar.");
+      setError(
+        MENSAJES_AUTENTICACION[res.error] ||
+          "Usuario o contraseña incorrectos. Verifica y vuelve a intentar.",
+      );
       return;
     }
     router.push("/");

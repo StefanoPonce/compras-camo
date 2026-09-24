@@ -37,9 +37,9 @@ async function sesionObligatoria() {
   // foránea: mejor pedir que vuelva a entrar para refrescar el token.
   const id = Number(sesion.user.id);
   const existe = Number.isInteger(id)
-    ? await prisma.usuario.findUnique({ where: { id }, select: { id: true } })
+    ? await prisma.usuario.findUnique({ where: { id }, select: { id: true, activo: true } })
     : null;
-  if (!existe) redirect("/login");
+  if (!existe || !existe.activo) redirect("/login");
 
   return sesion;
 }
@@ -628,12 +628,25 @@ export async function editarUsuario(id: number, _prev: EstadoForm, datos: FormDa
 
   try {
     const anterior = await prisma.usuario.findUniqueOrThrow({ where: { id } });
-    const data: { nombre: string; rol: typeof rol; modulosPermitidos: string[]; claveHash?: string } = {
+    const data: {
+      nombre: string;
+      rol: typeof rol;
+      modulosPermitidos: string[];
+      claveHash?: string;
+      sesionToken?: null;
+      sesionExpira?: null;
+    } = {
       nombre,
       rol,
       modulosPermitidos,
     };
-    if (clave) data.claveHash = await bcrypt.hash(clave, 10);
+    if (clave) {
+      data.claveHash = await bcrypt.hash(clave, 10);
+      // Cambiar la contraseña invalida cualquier dispositivo que ya tenga una
+      // sesión abierta con el perfil.
+      data.sesionToken = null;
+      data.sesionExpira = null;
+    }
 
     await prisma.usuario.update({ where: { id }, data });
     await registrarMovimiento({
@@ -653,7 +666,16 @@ export async function editarUsuario(id: number, _prev: EstadoForm, datos: FormDa
 export async function alternarUsuario(id: number) {
   const sesion = await exigirPermiso("usuarios.gestionar");
   const usuario = await prisma.usuario.findUniqueOrThrow({ where: { id } });
-  const actualizado = await prisma.usuario.update({ where: { id }, data: { activo: !usuario.activo } });
+  const actualizado = await prisma.usuario.update({
+    where: { id },
+    data: {
+      activo: !usuario.activo,
+      // Desactivar o reactivar un perfil libera cualquier sesión que hubiera
+      // quedado abierta en otro dispositivo.
+      sesionToken: null,
+      sesionExpira: null,
+    },
+  });
 
   await registrarMovimiento({
     usuarioId: Number(sesion.user.id), modulo: "Usuarios",
