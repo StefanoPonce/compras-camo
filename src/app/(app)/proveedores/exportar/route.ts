@@ -2,6 +2,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { crearExcelBonito, respuestaExcel } from "@/lib/exportar-excel";
 import { prisma } from "@/lib/prisma";
+import { puedeVerModulo } from "@/lib/permisos";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -9,6 +10,9 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   const sesion = await getServerSession(authOptions);
   if (!sesion) return new Response("No autorizado", { status: 401 });
+  if (!puedeVerModulo(sesion.user.rol, sesion.user.modulosPermitidos, "proveedores")) {
+    return new Response("No autorizado", { status: 403 });
+  }
 
   const proveedores = await prisma.proveedor.findMany({
     orderBy: [{ nombre: "asc" }, { codigo: "asc" }],

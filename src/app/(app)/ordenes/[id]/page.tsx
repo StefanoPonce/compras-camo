@@ -3,7 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { puede } from "@/lib/permisos";
+import { puede, puedeVerModulo } from "@/lib/permisos";
 import BotonesOrden from "./botones-admin";
 import ImagenMaterial from "../../imagen-material";
 
@@ -19,7 +19,8 @@ function fechaHora(d: Date) {
 
 export default async function DetalleOrden({ params }: { params: { id: string } }) {
   const sesion = await getServerSession(authOptions);
-  const veTodas = puede(sesion!.user.rol, "ordenes.verTodas");
+  if (!sesion || !puedeVerModulo(sesion.user.rol, sesion.user.modulosPermitidos, "ordenes")) redirect("/");
+  const veTodas = puede(sesion.user.rol, "ordenes.verTodas");
   const puedeAutorizar = puede(sesion!.user.rol, "ordenes.autorizar");
   const puedeRecibir = puede(sesion!.user.rol, "ordenes.recibir");
   const puedeEditar = puede(sesion!.user.rol, "ordenes.editarTodas");

@@ -2,14 +2,15 @@ import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { puede } from "@/lib/permisos";
+import { puede, puedeVerModulo } from "@/lib/permisos";
 import FormularioOrden, { type LineaOrden } from "../../formulario-orden";
 import { editarOrden } from "../../../actions";
 
 export default async function EditarOrden({ params }: { params: { id: string } }) {
   const sesion = await getServerSession(authOptions);
-  const puedeTodas = puede(sesion?.user.rol, "ordenes.editarTodas");
-  const puedeAprobadas = puede(sesion?.user.rol, "ordenes.editarAprobadas");
+  if (!sesion || !puedeVerModulo(sesion.user.rol, sesion.user.modulosPermitidos, "ordenes")) redirect("/");
+  const puedeTodas = puede(sesion.user.rol, "ordenes.editarTodas");
+  const puedeAprobadas = puede(sesion.user.rol, "ordenes.editarAprobadas");
   const id = Number(params.id);
 
   const o = await prisma.ordenCompra.findUniqueOrThrow({

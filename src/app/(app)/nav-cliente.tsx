@@ -3,29 +3,32 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { signOut } from "next-auth/react";
 import Image from "next/image";
-import { puede, nombreRol, claseRol, type Permiso, type Rol } from "@/lib/permisos";
+import { puede, nombreRol, claseRol, type Modulo, type Permiso, type Rol } from "@/lib/permisos";
 
 export default function NavCliente({
-  nombre, rol,
-}: { nombre: string; rol: Rol }) {
+  nombre, rol, modulos,
+}: { nombre: string; rol: Rol; modulos: Modulo[] }) {
   const ruta = usePathname();
   const router = useRouter();
 
   // Cada sección se muestra solo a quien tiene el permiso que la rodea.
   // "Panel", "Órdenes", "Proveedores" y "Materiales" son de consulta para
-  // todos los roles.
-  const items: [string, string, Permiso | null][] = [
-    ["/", "Panel", null],
-    ["/ordenes", "Órdenes de compra", "ordenes.crear"],
-    ["/proveedores", "Proveedores", null],
-    ["/materiales", "Materiales", null],
-    ["/inventario", "Descargo de inventario", "inventario.descargar"],
-    ["/reportes", "Reportes", "reportes.ver"],
-    ["/bitacora", "Bitácora", "bitacora.ver"],
-    ["/usuarios", "Usuarios", "usuarios.gestionar"],
+  // todos los roles. Gestión reúne la consolidación de requisiciones.
+  const items: [string, string, Permiso | null, Modulo][] = [
+    ["/", "Panel", null, "panel"],
+    ["/ordenes", "Órdenes de compra", "ordenes.crear", "ordenes"],
+    ["/proveedores", "Proveedores", null, "proveedores"],
+    ["/materiales", "Materiales", null, "materiales"],
+    ["/gestion", "Gestión", "consolidacion.ver", "gestion"],
+    ["/inventario", "Descargo de inventario", "inventario.descargar", "inventario"],
+    ["/reportes", "Reportes", "reportes.ver", "reportes"],
+    ["/bitacora", "Bitácora", "bitacora.ver", "bitacora"],
+    ["/usuarios", "Usuarios", "usuarios.gestionar", "usuarios"],
   ];
 
-  const visibles = items.filter(([, , permiso]) => !permiso || puede(rol, permiso));
+  const visibles = items.filter(([, , permiso, modulo]) =>
+    (!permiso || puede(rol, permiso)) && modulos.includes(modulo)
+  );
 
   return (
     <>
@@ -60,7 +63,9 @@ export default function NavCliente({
             href={href}
             className={
               "px-3.5 py-2.5 text-sm font-medium whitespace-nowrap border-b-2 " +
-              (ruta === href ? "text-verde border-verde" : "text-tinta2 border-transparent")
+              (ruta === href || (href !== "/" && ruta.startsWith(`${href}/`))
+                ? "text-verde border-verde"
+                : "text-tinta2 border-transparent")
             }
           >
             {etiqueta}

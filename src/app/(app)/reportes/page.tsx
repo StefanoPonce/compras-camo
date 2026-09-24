@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { puede } from "@/lib/permisos";
+import { puede, puedeVerModulo } from "@/lib/permisos";
 import BotonImprimir from "./boton-imprimir";
 import Image from "next/image";
 
@@ -32,7 +32,8 @@ export default async function Reportes({
   searchParams,
 }: { searchParams: { desde?: string; hasta?: string; estado?: string; reporte?: string } }) {
   const sesion = await getServerSession(authOptions);
-  if (!sesion || !puede(sesion.user.rol, "reportes.ver")) redirect("/");
+  if (!sesion || !puedeVerModulo(sesion.user.rol, sesion.user.modulosPermitidos, "reportes")) redirect("/");
+  if (!puede(sesion.user.rol, "reportes.ver")) redirect("/");
 
   const desde = searchParams.desde || primerDiaDelMes();
   const hasta = searchParams.hasta || hoy();

@@ -18,6 +18,11 @@ La matriz vive en un solo archivo: `src/lib/permisos.ts`. Todo el sistema
 | 3 | **Jefe inmediato** | Realiza, modifica y autoriza órdenes, y genera reportes. |
 | 4 | **Responsable de solicitar** | Realiza requisiciones (órdenes de compra) y descarga inventario. |
 
+El administrador también puede personalizar, por usuario, qué módulos del menú
+puede ver cada persona. El panel está disponible al crear o editar un usuario en
+**Usuarios**. Los permisos de acciones dentro de cada módulo siguen dependiendo
+del rol seleccionado.
+
 ## 1. Requisitos
 
 - [Node.js](https://nodejs.org) versión 18 o superior
@@ -70,13 +75,20 @@ npm install
    npx prisma migrate dev --name inicial
    ```
 
-5. Carga los datos de prueba (usuarios, proveedores y materiales de ejemplo):
+5. Si actualizas una base que ya existe, agrega la columna de módulos por usuario
+   una sola vez:
+
+   ```bash
+   npx prisma db execute --file prisma/migracion-modulos-usuario.sql --schema prisma/schema.prisma
+   ```
+
+6. Carga los datos de prueba (usuarios, proveedores y materiales de ejemplo):
 
    ```bash
    npm run prisma:seed
    ```
 
-## 5. Ejecutar el proyecto
+## 7. Ejecutar el proyecto
 
 ```bash
 npm run dev
@@ -97,7 +109,7 @@ sesión.
 Cambia estas contraseñas antes de entregar el sistema a la fundación,
 desde la sección **Usuarios** (solo visible para el administrador).
 
-## 6. Estructura del proyecto
+## 8. Estructura del proyecto
 
 ```
 compras-camo/
@@ -131,7 +143,7 @@ compras-camo/
 └─ .env.example
 ```
 
-## 7. Imágenes de los materiales
+## 9. Imágenes de los materiales
 
 Las fotos de los productos se guardan en **Supabase Storage** (bucket
 público `materiales`, que la app crea sola la primera vez):
@@ -154,7 +166,7 @@ SUPABASE_SERVICE_ROLE_KEY="eyJhbGciOi..."
 
 Si faltan, el formulario avisa y el resto del sistema sigue funcionando.
 
-## 8. Ver la base de datos visualmente
+## 10. Ver la base de datos visualmente
 
 Prisma trae su propio panel para ver y editar filas sin escribir SQL:
 
@@ -162,7 +174,7 @@ Prisma trae su propio panel para ver y editar filas sin escribir SQL:
 npm run prisma:studio
 ```
 
-## 9. Publicar el sistema para que la fundación lo use
+## 11. Publicar el sistema para que la fundación lo use
 
 Cuando esté listo:
 
@@ -178,7 +190,7 @@ Cuando esté listo:
    crear las tablas, y `npm run prisma:seed` una sola vez si quieres
    dejar los datos de ejemplo (o créalos manualmente desde la app).
 
-## 10. Respaldos
+## 12. Respaldos
 
 Con acceso a la base, un respaldo completo se hace con:
 

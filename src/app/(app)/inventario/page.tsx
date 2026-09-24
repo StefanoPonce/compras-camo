@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { puede, nombreRol } from "@/lib/permisos";
+import { puede, puedeVerModulo, nombreRol } from "@/lib/permisos";
 import FormularioDescargo from "./formulario-descargo";
 
 function fechaHora(d: Date) {
@@ -13,7 +13,8 @@ function fechaHora(d: Date) {
 
 export default async function Inventario({ searchParams }: { searchParams: { material?: string; q?: string } }) {
   const sesion = await getServerSession(authOptions);
-  if (!puede(sesion?.user.rol, "inventario.descargar")) redirect("/");
+  if (!sesion || !puedeVerModulo(sesion.user.rol, sesion.user.modulosPermitidos, "inventario")) redirect("/");
+  if (!puede(sesion.user.rol, "inventario.descargar")) redirect("/");
 
   const q = searchParams.q || "";
   const materialInicial = searchParams.material ? Number(searchParams.material) : undefined;

@@ -9,7 +9,11 @@ export default async function LayoutApp({ children }: { children: React.ReactNod
 
   return (
     <div className="min-h-screen flex flex-col">
-      <NavCliente nombre={sesion.user.name || sesion.user.usuario} rol={sesion.user.rol} />
+      <NavCliente
+        nombre={sesion.user.name || sesion.user.usuario}
+        rol={sesion.user.rol}
+        modulos={sesion.user.modulosPermitidos}
+      />
       <main className="px-5 py-6 pb-16 max-w-6xl w-full mx-auto flex-1">{children}</main>
       <footer className="px-5 py-4 border-t border-borde text-tinta2 text-xs text-center">
         Datos guardados en PostgreSQL — Fundación CAMO

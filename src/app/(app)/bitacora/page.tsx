@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { puede } from "@/lib/permisos";
+import { puede, puedeVerModulo } from "@/lib/permisos";
 
 function fechaHora(d: Date) {
   return new Date(d).toLocaleString("es-HN", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
@@ -10,7 +10,8 @@ function fechaHora(d: Date) {
 
 export default async function Bitacora({ searchParams }: { searchParams: { usuario?: string; modulo?: string; q?: string } }) {
   const sesion = await getServerSession(authOptions);
-  if (!puede(sesion?.user.rol, "bitacora.ver")) redirect("/");
+  if (!sesion || !puedeVerModulo(sesion.user.rol, sesion.user.modulosPermitidos, "bitacora")) redirect("/");
+  if (!puede(sesion.user.rol, "bitacora.ver")) redirect("/");
 
   const usuarioId = searchParams.usuario ? Number(searchParams.usuario) : undefined;
   const modulo = searchParams.modulo || undefined;

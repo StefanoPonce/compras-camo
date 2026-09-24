@@ -34,6 +34,9 @@ model Usuario {
   nombre         String
   correo         String?
   rol            Rol           @default(responsable_solicitante)
+  // "__rol__" significa que el usuario hereda los módulos de su rol.
+  // Una lista vacía significa que no tiene módulos personalizados habilitados.
+  modulosPermitidos String[]   @default(["__rol__"])
   activo         Boolean       @default(true)
   ultimoIngreso  DateTime?
   creadoEn       DateTime      @default(now())

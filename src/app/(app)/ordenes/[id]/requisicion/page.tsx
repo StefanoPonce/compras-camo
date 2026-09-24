@@ -2,6 +2,7 @@ import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { puedeVerModulo } from "@/lib/permisos";
 import ImagenLogo from "./imagen-logo";
 import BotonImprimirRequisicion from "./boton-imprimir";
 
@@ -12,6 +13,7 @@ function fecha(d: Date) {
 export default async function Requisicion({ params }: { params: { id: string } }) {
   const sesion = await getServerSession(authOptions);
   if (!sesion) redirect("/login");
+  if (!puedeVerModulo(sesion.user.rol, sesion.user.modulosPermitidos, "ordenes")) redirect("/");
 
   const o = await prisma.ordenCompra.findUniqueOrThrow({
     where: { id: Number(params.id) },

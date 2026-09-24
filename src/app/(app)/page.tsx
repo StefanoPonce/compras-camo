@@ -1,8 +1,9 @@
 import { getServerSession } from "next-auth";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { puede } from "@/lib/permisos";
+import { puede, puedeVerModulo } from "@/lib/permisos";
 
 function lps(n: number) {
   return "L " + n.toLocaleString("es-HN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -22,10 +23,14 @@ function Indicador({ n, t, alerta }: { n: string | number; t: string; alerta?: b
 
 export default async function Panel() {
   const sesion = await getServerSession(authOptions);
-  const veTodas = puede(sesion!.user.rol, "ordenes.verTodas");
-  const vePendientes = puede(sesion!.user.rol, "ordenes.autorizar");
-  const veGastos = puede(sesion!.user.rol, "reportes.ver");
-  const uid = Number(sesion!.user.id);
+  if (!sesion || !puedeVerModulo(sesion.user.rol, sesion.user.modulosPermitidos, "panel")) redirect("/");
+  const veOrdenes = puedeVerModulo(sesion.user.rol, sesion.user.modulosPermitidos, "ordenes");
+  const veProveedores = puedeVerModulo(sesion.user.rol, sesion.user.modulosPermitidos, "proveedores");
+  const veMateriales = puedeVerModulo(sesion.user.rol, sesion.user.modulosPermitidos, "materiales");
+  const veTodas = veOrdenes && puede(sesion.user.rol, "ordenes.verTodas");
+  const vePendientes = veOrdenes && puede(sesion.user.rol, "ordenes.autorizar");
+  const veGastos = puedeVerModulo(sesion.user.rol, sesion.user.modulosPermitidos, "reportes") && puede(sesion.user.rol, "reportes.ver");
+  const uid = Number(sesion.user.id);
 
   const [pendientes, proveedoresActivos, totalMateriales, bajos, ordenesRecientes] = await Promise.all([
     prisma.ordenCompra.count({ where: { estado: "Pendiente" } }),
@@ -59,12 +64,16 @@ export default async function Panel() {
           <p className="text-tinta2 text-sm mt-1 max-w-[60ch]">
             {vePendientes
               ? `Tienes ${pendientes} orden(es) esperando tu revisión.`
-              : "Desde aquí solicitas materiales y sigues el estado de tus órdenes."}
+              : veOrdenes
+                ? "Desde aquí solicitas materiales y sigues el estado de tus órdenes."
+                : "Consulta los módulos disponibles desde el menú."}
           </p>
         </div>
-        <div className="ml-auto">
-          <Link href="/ordenes/nueva" className="btn">Nueva orden de compra</Link>
-        </div>
+        {veOrdenes && puede(sesion.user.rol, "ordenes.crear") && (
+          <div className="ml-auto">
+            <Link href="/ordenes/nueva" className="btn">Nueva orden de compra</Link>
+          </div>
+        )}
       </div>
 
       <div
@@ -93,25 +102,30 @@ export default async function Panel() {
     </>
   )}
 
-  {/* Estas cards las pueden ver todos los roles */}
-  <Indicador
-    n={proveedoresActivos}
-    t="Proveedores activos"
-  />
+  {veProveedores && (
+    <Indicador
+      n={proveedoresActivos}
+      t="Proveedores activos"
+    />
+  )}
 
-  <Indicador
-    n={totalMateriales}
-    t="Materiales registrados"
-  />
+  {veMateriales && (
+    <Indicador
+      n={totalMateriales}
+      t="Materiales registrados"
+    />
+  )}
 
-  <Indicador
-    n={bajos.length}
-    t="Materiales bajo el mínimo"
-    alerta={bajos.length > 0}
-  />
+  {veMateriales && (
+    <Indicador
+      n={bajos.length}
+      t="Materiales bajo el mínimo"
+      alerta={bajos.length > 0}
+    />
+  )}
 </div>
 
-      {bajos.length > 0 && (
+      {veMateriales && bajos.length > 0 && (
         <>
           <h3 className="text-base font-sora font-semibold mb-2.5">Hay que reponer</h3>
           <div className="tarjeta overflow-x-auto mb-6">
@@ -133,27 +147,31 @@ export default async function Panel() {
         </>
       )}
 
-      <h3 className="text-base font-sora font-semibold mb-2.5">{veTodas ? "Últimas órdenes" : "Mis últimas órdenes"}</h3>
-      {ordenesRecientes.length ? (
-        <div className="tarjeta overflow-x-auto">
-          <table className="w-full tabla" style={{ minWidth: 620 }}>
-            <thead><tr><th>Folio</th><th>Fecha</th><th>Proveedor</th><th>Solicitante</th><th className="text-right">Total</th><th>Estado</th></tr></thead>
-            <tbody>
-              {ordenesRecientes.map((o) => (
-                <tr key={o.id}>
-                  <td className="font-mono"><Link className="text-verde" href={`/ordenes/${o.id}`}>{o.folio}</Link></td>
-                  <td>{fecha(o.fecha)}</td>
-                  <td>{o.proveedor.nombre}</td>
-                  <td>{o.solicitante.nombre}</td>
-                  <td className="text-right">{lps(Number(o.total))}</td>
-                  <td><span className={"etiqueta et-" + o.estado.toLowerCase()}>{o.estado}</span></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      ) : (
-        <div className="tarjeta p-10 text-center text-tinta2">Todavía no hay órdenes. Crea la primera con el botón de arriba.</div>
+      {veOrdenes && (
+        <>
+          <h3 className="text-base font-sora font-semibold mb-2.5">{veTodas ? "Últimas órdenes" : "Mis últimas órdenes"}</h3>
+          {ordenesRecientes.length ? (
+            <div className="tarjeta overflow-x-auto">
+              <table className="w-full tabla" style={{ minWidth: 620 }}>
+                <thead><tr><th>Folio</th><th>Fecha</th><th>Proveedor</th><th>Solicitante</th><th className="text-right">Total</th><th>Estado</th></tr></thead>
+                <tbody>
+                  {ordenesRecientes.map((o) => (
+                    <tr key={o.id}>
+                      <td className="font-mono"><Link className="text-verde" href={`/ordenes/${o.id}`}>{o.folio}</Link></td>
+                      <td>{fecha(o.fecha)}</td>
+                      <td>{o.proveedor.nombre}</td>
+                      <td>{o.solicitante.nombre}</td>
+                      <td className="text-right">{lps(Number(o.total))}</td>
+                      <td><span className={"etiqueta et-" + o.estado.toLowerCase()}>{o.estado}</span></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="tarjeta p-10 text-center text-tinta2">Todavía no hay órdenes. Crea la primera con el botón de arriba.</div>
+          )}
+        </>
       )}
     </>
   );

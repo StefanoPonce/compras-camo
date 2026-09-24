@@ -1,15 +1,17 @@
 import Link from "next/link";
 import { getServerSession } from "next-auth";
+import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { puede } from "@/lib/permisos";
+import { puede, puedeVerModulo } from "@/lib/permisos";
 import FormularioCrearProveedor from "./formulario-crear";
 import BotonEliminarProveedor from "./boton-eliminar";
 import BotonExportarExcel from "../boton-exportar-excel";
 
 export default async function Proveedores({ searchParams }: { searchParams: { q?: string } }) {
   const sesion = await getServerSession(authOptions);
-  const puedeGestionar = puede(sesion!.user.rol, "proveedores.gestionar");
+  if (!sesion || !puedeVerModulo(sesion.user.rol, sesion.user.modulosPermitidos, "proveedores")) redirect("/");
+  const puedeGestionar = puede(sesion.user.rol, "proveedores.gestionar");
   const q = searchParams.q || "";
 
   const proveedores = await prisma.proveedor.findMany({

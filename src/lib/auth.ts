@@ -5,7 +5,7 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { registrarMovimiento } from "@/lib/bitacora";
-import { nombreRol, type Rol } from "@/lib/permisos";
+import { nombreRol, normalizarModulos, type Rol } from "@/lib/permisos";
 
 export const authOptions: NextAuthOptions = {
   session: { strategy: "jwt" },
@@ -44,6 +44,7 @@ export const authOptions: NextAuthOptions = {
           name: encontrado.nombre,
           usuario: encontrado.usuario,
           rol: encontrado.rol,
+          modulosPermitidos: normalizarModulos(encontrado.modulosPermitidos, encontrado.rol),
         };
       },
     }),
@@ -54,6 +55,7 @@ export const authOptions: NextAuthOptions = {
         token.id = user.id;
         token.usuario = user.usuario;
         token.rol = user.rol;
+        token.modulosPermitidos = user.modulosPermitidos;
       }
       return token;
     },
@@ -66,28 +68,35 @@ export const authOptions: NextAuthOptions = {
         // si ya no existe, por nombre de cuenta para retomar el id actual.
         let id = String(token.id ?? "");
         let rol = token.rol as Rol;
+        let modulosPermitidos = normalizarModulos(token.modulosPermitidos, rol);
 
         const porId = Number.isInteger(Number(id))
-          ? await prisma.usuario.findUnique({ where: { id: Number(id) }, select: { id: true, rol: true } })
+          ? await prisma.usuario.findUnique({
+              where: { id: Number(id) },
+              select: { id: true, rol: true, modulosPermitidos: true },
+            })
           : null;
 
         if (porId) {
           id = String(porId.id);
           rol = porId.rol;
+          modulosPermitidos = normalizarModulos(porId.modulosPermitidos, rol);
         } else if (token.usuario) {
           const porCuenta = await prisma.usuario.findUnique({
             where: { usuario: String(token.usuario) },
-            select: { id: true, rol: true },
+            select: { id: true, rol: true, modulosPermitidos: true },
           });
           if (porCuenta) {
             id = String(porCuenta.id);
             rol = porCuenta.rol;
+            modulosPermitidos = normalizarModulos(porCuenta.modulosPermitidos, rol);
           }
         }
 
         session.user.id = id;
         session.user.usuario = token.usuario as string;
         session.user.rol = rol;
+        session.user.modulosPermitidos = modulosPermitidos;
       }
       return session;
     },

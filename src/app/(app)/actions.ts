@@ -15,7 +15,15 @@ import { Prisma } from "@prisma/client";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { registrarMovimiento } from "@/lib/bitacora";
-import { puede, rolValido, type Permiso } from "@/lib/permisos";
+import {
+  puede,
+  rolValido,
+  MODULOS_DEL_ROL,
+  MODULOS_POR_ROL,
+  MODULO_DE_PERMISO,
+  puedeVerModulo,
+  type Permiso,
+} from "@/lib/permisos";
 import { leerImagenAdjunta, subirImagenMaterial, borrarImagenMaterial } from "@/lib/imagenes";
 
 export type EstadoForm = { error: string | null };
@@ -41,6 +49,10 @@ async function exigirPermiso(permiso: Permiso) {
   const sesion = await sesionObligatoria();
   if (!puede(sesion.user.rol, permiso)) {
     throw new Error("Tu rol no tiene permiso para esta acción.");
+  }
+  const modulo = MODULO_DE_PERMISO[permiso];
+  if (modulo && !puedeVerModulo(sesion.user.rol, sesion.user.modulosPermitidos, modulo)) {
+    throw new Error("No tienes acceso al módulo requerido para esta acción.");
   }
   return sesion;
 }
@@ -438,6 +450,9 @@ export async function crearOrden(_prev: EstadoForm, datos: FormData): Promise<Es
 
 export async function editarOrden(id: number, _prev: EstadoForm, datos: FormData): Promise<EstadoForm> {
   const sesion = await sesionObligatoria();
+  if (!puedeVerModulo(sesion.user.rol, sesion.user.modulosPermitidos, "ordenes")) {
+    return { error: "No tienes acceso al módulo de órdenes de compra." };
+  }
   const puedeTodas = puede(sesion.user.rol, "ordenes.editarTodas");
   const puedeAprobadas = puede(sesion.user.rol, "ordenes.editarAprobadas");
 
@@ -567,22 +582,32 @@ export async function recibirOrden(id: number) {
 
 /* -------------------------------- USUARIOS -------------------------------- */
 
+/** Lee el panel de módulos del formulario sin permitir salir del alcance del rol. */
+function modulosDelFormulario(datos: FormData, rol: ReturnType<typeof rolValido>): string[] {
+  if (rol === "administrador") return [MODULOS_DEL_ROL];
+
+  const elegidos = new Set(datos.getAll("modulos").map((valor) => String(valor)));
+  const modulos = MODULOS_POR_ROL[rol].filter((modulo) => modulo === "panel" || elegidos.has(modulo));
+  return modulos.includes("panel") ? modulos : ["panel", ...modulos];
+}
+
 export async function crearUsuario(_prev: EstadoForm, datos: FormData): Promise<EstadoForm> {
   const sesion = await exigirPermiso("usuarios.gestionar");
   const nombre = String(datos.get("nombre") || "").trim();
   const usuario = String(datos.get("usuario") || "").trim().toLowerCase();
   const clave = String(datos.get("clave") || "");
   const rol = rolValido(datos.get("rol"));
+  const modulosPermitidos = modulosDelFormulario(datos, rol);
 
   if (!nombre || !usuario) return { error: "El nombre y la cuenta son obligatorios." };
   if (clave.length < 6) return { error: "La contraseña debe tener al menos 6 caracteres." };
 
   try {
     const claveHash = await bcrypt.hash(clave, 10);
-    await prisma.usuario.create({ data: { nombre, usuario, claveHash, rol } });
+    await prisma.usuario.create({ data: { nombre, usuario, claveHash, rol, modulosPermitidos } });
     await registrarMovimiento({
       usuarioId: Number(sesion.user.id), modulo: "Usuarios", accion: "Creó usuario",
-      detalle: `${nombre} (${usuario}) con rol ${rol}`,
+      detalle: `${nombre} (${usuario}) con rol ${rol} · módulos: ${modulosPermitidos.join(", ") || "ninguno"}`,
     });
   } catch (e) {
     return { error: mensajeSiEsDuplicado(e, { usuario: "nombre de cuenta" }) };
@@ -596,19 +621,26 @@ export async function editarUsuario(id: number, _prev: EstadoForm, datos: FormDa
   const sesion = await exigirPermiso("usuarios.gestionar");
   const nombre = String(datos.get("nombre") || "").trim();
   const rol = rolValido(datos.get("rol"));
+  const modulosPermitidos = modulosDelFormulario(datos, rol);
   const clave = String(datos.get("clave") || "");
   if (!nombre) return { error: "El nombre es obligatorio." };
   if (clave && clave.length < 6) return { error: "La contraseña debe tener al menos 6 caracteres." };
 
   try {
     const anterior = await prisma.usuario.findUniqueOrThrow({ where: { id } });
-    const data: { nombre: string; rol: typeof rol; claveHash?: string } = { nombre, rol };
+    const data: { nombre: string; rol: typeof rol; modulosPermitidos: string[]; claveHash?: string } = {
+      nombre,
+      rol,
+      modulosPermitidos,
+    };
     if (clave) data.claveHash = await bcrypt.hash(clave, 10);
 
     await prisma.usuario.update({ where: { id }, data });
     await registrarMovimiento({
       usuarioId: Number(sesion.user.id), modulo: "Usuarios", accion: "Editó usuario",
-      detalle: nombre + (anterior.rol !== rol ? ` (rol ${anterior.rol} → ${rol})` : "") + (clave ? " — se cambió la contraseña" : ""),
+      detalle: nombre + (anterior.rol !== rol ? ` (rol ${anterior.rol} → ${rol})` : "") +
+        ` · módulos: ${modulosPermitidos.join(", ") || "ninguno"}` +
+        (clave ? " — se cambió la contraseña" : ""),
     });
   } catch (e) {
     return { error: mensajeSiEsDuplicado(e, { usuario: "nombre de cuenta" }) };

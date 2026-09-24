@@ -1,7 +1,8 @@
 import { getServerSession } from "next-auth";
+import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { puede } from "@/lib/permisos";
+import { puede, puedeVerModulo } from "@/lib/permisos";
 import FormularioCrearMaterial from "./formulario-crear";
 import BotonEliminarMaterial from "./boton-eliminar";
 import ImagenMaterial from "../imagen-material";
@@ -14,8 +15,11 @@ function lps(n: number) {
 
 export default async function Materiales({ searchParams }: { searchParams: { q?: string; cat?: string; fam?: string } }) {
   const sesion = await getServerSession(authOptions);
-  const puedeGestionar = puede(sesion!.user.rol, "materiales.gestionar");
-  const puedeDescargar = puede(sesion!.user.rol, "inventario.descargar");
+  if (!sesion || !puedeVerModulo(sesion.user.rol, sesion.user.modulosPermitidos, "materiales")) redirect("/");
+  const puedeGestionar = puede(sesion.user.rol, "materiales.gestionar");
+  const puedeDescargar =
+    puede(sesion.user.rol, "inventario.descargar") &&
+    puedeVerModulo(sesion.user.rol, sesion.user.modulosPermitidos, "inventario");
   const q = searchParams.q || "";
   const cat = searchParams.cat || "";
   const fam = searchParams.fam || "";

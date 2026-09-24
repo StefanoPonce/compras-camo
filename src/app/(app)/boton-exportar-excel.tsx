@@ -1,4 +1,10 @@
-export default function BotonExportarExcel({ href }: { href: string }) {
+export default function BotonExportarExcel({
+  href,
+  texto = "Exportar a Excel",
+}: {
+  href: string;
+  texto?: string;
+}) {
   return (
     <a
       href={href}
@@ -21,7 +27,7 @@ export default function BotonExportarExcel({ href }: { href: string }) {
         <path d="m7 10 5 5 5-5" />
         <path d="M5 21h14" />
       </svg>
-      Exportar a Excel
+      {texto}
     </a>
   );
 }

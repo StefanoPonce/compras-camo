@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { getServerSession } from "next-auth";
+import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { puede } from "@/lib/permisos";
+import { puede, puedeVerModulo } from "@/lib/permisos";
 
 function lps(n: number) {
   return "L " + n.toLocaleString("es-HN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -13,7 +14,8 @@ function fecha(d: Date) {
 
 export default async function Ordenes({ searchParams }: { searchParams: { estado?: string } }) {
   const sesion = await getServerSession(authOptions);
-  const veTodas = puede(sesion!.user.rol, "ordenes.verTodas");
+  if (!sesion || !puedeVerModulo(sesion.user.rol, sesion.user.modulosPermitidos, "ordenes")) redirect("/");
+  const veTodas = puede(sesion.user.rol, "ordenes.verTodas");
   const uid = Number(sesion!.user.id);
   const filtro = searchParams.estado || "";
 
