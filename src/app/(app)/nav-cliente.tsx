@@ -12,11 +12,11 @@ export default function NavCliente({
   const router = useRouter();
 
   // Cada sección se muestra solo a quien tiene el permiso que la rodea.
-  // "Panel", "Órdenes", "Proveedores" y "Materiales" son de consulta para
+  // "Panel", "Requisiciones", "Proveedores" y "Materiales" son de consulta para
   // todos los roles. Gestión reúne la consolidación de requisiciones.
   const items: [string, string, Permiso | null, Modulo][] = [
     ["/", "Panel", null, "panel"],
-    ["/ordenes", "Órdenes de compra", "ordenes.crear", "ordenes"],
+    ["/ordenes", "Requisiciones", "ordenes.crear", "ordenes"],
     ["/proveedores", "Proveedores", null, "proveedores"],
     ["/materiales", "Materiales", null, "materiales"],
     ["/gestion", "Gestión", "consolidacion.ver", "gestion"],

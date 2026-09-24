@@ -30,7 +30,7 @@ export default function BotonesOrden({
       await resolverOrden(id, nuevo, comentario.trim());
       router.refresh();
     } catch {
-      alert("No se pudo actualizar la orden. Intenta de nuevo.");
+      alert("No se pudo actualizar la requisición. Intenta de nuevo.");
     } finally {
       setOcupado(false);
     }

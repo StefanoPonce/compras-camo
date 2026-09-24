@@ -39,7 +39,7 @@ export default async function Requisicion({ params }: { params: { id: string } }
           <ImagenLogo />
           <h1 className="font-sora text-xl font-semibold">Fundación CAMO - Honduras</h1>
           <p className="text-sm mt-3">Área de Administración</p>
-          <p className="text-sm font-medium">Requisición de Materiales</p>
+          <p className="text-sm font-medium">Requisición de Productos y Materiales</p>
         </div>
 
         <table className="w-full text-sm mb-5">
@@ -61,13 +61,14 @@ export default async function Requisicion({ params }: { params: { id: string } }
           </tbody>
         </table>
 
-        <p className="text-sm mb-2">Lista de Materiales, Suministros, Equipo Médico, Útiles de oficina u otros solicitados:</p>
+        <p className="text-sm mb-2">Lista de productos, materiales, suministros, equipo médico, útiles de oficina u otros solicitados:</p>
 
         <table className="w-full text-sm border border-tinta mb-4" style={{ borderCollapse: "collapse" }}>
           <thead>
             <tr>
               <th className="border border-tinta px-2 py-1 w-10">No.</th>
               <th className="border border-tinta px-2 py-1 text-left">Descripción del Artículo</th>
+              <th className="border border-tinta px-2 py-1 text-left w-28">Categoría</th>
               <th className="border border-tinta px-2 py-1 w-24">Código</th>
               <th className="border border-tinta px-2 py-1 w-24">Unidad</th>
               <th className="border border-tinta px-2 py-1 w-24">Cantidad</th>
@@ -79,6 +80,7 @@ export default async function Requisicion({ params }: { params: { id: string } }
               <tr key={it.id}>
                 <td className="border border-tinta px-2 py-1 text-center">{i + 1}</td>
                 <td className="border border-tinta px-2 py-1">{it.material.nombre}</td>
+                <td className="border border-tinta px-2 py-1">{it.material.categoria}</td>
                 <td className="border border-tinta px-2 py-1 text-center font-mono">{it.material.codigo}</td>
                 <td className="border border-tinta px-2 py-1 text-center">{it.material.unidad}</td>
                 <td className="border border-tinta px-2 py-1 text-center">{it.cantidad}</td>
@@ -89,6 +91,7 @@ export default async function Requisicion({ params }: { params: { id: string } }
             {Array.from({ length: Math.max(0, 4 - o.items.length) }).map((_, i) => (
               <tr key={"vacia" + i}>
                 <td className="border border-tinta px-2 py-3">&nbsp;</td>
+                <td className="border border-tinta px-2 py-3"></td>
                 <td className="border border-tinta px-2 py-3"></td>
                 <td className="border border-tinta px-2 py-3"></td>
                 <td className="border border-tinta px-2 py-3"></td>

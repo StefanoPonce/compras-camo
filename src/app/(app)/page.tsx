@@ -63,15 +63,15 @@ export default async function Panel() {
           </h2>
           <p className="text-tinta2 text-sm mt-1 max-w-[60ch]">
             {vePendientes
-              ? `Tienes ${pendientes} orden(es) esperando tu revisión.`
+              ? `Tienes ${pendientes} requisición(es) esperando tu revisión.`
               : veOrdenes
-                ? "Desde aquí solicitas materiales y sigues el estado de tus órdenes."
+                ? "Desde aquí solicitas productos y sigues el estado de tus requisiciones."
                 : "Consulta los módulos disponibles desde el menú."}
           </p>
         </div>
         {veOrdenes && puede(sesion.user.rol, "ordenes.crear") && (
           <div className="ml-auto">
-            <Link href="/ordenes/nueva" className="btn">Nueva orden de compra</Link>
+            <Link href="/ordenes/nueva" className="btn">Nueva requisición</Link>
           </div>
         )}
       </div>
@@ -82,13 +82,13 @@ export default async function Panel() {
     gridTemplateColumns: "repeat(auto-fit, minmax(190px,1fr))",
   }}
 >
-  {/* Quien autoriza ve las órdenes pendientes; quien genera reportes ve el gasto */}
+  {/* Quien autoriza ve las requisiciones pendientes; quien genera reportes ve el gasto */}
   {(vePendientes || veGastos) && (
     <>
       {vePendientes && (
         <Indicador
           n={pendientes}
-          t="Órdenes pendientes de aprobar"
+          t="Requisiciones pendientes de aprobar"
           alerta={pendientes > 0}
         />
       )}
@@ -149,7 +149,7 @@ export default async function Panel() {
 
       {veOrdenes && (
         <>
-          <h3 className="text-base font-sora font-semibold mb-2.5">{veTodas ? "Últimas órdenes" : "Mis últimas órdenes"}</h3>
+          <h3 className="text-base font-sora font-semibold mb-2.5">{veTodas ? "Últimas requisiciones" : "Mis últimas requisiciones"}</h3>
           {ordenesRecientes.length ? (
             <div className="tarjeta overflow-x-auto">
               <table className="w-full tabla" style={{ minWidth: 620 }}>
@@ -169,7 +169,7 @@ export default async function Panel() {
               </table>
             </div>
           ) : (
-            <div className="tarjeta p-10 text-center text-tinta2">Todavía no hay órdenes. Crea la primera con el botón de arriba.</div>
+            <div className="tarjeta p-10 text-center text-tinta2">Todavía no hay requisiciones. Crea la primera con el botón de arriba.</div>
           )}
         </>
       )}

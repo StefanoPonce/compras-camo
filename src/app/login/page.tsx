@@ -32,7 +32,7 @@ export default function PaginaIngreso() {
         <div>
           <h1 className="font-sora text-4xl leading-tight max-w-[11ch]">Proceso de compras</h1>
           <p className="max-w-[38ch] opacity-85 mt-4">
-            Registro de proveedores, materiales y órdenes de compra, con bitácora de todo lo que hace cada usuario.
+            Registro de proveedores, materiales y requisiciones, con bitácora de todo lo que hace cada usuario.
           </p>
         </div>
         <span className="text-sm opacity-80">Santa Rosa de Copán, Honduras</span>

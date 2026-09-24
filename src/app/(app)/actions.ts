@@ -342,7 +342,7 @@ export async function eliminarMaterial(_prev: EstadoForm, datos: FormData): Prom
   const sesion = await exigirPermiso("materiales.gestionar");
   const id = Number(datos.get("id"));
   const usado = await prisma.detalleOrden.count({ where: { materialId: id } });
-  if (usado > 0) return { error: "No se puede eliminar: aparece en órdenes ya registradas." };
+  if (usado > 0) return { error: "No se puede eliminar: aparece en requisiciones ya registradas." };
 
   const material = await prisma.material.delete({ where: { id } });
   await borrarImagenMaterial(material.imagenUrl);
@@ -354,7 +354,7 @@ export async function eliminarMaterial(_prev: EstadoForm, datos: FormData): Prom
   return { error: null };
 }
 
-/* ----------------------------- ÓRDENES DE COMPRA ----------------------------- */
+/* ----------------------------- REQUISICIONES ----------------------------- */
 
 /** De dónde sale el proveedor de la orden. Manda lo que se eligió en el
  *  formulario (una columna por renglón); si ese renglón quedó vacío, se usa
@@ -378,7 +378,7 @@ async function resolverProveedorDeItems(
     return { ok: true, id };
   }
 
-  return { ok: false, error: "Elige el proveedor de la orden en la columna \"Proveedor\" del primer renglón." };
+  return { ok: false, error: "Elige el proveedor de la requisición en la columna \"Proveedor\" del primer renglón." };
 }
 
 function leerItems(datos: FormData) {
@@ -436,12 +436,12 @@ export async function crearOrden(_prev: EstadoForm, datos: FormData): Promise<Es
     ordenId = orden.id;
 
     await registrarMovimiento({
-      usuarioId: Number(sesion.user.id), modulo: "Órdenes", accion: "Creó orden",
+      usuarioId: Number(sesion.user.id), modulo: "Requisiciones", accion: "Creó requisición",
       detalle: `${orden.folio} por ${lps(total)} (${items.length} material(es))`,
     });
   } catch (e) {
     console.error("crearOrden:", e);
-    return { error: "No se pudo crear la orden. Verifica los datos e intenta de nuevo." };
+    return { error: "No se pudo crear la requisición. Verifica los datos e intenta de nuevo." };
   }
 
   revalidatePath("/ordenes");
@@ -451,7 +451,7 @@ export async function crearOrden(_prev: EstadoForm, datos: FormData): Promise<Es
 export async function editarOrden(id: number, _prev: EstadoForm, datos: FormData): Promise<EstadoForm> {
   const sesion = await sesionObligatoria();
   if (!puedeVerModulo(sesion.user.rol, sesion.user.modulosPermitidos, "ordenes")) {
-    return { error: "No tienes acceso al módulo de órdenes de compra." };
+    return { error: "No tienes acceso al módulo de requisiciones." };
   }
   const puedeTodas = puede(sesion.user.rol, "ordenes.editarTodas");
   const puedeAprobadas = puede(sesion.user.rol, "ordenes.editarAprobadas");
@@ -462,13 +462,13 @@ export async function editarOrden(id: number, _prev: EstadoForm, datos: FormData
   // Recibida: ya no se toca. Aprobada: solo administración. El resto: su
   // solicitante o quien puede editar todas.
   if (orden.estado === "Recibida") {
-    return { error: "Una orden recibida ya no puede editarse." };
+    return { error: "Una requisición recibida ya no puede editarse." };
   }
   if (orden.estado === "Aprobada" && !puedeAprobadas) {
     return { error: "Solo el administrador o el sub administrador pueden editar una requisición aprobada." };
   }
   if (orden.estado !== "Aprobada" && !puedeTodas && !esPropia) {
-    return { error: "Solo el solicitante o un rol con permiso de edición pueden editar esta orden." };
+    return { error: "Solo el solicitante o un rol con permiso de edición pueden editar esta requisición." };
   }
   const eraAprobada = orden.estado === "Aprobada";
 
@@ -513,12 +513,12 @@ export async function editarOrden(id: number, _prev: EstadoForm, datos: FormData
       }),
     ]);
     await registrarMovimiento({
-      usuarioId: Number(sesion.user.id), modulo: "Órdenes", accion: "Editó orden",
+      usuarioId: Number(sesion.user.id), modulo: "Requisiciones", accion: "Editó requisición",
       detalle: `${orden.folio} — se actualizaron los materiales y quedó ` +
         (eraAprobada ? "aprobada." : "pendiente de revisión."),
     });
   } catch {
-    return { error: "No se pudo guardar la orden. Verifica los datos e intenta de nuevo." };
+    return { error: "No se pudo guardar la requisición. Verifica los datos e intenta de nuevo." };
   }
 
   revalidatePath("/ordenes");
@@ -530,7 +530,7 @@ export async function resolverOrden(id: number, nuevoEstado: "Aprobada" | "Recha
   const sesion = await exigirPermiso("ordenes.autorizar");
   const actual = await prisma.ordenCompra.findUniqueOrThrow({ where: { id } });
   if (actual.estado !== "Pendiente") {
-    throw new Error("Esta orden ya fue revisada (aprobada o rechazada).");
+    throw new Error("Esta requisición ya fue revisada (aprobada o rechazada).");
   }
 
   const orden = await prisma.ordenCompra.update({
@@ -539,8 +539,8 @@ export async function resolverOrden(id: number, nuevoEstado: "Aprobada" | "Recha
   });
 
   await registrarMovimiento({
-    usuarioId: Number(sesion.user.id), modulo: "Órdenes",
-    accion: nuevoEstado === "Aprobada" ? "Aprobó orden" : "Rechazó orden",
+    usuarioId: Number(sesion.user.id), modulo: "Requisiciones",
+    accion: nuevoEstado === "Aprobada" ? "Aprobó requisición" : "Rechazó requisición",
     detalle: `${orden.folio} por ${lps(Number(orden.total))}${comentario ? " — " + comentario : ""}`,
   });
   revalidatePath("/ordenes");
@@ -554,7 +554,7 @@ export async function recibirOrden(id: number) {
     include: { items: true },
   });
   if (orden.estado !== "Aprobada") {
-    throw new Error("Solo se puede marcar como recibida una orden aprobada.");
+    throw new Error("Solo se puede marcar como recibida una requisición aprobada.");
   }
 
   await prisma.$transaction([

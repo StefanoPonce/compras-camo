@@ -8,6 +8,7 @@ type MaterialOrden = {
   id: number;
   codigo: string;
   nombre: string;
+  categoria: string;
   unidad: string;
   variante: string | null;
   precioUltimo: number;
@@ -19,6 +20,7 @@ export type LineaOrden = {
   materialId: number | "";
   codigo: string;
   nombre: string;
+  categoria: string;
   unidad: string;
   precio: number;
   cantidad: number;
@@ -47,7 +49,7 @@ type FormularioProps = {
 };
 
 function lineaVacia(): LineaOrden {
-  return { materialId: "", codigo: "", nombre: "", unidad: "", precio: 0, cantidad: 1, proveedorId: "", imagenUrl: null };
+  return { materialId: "", codigo: "", nombre: "", categoria: "", unidad: "", precio: 0, cantidad: 1, proveedorId: "", imagenUrl: null };
 }
 
 function BotonEnviar({ texto }: { texto: string }) {
@@ -55,7 +57,7 @@ function BotonEnviar({ texto }: { texto: string }) {
   return <button className="btn" disabled={pending}>{pending ? "Enviando…" : texto}</button>;
 }
 
-export default function FormularioOrden({ accion, materiales, proveedores, inicial, cancelarHref = "/ordenes", textoEnviar = "Enviar solicitud" }: FormularioProps) {
+export default function FormularioOrden({ accion, materiales, proveedores, inicial, cancelarHref = "/ordenes", textoEnviar = "Enviar requisición" }: FormularioProps) {
   const [estado, envia] = useFormState(accion, { error: null });
   const [lineas, setLineas] = useState<LineaOrden[]>(inicial?.lineas || [lineaVacia()]);
 
@@ -66,7 +68,7 @@ export default function FormularioOrden({ accion, materiales, proveedores, inici
       const l = copia[i];
       const m = materiales.find((x) => x.id === nuevoId);
       if (!m) {
-        copia[i] = { ...l, materialId: "", codigo: "", nombre: "", unidad: "", proveedorId: "", imagenUrl: null };
+        copia[i] = { ...l, materialId: "", codigo: "", nombre: "", categoria: "", unidad: "", proveedorId: "", imagenUrl: null };
         return copia;
       }
       copia[i] = {
@@ -74,6 +76,7 @@ export default function FormularioOrden({ accion, materiales, proveedores, inici
         materialId: m.id,
         codigo: m.codigo,
         nombre: m.nombre,
+        categoria: m.categoria,
         unidad: m.unidad,
         precio: l.materialId === m.id ? l.precio : Number(m.precioUltimo),
         // Al cambiar de material se toma su proveedor; si no tiene, queda
@@ -127,14 +130,15 @@ export default function FormularioOrden({ accion, materiales, proveedores, inici
       </div>
 
       <div className="overflow-x-auto">
-        <label className="block text-sm text-tinta2 mb-1.5 font-medium">Materiales</label>
+        <label className="block text-sm text-tinta2 mb-1.5 font-medium">Productos y materiales</label>
         <p className="text-xs text-tinta2 mb-2">
-          Elige cada material de la lista; la unidad y el precio se llenan solos. El proveedor se completa con el del material
+          Elige cada producto o material de la lista; su categoría, unidad y precio se llenan solos. El proveedor se completa con el del material
           y, si el material no tiene, escógelo en esa misma columna.
         </p>
-        <div className="grid gap-x-2 gap-y-1.5 mb-1.5" style={{ gridTemplateColumns: "54px minmax(210px, 2fr) 120px 1fr 64px 100px 34px", minWidth: 760 }}>
+        <div className="grid gap-x-2 gap-y-1.5 mb-1.5" style={{ gridTemplateColumns: "54px minmax(210px, 2fr) minmax(130px, 0.9fr) 110px 1fr 64px 100px 34px", minWidth: 900 }}>
           <div className="text-xs text-tinta2 font-semibold">Imagen</div>
-          <div className="text-xs text-tinta2 font-semibold">Material (código · producto)</div>
+          <div className="text-xs text-tinta2 font-semibold">Producto / material</div>
+          <div className="text-xs text-tinta2 font-semibold">Categoría</div>
           <div className="text-xs text-tinta2 font-semibold">Unidad</div>
           <div className="text-xs text-tinta2 font-semibold">Proveedor</div>
           <div className="text-xs text-tinta2 font-semibold text-right">Cant.</div>
@@ -157,6 +161,14 @@ export default function FormularioOrden({ accion, materiales, proveedores, inici
                   </option>
                 ))}
               </select>
+              <input
+                className="campo-input"
+                placeholder="Categoría"
+                value={l.categoria}
+                readOnly
+                tabIndex={-1}
+                title="La categoría proviene del catálogo de materiales"
+              />
               <input className="campo-input" placeholder="Unidad" value={l.unidad} readOnly tabIndex={-1} />
               <select
                 className="campo-input"
@@ -185,7 +197,7 @@ export default function FormularioOrden({ accion, materiales, proveedores, inici
       </div>
 
       <div className="flex justify-between border-t border-borde pt-3 font-semibold">
-        <span>Total de la orden</span><span>{lps(total)}</span>
+        <span>Total de la requisición</span><span>{lps(total)}</span>
       </div>
 
       <div className="flex gap-2 justify-end">

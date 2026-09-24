@@ -136,7 +136,7 @@ export default async function Reportes({
           <h2 className="text-xl font-sora font-semibold">Reportes</h2>
           {esGestionado ? (
             <p className="text-tinta2 text-sm mt-1 max-w-[62ch]">
-              Visión de la gestión de compras: órdenes por estado y gasto agrupado por proveedor, para el período que elijas.
+              Visión de la gestión de compras: requisiciones por estado y gasto agrupado por proveedor, para el período que elijas.
             </p>
           ) : (
             <p className="text-tinta2 text-sm mt-1 max-w-[62ch]">
@@ -164,7 +164,7 @@ export default async function Reportes({
           <input className="campo-input" type="date" name="hasta" defaultValue={hasta} />
         </div>
         <div>
-          <label className="block text-xs text-tinta2 mb-1">Órdenes a incluir</label>
+          <label className="block text-xs text-tinta2 mb-1">Requisiciones a incluir</label>
           <select className="campo-input" name="estado" defaultValue={estadoParam}>
             <option value="AR">Aprobadas y entregadas</option>
             <option value="todas">Todas (incluye pendientes y rechazadas)</option>
@@ -186,7 +186,7 @@ export default async function Reportes({
             </div>
             <div className="tarjeta p-4">
               <div className="font-sora text-2xl font-semibold">{ordenes.length}</div>
-              <div className="text-sm text-tinta2 mt-1">Órdenes incluidas</div>
+              <div className="text-sm text-tinta2 mt-1">Requisiciones incluidas</div>
             </div>
             <div className="tarjeta p-4">
               <div className="font-sora text-2xl font-semibold">{filasProveedor.length}</div>
@@ -194,10 +194,10 @@ export default async function Reportes({
             </div>
           </div>
 
-          <h3 className="text-base font-sora font-semibold mb-2.5">Órdenes por estado</h3>
+          <h3 className="text-base font-sora font-semibold mb-2.5">Requisiciones por estado</h3>
           <div className="tarjeta overflow-x-auto mb-6">
             <table className="w-full tabla" style={{ minWidth: 360 }}>
-              <thead><tr><th>Estado</th><th className="text-right">Órdenes</th><th className="text-right">Total</th></tr></thead>
+              <thead><tr><th>Estado</th><th className="text-right">Requisiciones</th><th className="text-right">Total</th></tr></thead>
               <tbody>
                 {filasEstado.map((f) => (
                   <tr key={f.estado}>
@@ -214,7 +214,7 @@ export default async function Reportes({
           {filasProveedor.length ? (
             <div className="tarjeta overflow-x-auto mb-6">
               <table className="w-full tabla" style={{ minWidth: 480 }}>
-                <thead><tr><th>Proveedor</th><th className="text-right">Órdenes</th><th className="text-right">Total</th><th className="text-right">% del total</th></tr></thead>
+                <thead><tr><th>Proveedor</th><th className="text-right">Requisiciones</th><th className="text-right">Total</th><th className="text-right">% del total</th></tr></thead>
                 <tbody>
                   {filasProveedor.map((p) => (
                     <tr key={p.nombre}>

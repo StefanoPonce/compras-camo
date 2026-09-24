@@ -76,7 +76,7 @@ export default async function Consolidacion({
           </div>
         </div>
         <div className="grid grid-cols-4 gap-3 mt-4 text-sm">
-          <div><span className="text-tinta2">Órdenes:</span> <strong>{ordenes.length}</strong></div>
+          <div><span className="text-tinta2">Requisiciones:</span> <strong>{ordenes.length}</strong></div>
           <div><span className="text-tinta2">Proveedores:</span> <strong>{grupos.length}</strong></div>
           <div><span className="text-tinta2">Renglones:</span> <strong>{totalRenglones}</strong></div>
           <div><span className="text-tinta2">Total estimado:</span> <strong>{lps(totalGeneral)}</strong></div>
@@ -89,7 +89,7 @@ export default async function Consolidacion({
           <h2 className="text-xl font-sora font-semibold">Consolidación de compras</h2>
           <p className="text-tinta2 text-sm mt-1 max-w-[68ch]">
             Reúne las requisiciones por proveedor para revisar y preparar una compra consolidada. Esta vista no modifica
-            ni elimina las órdenes originales.
+            ni elimina las requisiciones originales.
           </p>
         </div>
         <div className="ml-auto self-center flex gap-2 flex-wrap">
@@ -119,7 +119,7 @@ export default async function Consolidacion({
         className="grid gap-3.5 mb-6 no-imprimir"
         style={{ gridTemplateColumns: "repeat(auto-fit, minmax(175px,1fr))" }}
       >
-        <Indicador valor={ordenes.length} texto="Órdenes a consolidar" />
+        <Indicador valor={ordenes.length} texto="Requisiciones a consolidar" />
         <Indicador valor={grupos.length} texto="Proveedores" />
         <Indicador valor={totalRenglones} texto="Renglones" />
         <Indicador
@@ -133,7 +133,7 @@ export default async function Consolidacion({
       <div className="tarjeta p-3.5 mb-4 text-sm text-tinta2 no-imprimir">
         <strong className="text-tinta">Cómo se consolida:</strong> se suman las cantidades del mismo material cuando
         existen en varias requisiciones del mismo proveedor. Se muestra el promedio de precios y el subtotal de cada
-        material. Las órdenes pendientes solo aparecen cuando seleccionas esa opción.
+        material. Las requisiciones pendientes solo aparecen cuando seleccionas esa opción.
       </div>
 
       {grupos.length ? (
@@ -148,7 +148,7 @@ export default async function Consolidacion({
                       <h3 className="font-sora font-semibold text-lg">{grupo.proveedor.nombre}</h3>
                       <p className="text-sm text-tinta2 mt-0.5">
                         {grupo.proveedor.codigo ? `${grupo.proveedor.codigo} · ` : ""}
-                        {grupo.ordenes.length} orden(es) · {grupo.items.length} material(es) distinto(s)
+                        {grupo.ordenes.length} requisición(es) · {grupo.items.length} material(es) distinto(s)
                       </p>
                       <div className="flex gap-1.5 flex-wrap mt-2">
                         {estados.map((estado) => (
@@ -162,7 +162,7 @@ export default async function Consolidacion({
                     </div>
                   </div>
                   <div className="flex items-center gap-1.5 flex-wrap mt-3 text-xs text-tinta2">
-                    <span>Órdenes incluidas:</span>
+                    <span>Requisiciones incluidas:</span>
                     {grupo.ordenes.map((orden) => (
                       <Link
                         key={orden.id}
@@ -205,7 +205,7 @@ export default async function Consolidacion({
                             <td className="text-right font-semibold">{lps(item.total)}</td>
                             <td>
                               {folios.length > 1 ? (
-                                <span className="etiqueta et-pendiente">En {folios.length} órdenes</span>
+                                <span className="etiqueta et-pendiente">En {folios.length} requisiciones</span>
                               ) : (
                                 <span className="font-mono text-xs">{folios.join(", ")}</span>
                               )}
@@ -227,7 +227,7 @@ export default async function Consolidacion({
             <div>
               <div className="font-sora font-semibold">Total estimado consolidado</div>
               <div className="text-xs text-tinta2 mt-1">
-                {ordenes.length} orden(es) en {grupos.length} proveedor(es)
+                {ordenes.length} requisición(es) en {grupos.length} proveedor(es)
               </div>
             </div>
             <div className="font-sora text-2xl font-semibold text-verde">{lps(totalGeneral)}</div>

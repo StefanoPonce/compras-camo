@@ -34,14 +34,14 @@ export default async function Ordenes({ searchParams }: { searchParams: { estado
     <>
       <div className="flex items-start gap-3 flex-wrap mb-4">
         <div>
-          <h2 className="text-xl font-sora font-semibold">Órdenes de compra</h2>
+          <h2 className="text-xl font-sora font-semibold">Requisiciones</h2>
           <p className="text-tinta2 text-sm mt-1 max-w-[62ch]">
             {veTodas
-              ? "Revisa, aprueba o rechaza las solicitudes. Al marcar una orden como recibida se suma la cantidad al inventario."
-              : "Aquí aparecen las órdenes que tú has solicitado y en qué estado van."}
+              ? "Revisa, aprueba o rechaza las requisiciones. Al marcar una requisición como recibida se suma la cantidad al inventario."
+              : "Aquí aparecen las requisiciones que tú has solicitado y en qué estado van."}
           </p>
         </div>
-        <div className="ml-auto"><Link href="/ordenes/nueva" className="btn">Nueva orden</Link></div>
+        <div className="ml-auto"><Link href="/ordenes/nueva" className="btn">Nueva requisición</Link></div>
       </div>
 
       <div className="flex gap-2 flex-wrap mb-4">
@@ -76,7 +76,7 @@ export default async function Ordenes({ searchParams }: { searchParams: { estado
           </table>
         </div>
       ) : (
-        <div className="tarjeta p-10 text-center text-tinta2">No hay órdenes con ese filtro.</div>
+        <div className="tarjeta p-10 text-center text-tinta2">No hay requisiciones con ese filtro.</div>
       )}
     </>
   );

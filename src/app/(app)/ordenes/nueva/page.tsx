@@ -17,7 +17,7 @@ export default async function NuevaOrden() {
 
   return (
     <>
-      <h2 className="text-xl font-sora font-semibold mb-4">Nueva orden de compra</h2>
+      <h2 className="text-xl font-sora font-semibold mb-4">Nueva requisición</h2>
       <FormularioOrden
         accion={crearOrden}
         materiales={materiales.map((m) => ({ ...m, precioUltimo: Number(m.precioUltimo) }))}

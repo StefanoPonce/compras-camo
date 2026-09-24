@@ -40,6 +40,7 @@ export default async function EditarOrden({ params }: { params: { id: string } }
     materialId: it.materialId,
     codigo: it.material.codigo,
     nombre: it.material.nombre,
+    categoria: it.material.categoria,
     unidad: it.material.unidad,
     precio: Number(it.precio),
     cantidad: it.cantidad,
@@ -52,12 +53,12 @@ export default async function EditarOrden({ params }: { params: { id: string } }
   return (
     <>
       <h2 className="text-xl font-sora font-semibold mb-4">
-        Editar orden <span className="font-mono">{o.folio}</span>
+        Editar requisición <span className="font-mono">{o.folio}</span>
       </h2>
       <p className="text-tinta2 text-sm mb-4">
         {o.estado === "Aprobada"
-          ? "La orden está aprobada. Al guardar se conserva el estado Aprobada y la orden sigue lista para recibirse."
-          : "La orden está " + o.estado.toLowerCase() + " y puede corregirse. Al guardar quedará pendiente de revisión otra vez."}
+          ? "La requisición está aprobada. Al guardar se conserva el estado Aprobada y sigue lista para recibirse."
+          : "La requisición está " + o.estado.toLowerCase() + " y puede corregirse. Al guardar quedará pendiente de revisión otra vez."}
       </p>
       <FormularioOrden
         accion={editarOrden.bind(null, id)}

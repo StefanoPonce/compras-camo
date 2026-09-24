@@ -52,7 +52,7 @@ export default async function DetalleOrden({ params }: { params: { id: string } 
   return (
     <div className="max-w-2xl">
       <h2 className="text-xl font-sora font-semibold">
-        Orden <span className="font-mono">{o.folio}</span>
+        Requisición <span className="font-mono">{o.folio}</span>
       </h2>
       <p className="text-tinta2 text-sm mt-1 mb-4">
         {o.proveedor.nombre} · {fecha(o.fecha)} · <span className={"etiqueta et-" + o.estado.toLowerCase()}>{o.estado}</span>
@@ -64,7 +64,7 @@ export default async function DetalleOrden({ params }: { params: { id: string } 
         </Link>
         {puedeModificar && (
           <Link href={`/ordenes/${o.id}/editar`} className="btn-secundario btn-chico">
-            Editar orden
+            Editar requisición
           </Link>
         )}
       </div>
@@ -72,22 +72,23 @@ export default async function DetalleOrden({ params }: { params: { id: string } 
         <p className="text-xs text-tinta2 mb-4">Una vez aprobada, solo el administrador o el sub administrador pueden editarla.</p>
       )}
       {o.estado === "Aprobada" && puedeModificar && (
-        <p className="text-xs text-tinta2 mb-4">La orden está aprobada: puedes corregirla y conservará su estado.</p>
+        <p className="text-xs text-tinta2 mb-4">La requisición está aprobada: puedes corregirla y conservará su estado.</p>
       )}
       {o.estado === "Recibida" && (
-        <p className="text-xs text-tinta2 mb-4">Orden recibida: ya no puede editarse.</p>
+        <p className="text-xs text-tinta2 mb-4">Requisición recibida: ya no puede editarse.</p>
       )}
 
       {o.justificacion && <p className="mb-4">{o.justificacion}</p>}
 
       <div className="tarjeta overflow-x-auto mb-3">
         <table className="w-full tabla">
-          <thead><tr><th>Imagen</th><th>Material</th><th>Unidad</th><th>Proveedor</th><th className="text-right">Cant.</th><th className="text-right">Precio</th></tr></thead>
+          <thead><tr><th>Imagen</th><th>Material</th><th>Categoría</th><th>Unidad</th><th>Proveedor</th><th className="text-right">Cant.</th><th className="text-right">Precio</th></tr></thead>
           <tbody>
             {o.items.map((it) => (
               <tr key={it.id}>
                 <td><ImagenMaterial src={it.material.imagenUrl} alt={it.material.nombre} className="h-12 w-12" /></td>
                 <td>{it.material.nombre}<div className="text-xs text-tinta2 font-mono">{it.material.codigo}</div></td>
+                <td>{it.material.categoria}</td>
                 <td>{it.material.unidad}</td>
                 {/* Proveedor del renglón; en órdenes viejas, el de la orden. */}
                 <td>{it.proveedor?.nombre || o.proveedor.nombre}</td>
@@ -95,7 +96,7 @@ export default async function DetalleOrden({ params }: { params: { id: string } 
                 <td className="text-right">{lps(Number(it.precio))}</td>
               </tr>
             ))}
-            <tr><td colSpan={5} className="text-right font-semibold">Total</td><td className="text-right font-semibold">{lps(Number(o.total))}</td></tr>
+            <tr><td colSpan={6} className="text-right font-semibold">Total</td><td className="text-right font-semibold">{lps(Number(o.total))}</td></tr>
           </tbody>
         </table>
       </div>

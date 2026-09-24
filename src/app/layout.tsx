@@ -3,7 +3,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Compras — Fundación CAMO",
-  description: "Sistema de proceso de compras: proveedores, materiales, órdenes y bitácora",
+  description: "Sistema de proceso de compras: proveedores, materiales, requisiciones y bitácora",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
