@@ -39,6 +39,11 @@ model Usuario {
   modulosPermitidos String[]   @default(["__rol__"])
   activo         Boolean       @default(true)
   ultimoIngreso  DateTime?
+  // Token de la única sesión activa. Si otro dispositivo intenta entrar,
+  // el servidor rechaza el nuevo inicio de sesión hasta que se cierre la
+  // existente o expire por inactividad.
+  sesionToken    String?
+  sesionExpira   DateTime?
   creadoEn       DateTime      @default(now())
 
   ordenesPedidas OrdenCompra[] @relation("solicitante")
