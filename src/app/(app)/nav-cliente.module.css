@@ -1,0 +1,359 @@
+.contenedor {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 1px 0 rgba(23, 33, 30, 0.08), 0 7px 24px rgba(23, 33, 30, 0.045);
+  backdrop-filter: blur(14px);
+}
+
+.superior {
+  width: min(100%, 1480px);
+  min-height: 72px;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  margin: 0 auto;
+  padding: 10px 28px;
+}
+
+.marca {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  color: inherit;
+  text-decoration: none;
+}
+
+.logoMarca {
+  width: 46px;
+  height: 46px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  border: 1px solid #d6e2df;
+  border-radius: 12px;
+  background: #ffffff;
+}
+
+.logoMarca img {
+  width: 42px;
+  height: 42px;
+  object-fit: contain;
+}
+
+.textoMarca {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.textoMarca strong {
+  color: #17211e;
+  font-family: "Sora", system-ui, sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.1;
+  letter-spacing: -0.025em;
+  white-space: nowrap;
+}
+
+.textoMarca small {
+  color: #77827e;
+  font-size: 8.5px;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.accionesSuperior {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  min-width: 0;
+  margin-left: auto;
+}
+
+.estadoSesion {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: #5e6b66;
+  font-size: 10.5px;
+  white-space: nowrap;
+}
+
+.estadoSesion > span {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #2c967b;
+  box-shadow: 0 0 0 3px rgba(44, 150, 123, 0.12);
+}
+
+.identidad {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding-left: 13px;
+  border-left: 1px solid #e0e7e4;
+}
+
+.nombreUsuario {
+  max-width: 175px;
+  overflow: hidden;
+  color: #33403b;
+  font-size: 12.5px;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rol {
+  max-width: 190px;
+  overflow: hidden;
+  padding: 5px 9px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1.15;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.botonSalir {
+  height: 35px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 13px;
+  border: 1px solid #0b6c74;
+  border-radius: 7px;
+  background: #0b6c74;
+  color: #ffffff;
+  font: inherit;
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 150ms ease, transform 150ms ease, box-shadow 150ms ease;
+}
+
+.botonSalir:hover:not(:disabled) {
+  background: #075b63;
+  box-shadow: 0 5px 13px rgba(11, 108, 116, 0.17);
+  transform: translateY(-1px);
+}
+
+.botonSalir:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.botonSalir:focus-visible {
+  outline: 3px solid rgba(11, 108, 116, 0.22);
+  outline-offset: 2px;
+}
+
+.botonSalir:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.navegacion {
+  border-top: 1px solid #edf1ef;
+  background: rgba(255, 255, 255, 0.76);
+}
+
+.listaNavegacion {
+  width: min(100%, 1480px);
+  display: flex;
+  align-items: stretch;
+  gap: 2px;
+  margin: 0 auto;
+  padding: 0 22px;
+  overflow-x: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #c9d7d2 transparent;
+}
+
+.listaNavegacion::-webkit-scrollbar {
+  height: 4px;
+}
+
+.listaNavegacion::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: #c9d7d2;
+}
+
+.enlace {
+  position: relative;
+  min-height: 47px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+  padding: 0 14px;
+  border-bottom: 3px solid transparent;
+  color: #64716c;
+  font-size: 12px;
+  font-weight: 500;
+  text-decoration: none;
+  transition: color 150ms ease, background 150ms ease, border-color 150ms ease;
+}
+
+.enlace::after {
+  content: "";
+  position: absolute;
+  right: 12px;
+  bottom: -1px;
+  left: 12px;
+  height: 3px;
+  border-radius: 3px 3px 0 0;
+  background: transparent;
+}
+
+.enlace:hover {
+  background: #f3f8f6;
+  color: #0b6c74;
+}
+
+.enlaceActivo {
+  border-bottom-color: #0b6c74;
+  background: linear-gradient(180deg, transparent, rgba(226, 237, 233, 0.55));
+  color: #0b6c74;
+  font-weight: 600;
+}
+
+.enlaceActivo::after {
+  background: #0b6c74;
+}
+
+.enlace:focus-visible {
+  z-index: 1;
+  outline: 2px solid rgba(11, 108, 116, 0.35);
+  outline-offset: -2px;
+}
+
+.iconoEnlace {
+  display: inline-grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  color: currentColor;
+  opacity: 0.78;
+}
+
+.enlaceActivo .iconoEnlace {
+  opacity: 1;
+}
+
+@media (max-width: 860px) {
+  .superior {
+    flex-wrap: wrap;
+    gap: 12px 20px;
+    padding: 10px 20px 8px;
+  }
+
+  .accionesSuperior {
+    flex: 1 1 auto;
+    justify-content: flex-end;
+  }
+
+  .estadoSesion {
+    display: none;
+  }
+
+  .listaNavegacion {
+    padding: 0 14px;
+  }
+
+  .enlace {
+    min-height: 44px;
+    padding: 0 12px;
+    font-size: 11.5px;
+  }
+}
+
+@media (max-width: 580px) {
+  .superior {
+    align-items: flex-start;
+    padding: 12px 15px 9px;
+  }
+
+  .logoMarca {
+    width: 41px;
+    height: 41px;
+    border-radius: 10px;
+  }
+
+  .logoMarca img {
+    width: 37px;
+    height: 37px;
+  }
+
+  .textoMarca strong {
+    font-size: 13.5px;
+  }
+
+  .textoMarca small {
+    max-width: 190px;
+    overflow: hidden;
+    font-size: 7.5px;
+    text-overflow: ellipsis;
+  }
+
+  .accionesSuperior {
+    width: 100%;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .identidad {
+    flex: 1 1 auto;
+    padding-left: 0;
+    border-left: 0;
+  }
+
+  .nombreUsuario {
+    max-width: 125px;
+    font-size: 11.5px;
+  }
+
+  .rol {
+    max-width: 145px;
+    padding: 4px 7px;
+    font-size: 9px;
+  }
+
+  .botonSalir {
+    height: 33px;
+    padding: 0 10px;
+  }
+
+  .listaNavegacion {
+    padding: 0 8px;
+  }
+
+  .enlace {
+    min-height: 42px;
+    padding: 0 10px;
+    font-size: 11px;
+  }
+
+  .iconoEnlace {
+    width: 16px;
+    height: 16px;
+  }
+}
+
+@media print {
+  .contenedor {
+    position: static;
+    box-shadow: none;
+  }
+}

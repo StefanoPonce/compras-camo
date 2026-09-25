@@ -171,7 +171,7 @@ export default function PaginaIngreso() {
                 Iniciar sesión
               </h1>
               <p className={estilos.subtitulo}>
-                Ingresa con tu usuario institucional para continuar.
+                Ingresa con tu usuario  para continuar.
               </p>
             </div>
 
@@ -184,7 +184,7 @@ export default function PaginaIngreso() {
               )}
 
               <div className={estilos.campo}>
-                <label htmlFor="usuario">Usuario institucional</label>
+                <label htmlFor="usuario">Usuario </label>
                 <div className={estilos.contenedorInput}>
                   <IconoUsuario className={estilos.iconoInput} />
                   <input
