@@ -1,6 +1,7 @@
 import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
+import ControlSesion from "./control-sesion";
 import NavCliente from "./nav-cliente";
 
 export default async function LayoutApp({ children }: { children: React.ReactNode }) {
@@ -9,6 +10,7 @@ export default async function LayoutApp({ children }: { children: React.ReactNod
 
   return (
     <div className="min-h-screen flex flex-col">
+      <ControlSesion />
       <NavCliente
         nombre={sesion.user.name || sesion.user.usuario}
         rol={sesion.user.rol}

@@ -1,15 +1,5 @@
 // Subida y borrado de las fotos de productos en Supabase Storage.
-//
-// Se usa la API REST de Storage directamente (no hace falta instalar el
-// SDK de Supabase): con la service key del proyecto se crea el bucket la
-// primera vez, se sube la imagen y se devuelve su URL pública.
-//
-// Requiere en el archivo .env:
-//   SUPABASE_URL=https://xxxxxxxx.supabase.co
-//   SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOi...
-//
-// IMPORTANTE: la service key nunca se manda al navegador, solo se usa
-// aquí en el servidor dentro de las server actions.
+
 
 const BUCKET = "materiales";
 const MAX_BYTES = 8 * 1024 * 1024; // 8 MB

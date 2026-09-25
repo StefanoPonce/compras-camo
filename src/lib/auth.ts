@@ -12,18 +12,10 @@ import {
   ERROR_USUARIO_EN_USO,
   ERROR_USUARIO_INACTIVO,
 } from "@/lib/auth-errors";
-
-// La sesión se renueva con actividad. Si el usuario deja el dispositivo
-// inactivo durante este tiempo, otro dispositivo puede iniciar sesión.
-const DURACION_SESION_MS = 8 * 60 * 60 * 1000;
-const RENOVAR_SESION_MS = 4 * 60 * 60 * 1000;
+import { nuevaExpiracionSesion } from "@/lib/sesion-control";
 
 function nuevoTokenSesion() {
   return randomBytes(32).toString("hex");
-}
-
-function expiracionSesion(desde = new Date()) {
-  return new Date(desde.getTime() + DURACION_SESION_MS);
 }
 
 function condicionSesionLibre(id: number, ahora: Date) {
@@ -68,7 +60,7 @@ export const authOptions: NextAuthOptions = {
           where: condicionSesionLibre(encontrado.id, ahora),
           data: {
             sesionToken,
-            sesionExpira: expiracionSesion(ahora),
+            sesionExpira: nuevaExpiracionSesion(ahora),
             ultimoIngreso: ahora,
           },
         });
@@ -152,7 +144,7 @@ export const authOptions: NextAuthOptions = {
         tokenSesion = nuevoTokenSesion();
         const reclamo = await prisma.usuario.updateMany({
           where: condicionSesionLibre(actual.id, ahora),
-          data: { sesionToken: tokenSesion, sesionExpira: expiracionSesion(ahora) },
+          data: { sesionToken: tokenSesion, sesionExpira: nuevaExpiracionSesion(ahora) },
         });
         if (reclamo.count !== 1) throw new Error(ERROR_SESION_INVALIDA);
         token.sesionToken = tokenSesion;
@@ -164,15 +156,19 @@ export const authOptions: NextAuthOptions = {
         throw new Error(ERROR_SESION_INVALIDA);
       }
 
-      if (
-        actual.sesionExpira &&
-        actual.sesionExpira.getTime() - ahora.getTime() < RENOVAR_SESION_MS
-      ) {
-        await prisma.usuario.updateMany({
-          where: { id: actual.id, sesionToken: tokenSesion },
-          data: { sesionExpira: expiracionSesion(ahora) },
-        });
-      }
+      // Cada petición autenticada renueva el permiso de la sesión. El cliente
+      // también envía un latido periódico para que una pestaña quieta siga
+      // activa; si el navegador se cierra, la renovación deja de ocurrir.
+      const renovacion = await prisma.usuario.updateMany({
+        where: {
+          id: actual.id,
+          activo: true,
+          sesionToken: tokenSesion,
+          sesionExpira: { gt: ahora },
+        },
+        data: { sesionExpira: nuevaExpiracionSesion(ahora) },
+      });
+      if (renovacion.count !== 1) throw new Error(ERROR_SESION_INVALIDA);
 
       token.id = String(actual.id);
       token.usuario = actual.usuario;
