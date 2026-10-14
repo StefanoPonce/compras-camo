@@ -7,7 +7,7 @@ import { ACEPTA_IMAGENES, comprimirImagen, esImagenValida } from "../../../image
 type Material = {
   id: number; codigo: string; nombre: string; categoria: string; unidad: string;
   familia: string | null; variante: string | null;
-  existencia: number; minimo: number; precioUltimo: number; proveedorId: number | null;
+  existencia: number; minimo: number; proveedorId: number | null;
   imagenUrl: string | null;
 };
 type Proveedor = { id: number; nombre: string };
@@ -111,11 +111,6 @@ export default function FormularioEditarMaterial({
           placeholder="Mínimo para avisar faltantes (vacío = el que ya tiene)"
         />
       </div>
-      <input
-        className="campo-input" name="precio" type="number" min={0} step="0.01"
-        defaultValue={m.precioUltimo || ""}
-        placeholder="Precio unitario en L. Ej. 12.50 (vacío = el que ya tiene)"
-      />
 
       <div className="border-t border-borde pt-3">
         <label className="block text-sm text-tinta2 mb-1.5 font-medium">Imagen del producto</label>

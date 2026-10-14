@@ -1,7 +1,7 @@
 import { getToken } from "next-auth/jwt";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { nuevaExpiracionSesion } from "@/lib/sesion-control";
+import { expiracionCierreSuave, nuevaExpiracionSesion } from "@/lib/sesion-control";
 
 export const runtime = "nodejs";
 
@@ -64,17 +64,25 @@ export async function POST(request: NextRequest) {
   }
 
   if (accion === "cerrar") {
+    // Cierre SUAVE. OJO: aquí no se borra ni el sesionToken ni la cookie.
+    //
+    // Cuando el navegador suelta la página no se puede distinguir un cierre
+    // real de una recarga: en una recarga la página vieja avisa que se va
+    // antes de que exista la nueva. Por eso solo se acorta el vencimiento y se
+    // deja todo lo demás intacto:
+    //   - si fue una recarga, la página nueva llega enseguida, su cookie sigue
+    //     ahí y su latido renueva la sesión otra vez;
+    //   - si el navegador se cerró de verdad, nadie renueva y al vencer este
+    //     margen la cuenta queda libre para un nuevo ingreso.
     await prisma.usuario.updateMany({
-      where: { id, sesionToken: tokenSesion },
-      data: { sesionToken: null, sesionExpira: null },
+      where: { id, sesionToken: tokenSesion, sesionExpira: { gt: new Date() } },
+      data: { sesionExpira: expiracionCierreSuave() },
     });
 
-    return borrarCookieSesion(
-      new NextResponse(null, {
-        status: 204,
-        headers: { "Cache-Control": "no-store" },
-      }),
-    );
+    return new NextResponse(null, {
+      status: 204,
+      headers: { "Cache-Control": "no-store" },
+    });
   }
 
   // El navegador renueva el permiso mientras está abierto. Si deja de hacerlo

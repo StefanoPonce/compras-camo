@@ -66,7 +66,6 @@ async function main() {
   fd.set("1_proveedorId", String(proveedor.id));
   fd.set("1_existencia", "5");
   fd.set("1_minimo", "1");
-  fd.set("1_precio", "10.50");
   fd.set("1_imagen", new File([readFileSync("public/logo-camo.png")], "logo.png", { type: "image/png" }));
   fd.set("0", '[{"error":null},"$K1"]');
 

@@ -33,7 +33,6 @@ export async function GET() {
       { header: "Proveedor", width: 31 },
       { header: "Existencia", width: 15, horizontal: "right", numFmt: "#,##0" },
       { header: "Mínimo", width: 13, horizontal: "right", numFmt: "#,##0" },
-      { header: "Último precio", width: 18, horizontal: "right", numFmt: '"L" #,##0.00' },
       { header: "Estado", width: 13, horizontal: "center" },
     ],
     filas: materiales.map((material) => [
@@ -46,7 +45,6 @@ export async function GET() {
       material.proveedor?.nombre ?? "",
       material.existencia,
       material.minimo,
-      Number(material.precioUltimo),
       material.activo ? "Activo" : "Inactivo",
     ]),
     textoTotal: `Total de materiales: ${materiales.length}`,

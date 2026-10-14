@@ -20,6 +20,8 @@ body {
 .et-aprobada { @apply bg-verdeclaro text-verde; }
 .et-rechazada { @apply bg-rojoclaro text-rojo; }
 .et-recibida { @apply bg-azulclaro text-azul; }
+/* Píldora neutra: el borrador es un trabajo a medias, no una requisición en juego. */
+.et-borrador { @apply bg-superficie2 text-tinta2 border border-borde; }
 /* Píldora neutra para la variante de un producto (4X8, 150 ml, BOTE…) */
 .et-variante { @apply bg-superficie2 text-tinta border border-borde; }
 

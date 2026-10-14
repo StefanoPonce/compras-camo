@@ -157,7 +157,7 @@ export default function NavCliente({
           </span>
           <span className={estilos.textoMarca}>
             <strong>CAMO Honduras</strong>
-            <small>Sistema de proceso de compras</small>
+            <small>Sistema de Gestion de compras</small>
           </span>
         </Link>
 

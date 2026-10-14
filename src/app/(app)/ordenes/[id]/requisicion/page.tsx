@@ -3,6 +3,8 @@ import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { puedeVerModulo } from "@/lib/permisos";
+import { textoPrograma } from "@/lib/programas";
+import { etiquetaUnidad } from "@/lib/unidades";
 import ImagenLogo from "./imagen-logo";
 import BotonImprimirRequisicion from "./boton-imprimir";
 
@@ -26,6 +28,9 @@ export default async function Requisicion({ params }: { params: { id: string } }
     },
   });
 
+  // Un borrador todavía no es una requisición: no hay nada que imprimir de él.
+  if (o.estado === "Borrador") redirect(`/ordenes/${o.id}/editar`);
+
   return (
     <div className="max-w-3xl mx-auto">
       <div className="flex justify-end mb-4 no-imprimir">
@@ -47,10 +52,6 @@ export default async function Requisicion({ params }: { params: { id: string } }
             <tr>
               <td className="py-1 pr-2 font-medium whitespace-nowrap">Dependencia:</td>
               <td className="py-1 border-b border-tinta">{o.dependencia || "—"}</td>
-            </tr>
-            <tr>
-              <td className="py-1 pr-2 font-medium whitespace-nowrap">Lugar:</td>
-              <td className="py-1 border-b border-tinta">{o.lugar || "—"}</td>
               <td className="py-1 pl-4 pr-2 font-medium whitespace-nowrap">Fecha:</td>
               <td className="py-1 border-b border-tinta">{fecha(o.fecha)}</td>
             </tr>
@@ -71,7 +72,8 @@ export default async function Requisicion({ params }: { params: { id: string } }
               <th className="border border-tinta px-2 py-1 text-left w-28">Categoría</th>
               <th className="border border-tinta px-2 py-1 w-24">Código</th>
               <th className="border border-tinta px-2 py-1 w-24">Unidad</th>
-              <th className="border border-tinta px-2 py-1 w-24">Cantidad</th>
+              <th className="border border-tinta px-2 py-1 w-20">Cantidad</th>
+              <th className="border border-tinta px-2 py-1 text-left">Programa</th>
               <th className="border border-tinta px-2 py-1 text-left">Proveedor</th>
             </tr>
           </thead>
@@ -82,8 +84,9 @@ export default async function Requisicion({ params }: { params: { id: string } }
                 <td className="border border-tinta px-2 py-1">{it.material.nombre}</td>
                 <td className="border border-tinta px-2 py-1">{it.material.categoria}</td>
                 <td className="border border-tinta px-2 py-1 text-center font-mono">{it.material.codigo}</td>
-                <td className="border border-tinta px-2 py-1 text-center">{it.material.unidad}</td>
+                <td className="border border-tinta px-2 py-1 text-center">{etiquetaUnidad(it.unidad || it.material.unidad)}</td>
                 <td className="border border-tinta px-2 py-1 text-center">{it.cantidad}</td>
+                <td className="border border-tinta px-2 py-1">{it.programa ? textoPrograma(it.programa) : "—"}</td>
                 <td className="border border-tinta px-2 py-1">{it.proveedor?.nombre || o.proveedor?.nombre || "—"}</td>
               </tr>
             ))}
@@ -91,6 +94,7 @@ export default async function Requisicion({ params }: { params: { id: string } }
             {Array.from({ length: Math.max(0, 4 - o.items.length) }).map((_, i) => (
               <tr key={"vacia" + i}>
                 <td className="border border-tinta px-2 py-3">&nbsp;</td>
+                <td className="border border-tinta px-2 py-3"></td>
                 <td className="border border-tinta px-2 py-3"></td>
                 <td className="border border-tinta px-2 py-3"></td>
                 <td className="border border-tinta px-2 py-3"></td>
@@ -120,7 +124,7 @@ export default async function Requisicion({ params }: { params: { id: string } }
           </div>
           <div className="border-r border-tinta p-2.5">
             <p>Entregado por:</p>
-            <p className="mt-3">Nombre: <span className="font-medium">{o.proveedor.nombre}</span></p>
+            <p className="mt-3">Nombre: <span className="font-medium">{o.proveedor?.nombre || "—"}</span></p>
             <p className="mt-3">Fecha de entrega: <span className="font-medium">{o.fechaRecepcion ? fecha(o.fechaRecepcion) : "—"}</span></p>
           </div>
           <div className="p-2.5">

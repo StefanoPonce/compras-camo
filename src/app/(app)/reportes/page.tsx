@@ -3,13 +3,11 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { puede, puedeVerModulo } from "@/lib/permisos";
+import { unidadesDe } from "@/lib/consolidacion";
 import BotonImprimir from "./boton-imprimir";
 import Image from "next/image";
 
 
-function lps(n: number) {
-  return "L " + n.toLocaleString("es-HN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
 function fecha(d: Date | string) {
   return new Date(d).toLocaleDateString("es-HN", { day: "2-digit", month: "short", year: "numeric" });
 }
@@ -41,11 +39,11 @@ export default async function Reportes({
   const reporte = searchParams.reporte === "insumos" ? "insumos" : "gestionado";
   const esGestionado = reporte === "gestionado";
 
-  let estados: string[] | undefined;
-  if (estadoParam === "todas") estados = undefined;
-  else if (estadoParam === "AR") estados = ["Aprobada", "Recibida"];
+  // "todas" son todas las requisiciones jugables. Borrador nunca entra a los
+// reportes: es un trabajo a medias que todavía no se ha enviado.
+let estados: string[] = [...ESTADOS_VALIDOS];
+  if (estadoParam === "AR") estados = ["Aprobada", "Recibida"];
   else if ((ESTADOS_VALIDOS as readonly string[]).includes(estadoParam)) estados = [estadoParam];
-  else estados = ["Aprobada", "Recibida"];
 
   const ordenes = await prisma.ordenCompra.findMany({
     where: {
@@ -56,54 +54,69 @@ export default async function Reportes({
     orderBy: { fecha: "asc" },
   });
 
-  const totalGeneral = ordenes.reduce((s, o) => s + Number(o.total), 0);
+  // Unidades por estado: cada renglón aporta las unidades que pide la orden.
+  const unidadesDeLaOrden = (o: (typeof ordenes)[number]) => o.items.reduce((s, it) => s + it.cantidad, 0);
 
-  const porEstado = new Map<string, { cant: number; total: number }>();
+  const porEstado = new Map<string, { cant: number; unidades: number }>();
   for (const o of ordenes) {
-    const actual = porEstado.get(o.estado) || { cant: 0, total: 0 };
+    const actual = porEstado.get(o.estado) || { cant: 0, unidades: 0 };
     actual.cant += 1;
-    actual.total += Number(o.total);
+    actual.unidades += unidadesDeLaOrden(o);
     porEstado.set(o.estado, actual);
   }
   const filasEstado = ESTADOS_VALIDOS.map((e) => {
-    const v = porEstado.get(e) || { cant: 0, total: 0 };
-    return { estado: nombreEstado(e), cant: v.cant, total: v.total };
+    const v = porEstado.get(e) || { cant: 0, unidades: 0 };
+    return { estado: nombreEstado(e), cant: v.cant, unidades: v.unidades };
   });
 
-  const porProveedor = new Map<number, { nombre: string; ordenes: number; total: number }>();
+  // El proveedor es opcional, así que puede faltar. Esas requisiciones se
+  // cuentan en su propia fila ("Sin proveedor") y no se pierden del reporte.
+  const SIN_PROVEEDOR = 0;
+  const porProveedor = new Map<number, { nombre: string; ordenes: number; unidades: number; materiales: Set<number> }>();
   for (const o of ordenes) {
-    const actual = porProveedor.get(o.proveedorId) || { nombre: o.proveedor.nombre, ordenes: 0, total: 0 };
+    const clave = o.proveedorId ?? SIN_PROVEEDOR;
+    const actual = porProveedor.get(clave) || {
+      nombre: o.proveedor?.nombre ?? "Sin proveedor",
+      ordenes: 0, unidades: 0, materiales: new Set<number>(),
+    };
     actual.ordenes += 1;
-    actual.total += Number(o.total);
-    porProveedor.set(o.proveedorId, actual);
+    actual.unidades += unidadesDeLaOrden(o);
+    for (const it of o.items) actual.materiales.add(it.materialId);
+    porProveedor.set(clave, actual);
   }
-  const filasProveedor = [...porProveedor.values()].sort((a, b) => b.total - a.total);
+  const filasProveedor = [...porProveedor.values()]
+    .map((p) => ({ ...p, materiales: p.materiales.size }))
+    .sort((a, b) => (a.nombre === "Sin proveedor" ? 1 : 0) - (b.nombre === "Sin proveedor" ? 1 : 0) || b.unidades - a.unidades);
 
-  const porMaterial = new Map<number, { material: (typeof ordenes)[number]["items"][number]["material"]; cantidad: number; total: number }>();
+  const porMaterial = new Map<number, { material: (typeof ordenes)[number]["items"][number]["material"]; cantidad: number; requisiciones: Set<number>; medidas: Set<string> }>();
   for (const o of ordenes) {
     for (const it of o.items) {
-      const actual = porMaterial.get(it.materialId) || { material: it.material, cantidad: 0, total: 0 };
+      const actual = porMaterial.get(it.materialId) || { material: it.material, cantidad: 0, requisiciones: new Set<number>(), medidas: new Set<string>() };
       actual.cantidad += it.cantidad;
-      actual.total += it.cantidad * Number(it.precio);
+      actual.requisiciones.add(o.id);
+      // La unidad es la del renglón, no la del catálogo.
+      actual.medidas.add(it.unidad || it.material.unidad);
       porMaterial.set(it.materialId, actual);
     }
   }
-  const filasMaterial = [...porMaterial.values()].sort((a, b) => b.total - a.total);
+  const filasMaterial = [...porMaterial.values()]
+    .map((m) => ({ ...m, requisiciones: m.requisiciones.size, unidades: unidadesDe(m.medidas) }))
+    .sort((a, b) => b.cantidad - a.cantidad);
   const unidadesCompradas = filasMaterial.reduce((s, m) => s + m.cantidad, 0);
 
-  const porCategoria = new Map<string, { cantidad: number; total: number }>();
+  const porCategoria = new Map<string, { cantidad: number; materiales: Set<number> }>();
   for (const o of ordenes) {
     for (const it of o.items) {
       const cat = it.material.categoria;
-      const actual = porCategoria.get(cat) || { cantidad: 0, total: 0 };
+      const actual = porCategoria.get(cat) || { cantidad: 0, materiales: new Set<number>() };
       actual.cantidad += it.cantidad;
-      actual.total += it.cantidad * Number(it.precio);
+      actual.materiales.add(it.materialId);
       porCategoria.set(cat, actual);
     }
   }
   const filasCategoria = [...porCategoria.entries()]
-    .map(([categoria, v]) => ({ categoria, ...v }))
-    .sort((a, b) => b.total - a.total);
+    .map(([categoria, v]) => ({ categoria, cantidad: v.cantidad, materiales: v.materiales.size }))
+    .sort((a, b) => b.cantidad - a.cantidad);
 
   const generado = new Date().toLocaleString("es-HN", {
     day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit",
@@ -136,7 +149,7 @@ export default async function Reportes({
           <h2 className="text-xl font-sora font-semibold">Reportes</h2>
           {esGestionado ? (
             <p className="text-tinta2 text-sm mt-1 max-w-[62ch]">
-              Visión de la gestión de compras: requisiciones por estado y gasto agrupado por proveedor, para el período que elijas.
+              Visión de la gestión de compras: requisiciones por estado y materiales agrupados por proveedor, para el período que elijas.
             </p>
           ) : (
             <p className="text-tinta2 text-sm mt-1 max-w-[62ch]">
@@ -181,8 +194,8 @@ export default async function Reportes({
         <>
           <div className="grid gap-3.5 mb-6" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(190px,1fr))" }}>
             <div className="tarjeta p-4">
-              <div className="font-sora text-2xl font-semibold">{lps(totalGeneral)}</div>
-              <div className="text-sm text-tinta2 mt-1">Total del período</div>
+              <div className="font-sora text-2xl font-semibold">{unidadesCompradas}</div>
+              <div className="text-sm text-tinta2 mt-1">Unidades en el período</div>
             </div>
             <div className="tarjeta p-4">
               <div className="font-sora text-2xl font-semibold">{ordenes.length}</div>
@@ -197,34 +210,35 @@ export default async function Reportes({
           <h3 className="text-base font-sora font-semibold mb-2.5">Requisiciones por estado</h3>
           <div className="tarjeta overflow-x-auto mb-6">
             <table className="w-full tabla" style={{ minWidth: 360 }}>
-              <thead><tr><th>Estado</th><th className="text-right">Requisiciones</th><th className="text-right">Total</th></tr></thead>
+              <thead><tr><th>Estado</th><th className="text-right">Requisiciones</th><th className="text-right">Unidades</th></tr></thead>
               <tbody>
                 {filasEstado.map((f) => (
                   <tr key={f.estado}>
                     <td><span className={"etiqueta et-" + (f.estado === "Entregada" ? "recibida" : f.estado.toLowerCase())}>{f.estado}</span></td>
                     <td className="text-left">{f.cant}</td>
-                    <td className="text-left">{lps(f.total)}</td>
+                    <td className="text-left">{f.unidades}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
 
-          <h3 className="text-base font-sora font-semibold mb-2.5">Gasto por proveedor</h3>
+          <h3 className="text-base font-sora font-semibold mb-2.5">Materiales por proveedor</h3>
           {filasProveedor.length ? (
             <div className="tarjeta overflow-x-auto mb-6">
               <table className="w-full tabla" style={{ minWidth: 480 }}>
-                <thead><tr><th>Proveedor</th><th className="text-right">Requisiciones</th><th className="text-right">Total</th><th className="text-right">% del total</th></tr></thead>
+                <thead><tr><th>Proveedor</th><th className="text-right">Requisiciones</th><th className="text-right">Materiales distintos</th><th className="text-right">Unidades</th><th className="text-right">% de las unidades</th></tr></thead>
                 <tbody>
                   {filasProveedor.map((p) => (
                     <tr key={p.nombre}>
                       <td>{p.nombre}</td>
                       <td className="text-left">{p.ordenes}</td>
-                      <td className="text-left">{lps(p.total)}</td>
-                      <td className="text-left">{totalGeneral ? ((p.total / totalGeneral) * 100).toFixed(1) : "0.0"}%</td>
+                      <td className="text-left">{p.materiales}</td>
+                      <td className="text-left">{p.unidades}</td>
+                      <td className="text-left">{unidadesCompradas ? ((p.unidades / unidadesCompradas) * 100).toFixed(1) : "0.0"}%</td>
                     </tr>
                   ))}
-                  <tr><td className="font-semibold">Total</td><td className="text-left font-semibold">{ordenes.length}</td><td className="text-left font-semibold">{lps(totalGeneral)}</td><td></td></tr>
+                  <tr><td className="font-semibold">Total</td><td className="text-left font-semibold">{ordenes.length}</td><td className="text-left font-semibold">{filasMaterial.length}</td><td className="text-left font-semibold">{unidadesCompradas}</td><td></td></tr>
                 </tbody>
               </table>
             </div>
@@ -236,8 +250,8 @@ export default async function Reportes({
         <>
           <div className="grid gap-3.5 mb-6" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(190px,1fr))" }}>
             <div className="tarjeta p-4">
-              <div className="font-sora text-2xl font-semibold">{lps(totalGeneral)}</div>
-              <div className="text-sm text-tinta2 mt-1">Total de insumos</div>
+              <div className="font-sora text-2xl font-semibold">{unidadesCompradas}</div>
+              <div className="text-sm text-tinta2 mt-1">Unidades compradas</div>
             </div>
             <div className="tarjeta p-4">
               <div className="font-sora text-2xl font-semibold">{filasMaterial.length}</div>
@@ -253,22 +267,22 @@ export default async function Reportes({
           {filasMaterial.length ? (
             <div className="tarjeta overflow-x-auto mb-6">
               <table className="w-full tabla" style={{ minWidth: 560 }}>
-                <thead><tr><th>Código</th><th>Material</th><th>Categoría</th><th>Unidad</th><th className="text-right">Cantidad</th><th className="text-right">Total</th></tr></thead>
+                <thead><tr><th>Código</th><th>Material</th><th>Categoría</th><th>Unidad</th><th className="text-right">Cantidad</th><th className="text-right">Requisiciones</th></tr></thead>
                 <tbody>
                   {filasMaterial.map((m) => (
                     <tr key={m.material.id}>
                       <td className="font-mono">{m.material.codigo}</td>
                       <td>{m.material.nombre}</td>
                       <td>{m.material.categoria}</td>
-                      <td>{m.material.unidad}</td>
+                      <td>{m.unidades}</td>
                       <td className="text-right">{m.cantidad}</td>
-                      <td className="text-right">{lps(m.total)}</td>
+                      <td className="text-right">{m.requisiciones}</td>
                     </tr>
                   ))}
                   <tr>
                     <td className="font-semibold" colSpan={4}>Total</td>
                     <td className="text-right font-semibold">{unidadesCompradas}</td>
-                    <td className="text-right font-semibold">{lps(totalGeneral)}</td>
+                    <td className="text-right font-semibold">{ordenes.length}</td>
                   </tr>
                 </tbody>
               </table>
@@ -281,13 +295,13 @@ export default async function Reportes({
           {filasCategoria.length ? (
             <div className="tarjeta overflow-x-auto">
               <table className="w-full tabla" style={{ minWidth: 480 }}>
-                <thead><tr><th>Categoría</th><th className="text-right">Unidades compradas</th><th className="text-right">Total</th></tr></thead>
+                <thead><tr><th>Categoría</th><th className="text-right">Unidades compradas</th><th className="text-right">Materiales distintos</th></tr></thead>
                 <tbody>
                   {filasCategoria.map((c) => (
                     <tr key={c.categoria}>
                       <td>{c.categoria}</td>
                       <td className="text-right">{c.cantidad}</td>
-                      <td className="text-right">{lps(c.total)}</td>
+                      <td className="text-right">{c.materiales}</td>
                     </tr>
                   ))}
                 </tbody>

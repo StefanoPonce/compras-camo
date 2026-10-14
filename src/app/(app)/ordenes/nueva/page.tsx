@@ -20,7 +20,7 @@ export default async function NuevaOrden() {
       <h2 className="text-xl font-sora font-semibold mb-4">Nueva requisición</h2>
       <FormularioOrden
         accion={crearOrden}
-        materiales={materiales.map((m) => ({ ...m, precioUltimo: Number(m.precioUltimo) }))}
+        materiales={materiales}
         proveedores={proveedores}
       />
     </>

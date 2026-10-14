@@ -5,9 +5,6 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { puede, puedeVerModulo } from "@/lib/permisos";
 
-function lps(n: number) {
-  return "L " + n.toLocaleString("es-HN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
 function fecha(d: Date) {
   return new Date(d).toLocaleDateString("es-HN", { day: "2-digit", month: "short", year: "numeric" });
 }
@@ -29,7 +26,7 @@ export default async function Panel() {
   const veMateriales = puedeVerModulo(sesion.user.rol, sesion.user.modulosPermitidos, "materiales");
   const veTodas = veOrdenes && puede(sesion.user.rol, "ordenes.verTodas");
   const vePendientes = veOrdenes && puede(sesion.user.rol, "ordenes.autorizar");
-  const veGastos = puedeVerModulo(sesion.user.rol, sesion.user.modulosPermitidos, "reportes") && puede(sesion.user.rol, "reportes.ver");
+  const veReportes = puedeVerModulo(sesion.user.rol, sesion.user.modulosPermitidos, "reportes") && puede(sesion.user.rol, "reportes.ver");
   const uid = Number(sesion.user.id);
 
   const [pendientes, proveedoresActivos, totalMateriales, bajos, ordenesRecientes] = await Promise.all([
@@ -41,16 +38,21 @@ export default async function Panel() {
       include: { proveedor: true },
     }).then((ms) => ms.filter((m) => m.existencia <= m.minimo)),
     prisma.ordenCompra.findMany({
-      where: veTodas ? {} : { solicitanteId: uid },
+      where: {
+        ...(veTodas ? {} : { solicitanteId: uid }),
+        // El panel resume lo que está en juego. Un borrador no cuenta: es un
+        // trabajo a medias personal y se sigue en /ordenes.
+        estado: { not: "Borrador" },
+      },
       include: { proveedor: true, solicitante: true },
       orderBy: { fecha: "desc" },
       take: 5,
     }),
   ]);
 
+  // Sin importes: se cuenta cuántas requisiciones se gestionaron este mes.
   const inicioMes = new Date(); inicioMes.setDate(1); inicioMes.setHours(0, 0, 0, 0);
-  const gastoMes = await prisma.ordenCompra.aggregate({
-    _sum: { total: true },
+  const gestionadasMes = await prisma.ordenCompra.count({
     where: { estado: { in: ["Aprobada", "Recibida"] }, fecha: { gte: inicioMes } },
   });
 
@@ -82,8 +84,8 @@ export default async function Panel() {
     gridTemplateColumns: "repeat(auto-fit, minmax(190px,1fr))",
   }}
 >
-  {/* Quien autoriza ve las requisiciones pendientes; quien genera reportes ve el gasto */}
-  {(vePendientes || veGastos) && (
+  {/* Quien autoriza ve las requisiciones pendientes; quien genera reportes ve el movimiento del mes */}
+  {(vePendientes || veReportes) && (
     <>
       {vePendientes && (
         <Indicador
@@ -93,10 +95,10 @@ export default async function Panel() {
         />
       )}
 
-      {veGastos && (
+      {veReportes && (
         <Indicador
-          n={lps(Number(gastoMes._sum.total || 0))}
-          t="Comprado este mes"
+          n={gestionadasMes}
+          t="Requisiciones gestionadas este mes"
         />
       )}
     </>
@@ -153,15 +155,14 @@ export default async function Panel() {
           {ordenesRecientes.length ? (
             <div className="tarjeta overflow-x-auto">
               <table className="w-full tabla" style={{ minWidth: 620 }}>
-                <thead><tr><th>Folio</th><th>Fecha</th><th>Proveedor</th><th>Solicitante</th><th className="text-right">Total</th><th>Estado</th></tr></thead>
+                <thead><tr><th>Folio</th><th>Fecha</th><th>Proveedor</th><th>Solicitante</th><th>Estado</th></tr></thead>
                 <tbody>
                   {ordenesRecientes.map((o) => (
                     <tr key={o.id}>
                       <td className="font-mono"><Link className="text-verde" href={`/ordenes/${o.id}`}>{o.folio}</Link></td>
                       <td>{fecha(o.fecha)}</td>
-                      <td>{o.proveedor.nombre}</td>
+                      <td>{o.proveedor?.nombre || "—"}</td>
                       <td>{o.solicitante.nombre}</td>
-                      <td className="text-right">{lps(Number(o.total))}</td>
                       <td><span className={"etiqueta et-" + o.estado.toLowerCase()}>{o.estado}</span></td>
                     </tr>
                   ))}

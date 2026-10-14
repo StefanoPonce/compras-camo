@@ -25,6 +25,10 @@ enum EstadoOrden {
   Aprobada
   Rechazada
   Recibida
+  // Requisición a medio llenar: guarda lo que ya se escribió y se sigue
+  // completando más tarde. No pasa por revisión ni suma al inventario hasta
+  // que su autor la envía. Solo su autor la ve.
+  Borrador
 }
 
 model Usuario {
@@ -94,7 +98,8 @@ model Material {
 
   existencia    Int             @default(0)
   minimo        Int             @default(0)
-  precioUltimo  Decimal         @default(0) @db.Decimal(12, 2)
+  // La columna "precioUltimo" sigue existiendo en la tabla "materiales" pero
+  // el sistema ya no la usa: la fundación maneja los precios por fuera.
   activo        Boolean         @default(true)
   creadoEn      DateTime        @default(now())
 
@@ -118,15 +123,24 @@ model OrdenCompra {
   dependencia    String?
   lugar          String?
   justificacion  String?
+  // El programa ya NO es de la requisición: ahora va en cada renglón de
+  // detalle_orden, porque una requisición puede llevar materiales de varios
+  // programas. Esta columna sigue existiendo en la tabla (guarda el valor
+  // viejo) pero el sistema ya no la escribe. Para mostrar el programa de una
+  // requisición se toman los de sus renglones.
   estado         EstadoOrden    @default(Pendiente)
-  total          Decimal        @default(0) @db.Decimal(12, 2)
+  // La columna "total" sigue existiendo en la tabla "ordenes_compra" pero el
+  // sistema ya no la usa: la fundación maneja los precios por fuera.
   fechaRevision  DateTime?
   fechaRecepcion DateTime?
   comentario     String?
   creadoEn       DateTime       @default(now())
 
-  proveedorId    Int
-  proveedor      Proveedor      @relation(fields: [proveedorId], references: [id])
+  // El proveedor se elige al enviar la requisición. Un borrador puede quedar
+  // sin él, porque se guarda antes de haber llenado todo el formulario: es
+  // normal empezar por los materiales. Enviar la requisición sí lo exige.
+  proveedorId    Int?
+  proveedor      Proveedor?     @relation(fields: [proveedorId], references: [id])
 
   solicitanteId  Int
   solicitante    Usuario        @relation("solicitante", fields: [solicitanteId], references: [id])
@@ -145,7 +159,29 @@ model OrdenCompra {
 model DetalleOrden {
   id          Int         @id @default(autoincrement())
   cantidad    Int
-  precio      Decimal     @db.Decimal(12, 2)
+
+  // Unidad en la que se pide ESTE renglón. El catálogo tiene la suya, pero el
+  // solicitante puede cambiarla si va a comprar distinto (por ejemplo, el
+  // material está en UNIDAD y se pide un ROLLO). Se guarda siempre en la forma
+  // canónica que define src/lib/unidades.ts.
+  unidad      String       @default("UNIDAD")
+
+  // Programa al que se carga ESTE renglón. Antes el programa era de toda la
+  // requisición; ahora es por material porque una misma requisición puede
+  // llevar materiales de varios programas. Guarda el código corto ("2.2") y
+  // el nombre se resuelve con src/lib/programas.ts.
+  programa    String?
+
+  // Archivo que adjunta el solicitante para este renglón: una foto o un
+  // documento (PDF). Vive en el bucket "requisiciones" de Supabase Storage.
+  // La foto del catálogo del material NO se guarda aquí, vive en Material.
+  adjuntoUrl     String?
+  adjuntoNombre  String?
+
+  // La columna "precio" sigue existiendo en la tabla "detalle_orden" pero el
+  // sistema ya no la usa: la fundación maneja los precios por fuera. Es NOT
+  // NULL en la base, así que la migración le pone un default para que los
+  // INSERT sigan funcionando aunque Prisma ya no la envíe.
 
   // Proveedor elegido para ESTE renglón en el formulario (la orden guarda
   // además uno propio, que es el del primer renglón con proveedor). En las

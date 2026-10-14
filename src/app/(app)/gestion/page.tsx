@@ -23,7 +23,7 @@ export default async function Gestion() {
       <div className="tarjeta p-5">
         <h3 className="font-sora text-lg font-semibold">Consolidación de compras</h3>
         <p className="text-sm text-tinta2 mt-2 max-w-[58ch]">
-          Reúne las requisiciones por proveedor, muestra los materiales consolidados y sus totales para preparar
+          Reúne las requisiciones por proveedor y muestra los materiales consolidados con sus unidades para preparar
           la compra. Las requisiciones originales no se modifican.
         </p>
         <Link href="/gestion/consolidacion" className="btn mt-4 inline-flex">

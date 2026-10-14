@@ -4,13 +4,13 @@ import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { puede, puedeVerModulo } from "@/lib/permisos";
+import { textoPrograma } from "@/lib/programas";
 
-function lps(n: number) {
-  return "L " + n.toLocaleString("es-HN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
 function fecha(d: Date) {
   return new Date(d).toLocaleDateString("es-HN", { day: "2-digit", month: "short", year: "numeric" });
 }
+
+type EstadoOrden = "Borrador" | "Pendiente" | "Aprobada" | "Rechazada" | "Recibida";
 
 export default async function Ordenes({ searchParams }: { searchParams: { estado?: string } }) {
   const sesion = await getServerSession(authOptions);
@@ -22,13 +22,37 @@ export default async function Ordenes({ searchParams }: { searchParams: { estado
   const ordenes = await prisma.ordenCompra.findMany({
     where: {
       ...(veTodas ? {} : { solicitanteId: uid }),
-      ...(filtro ? { estado: filtro as "Pendiente" | "Aprobada" | "Rechazada" | "Recibida" } : {}),
+      // Un borrador es un trabajo a medias personal: aunque el rol vea todas
+      // las requisiciones, los borradores ajenos no le aparecen. El filtro de
+      // estado los muestra solo si se piden explícitamente y son del usuario.
+      OR: [{ estado: { not: "Borrador" } }, { solicitanteId: uid }],
+      ...(filtro ? { estado: filtro as EstadoOrden } : {}),
     },
     include: { proveedor: true, solicitante: true, items: true },
     orderBy: { fecha: "desc" },
   });
 
-  const filtros = ["", "Pendiente", "Aprobada", "Rechazada", "Recibida"];
+  const filtros: { valor: EstadoOrden | ""; etiqueta: string }[] = [
+    { valor: "", etiqueta: "Todas" },
+    { valor: "Borrador", etiqueta: "Borradores" },
+    { valor: "Pendiente", etiqueta: "Pendientes" },
+    { valor: "Aprobada", etiqueta: "Aprobadas" },
+    { valor: "Rechazada", etiqueta: "Rechazadas" },
+    { valor: "Recibida", etiqueta: "Recibidas" },
+  ];
+
+  // El programa ahora es de cada renglón, así que una requisición puede llevar
+  // materiales de varios. Se listan los distintos: el primero con su nombre
+  // completo y, si hay más, cuántos sobran.
+  const programasDe = (items: { programa: string | null }[]) => {
+    const distintos = [...new Set(items.map((it) => it.programa).filter((p): p is string => Boolean(p)))];
+    if (distintos.length === 0) return { texto: "-", completo: false };
+    const primero = textoPrograma(distintos[0]);
+    return {
+      texto: distintos.length === 1 ? primero : primero + " +" + (distintos.length - 1) + " más",
+      completo: distintos.length === 1,
+    };
+  };
 
   return (
     <>
@@ -47,11 +71,11 @@ export default async function Ordenes({ searchParams }: { searchParams: { estado
       <div className="flex gap-2 flex-wrap mb-4">
         {filtros.map((f) => (
           <Link
-            key={f || "todas"}
-            href={f ? `/ordenes?estado=${f}` : "/ordenes"}
-            className={"btn-chico " + (filtro === f ? "btn" : "btn-secundario")}
+            key={f.valor || "todas"}
+            href={f.valor ? `/ordenes?estado=${f.valor}` : "/ordenes"}
+            className={"btn-chico " + (filtro === f.valor ? "btn" : "btn-secundario")}
           >
-            {f ? f + "s" : "Todas"}
+            {f.etiqueta}
           </Link>
         ))}
       </div>
@@ -59,19 +83,37 @@ export default async function Ordenes({ searchParams }: { searchParams: { estado
       {ordenes.length ? (
         <div className="tarjeta overflow-x-auto">
           <table className="w-full tabla" style={{ minWidth: 680 }}>
-            <thead><tr><th>Folio</th><th>Fecha</th><th>Proveedor</th><th>Solicitante</th><th className="text-right">Total</th><th>Estado</th><th></th></tr></thead>
+            <thead><tr><th>Folio</th><th>Fecha</th><th>Programa</th><th>Proveedor</th><th>Solicitante</th><th>Estado</th><th></th></tr></thead>
             <tbody>
-              {ordenes.map((o) => (
+              {ordenes.map((o) => {
+                const programas = programasDe(o.items);
+                return (
                 <tr key={o.id}>
                   <td className="font-mono">{o.folio}</td>
                   <td>{fecha(o.fecha)}<div className="text-xs text-tinta2">{o.items.length} material(es)</div></td>
-                  <td>{o.proveedor.nombre}</td>
+                  <td>
+                    {programas.texto}
+                    {!programas.completo && programas.texto !== "-" && (
+                      <div className="text-xs text-tinta2">varios programas</div>
+                    )}
+                  </td>
+                  {/* Un borrador puede no tener proveedor todavía: se elige al enviar. */}
+                  <td>{o.proveedor?.nombre || "—"}</td>
                   <td>{o.solicitante.nombre}</td>
-                  <td className="text-right">{lps(Number(o.total))}</td>
                   <td><span className={"etiqueta et-" + o.estado.toLowerCase()}>{o.estado}</span></td>
-                  <td><Link href={`/ordenes/${o.id}`} className="btn-secundario btn-chico">Ver</Link></td>
+                  <td>
+                    {o.estado === "Borrador" ? (
+                      // En un borrador lo que interesa es retomarlo, no verlo.
+                      <Link href={`/ordenes/${o.id}/editar`} className="btn-secundario btn-chico">
+                        Continuar editando
+                      </Link>
+                    ) : (
+                      <Link href={`/ordenes/${o.id}`} className="btn-secundario btn-chico">Ver</Link>
+                    )}
+                  </td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         </div>

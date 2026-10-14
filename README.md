@@ -82,6 +82,33 @@ npm install
    npx prisma db execute --file prisma/migracion-modulos-usuario.sql --schema prisma/schema.prisma
    ```
 
+   Y si vienes de una versión que todavía manejaba precios, aplica también la
+   migración que los deja de usar:
+
+   ```bash
+   npx prisma db execute --file prisma/migracion-sin-precios.sql --schema prisma/schema.prisma
+   ```
+
+   Esa migración **no borra** las columnas `precio`, `total` ni `precioUltimo`:
+   solo les pone un valor por defecto y el sistema deja de leerlas y escribirlas,
+   por si hay que volver atrás. La fundación maneja los precios por fuera del
+   sistema.
+
+   Y si vienes de una versión donde el programa era de toda la requisición:
+
+   ```bash
+   npx prisma db execute --file prisma/migracion-programa-por-renglon.sql --schema prisma/schema.prisma
+   ```
+
+   Esa mueve el programa a cada renglón y agrega los adjuntos. Traspasa el
+   programa que ya tenían las requisiciones viejas a sus renglones, así que no
+   se pierde nada.
+
+   Ojo: después de cualquier cambio en `schema.prisma` hay que correr
+   `npx prisma generate`. `npm run dev` no lo hace solo (solo lo hacen
+   `postinstall` y `build`), y si te lo saltas el sistema se queja con
+   `Unknown argument` sobre el campo nuevo.
+
 6. Carga los datos de prueba (usuarios, proveedores y materiales de ejemplo):
 
    ```bash
@@ -117,6 +144,12 @@ compras-camo/
 │  ├─ schema.prisma      → definición de las tablas (usuarios, proveedores,
 │  │                        materiales, órdenes, descargos, bitácora)
 │  ├─ migracion-roles.sql→ SQL que migró el enum de roles al catálogo actual
+│  ├─ migracion-sin-precios.sql → deja de usar precio/total/precioUltimo
+│  │                        (las columnas se conservan en la base)
+│  ├─ migracion-programa-por-renglon.sql → el programa pasa a ser de cada
+│  │                        renglón y agrega los adjuntos por material
+│  ├─ migracion-unidad-por-renglon.sql → la unidad pasa a ser de cada
+│  ──────────────────────── renglón y normaliza CAJA/CAJAS, BOTE/BOTES
 │  └─ seed.ts            → datos de prueba
 ├─ src/
 │  ├─ lib/
@@ -124,6 +157,9 @@ compras-camo/
 │  │  ├─ auth.ts         → configuración del inicio de sesión (NextAuth)
 │  │  ├─ permisos.ts     → matriz de permisos por rol (el centro de todo)
 │  │  ├─ imagenes.ts     → subida/borrado de fotos en Supabase Storage
+│  │  ├─ adjuntos.ts     → subida/borrado de los archivos que adjunta el
+│  │  │                    solicitante (foto o PDF) en cada renglón
+│  │  ├─ programas.ts    → catálogo de programas de CAMO (código → nombre)
 │  │  └─ bitacora.ts     → función para registrar cada movimiento
 │  ├─ middleware.ts      → exige sesión para entrar a la aplicación
 │  └─ app/

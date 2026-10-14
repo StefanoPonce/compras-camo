@@ -295,7 +295,6 @@ async function main() {
     fd.set("1_lugar", "Santa Rosa de Copán");
     fd.set("1_materialId", String(materialIdPrueba));
     fd.set("1_cantidad", "2");
-    fd.set("1_precio", "1.50");
     if (proveedorId) fd.set("1_proveedorId", String(proveedorId));
     fd.set("0", '[{"error":null},"$K1"]');
     return fd;

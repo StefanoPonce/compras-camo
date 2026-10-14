@@ -9,10 +9,6 @@ import ImagenMaterial from "../imagen-material";
 import BotonExportarExcel from "../boton-exportar-excel";
 import Link from "next/link";
 
-function lps(n: number) {
-  return "L " + n.toLocaleString("es-HN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
-
 export default async function Materiales({ searchParams }: { searchParams: { q?: string; cat?: string; fam?: string } }) {
   const sesion = await getServerSession(authOptions);
   if (!sesion || !puedeVerModulo(sesion.user.rol, sesion.user.modulosPermitidos, "materiales")) redirect("/");
@@ -84,7 +80,7 @@ export default async function Materiales({ searchParams }: { searchParams: { q?:
               <tr>
                 <th>Imagen</th><th>Código</th><th>Material</th><th>Variante</th><th>Categoría</th>
                 <th className="text-right">Existencia</th><th className="text-right">Mínimo</th>
-                <th className="text-right">Último precio</th><th>Proveedor</th>
+                <th>Proveedor</th>
                 {(puedeGestionar || puedeDescargar) && <th></th>}
               </tr>
             </thead>
@@ -111,7 +107,6 @@ export default async function Materiales({ searchParams }: { searchParams: { q?:
                     <td>{m.categoria}</td>
                     <td className={"text-right" + (bajo ? " text-rojo font-semibold" : "")}>{m.existencia}</td>
                     <td className="text-right">{m.minimo}</td>
-                    <td className="text-right">{lps(Number(m.precioUltimo))}</td>
                     <td>{m.proveedor?.nombre || "—"}</td>
                     {(puedeGestionar || puedeDescargar) && (
                       <td className="whitespace-nowrap">

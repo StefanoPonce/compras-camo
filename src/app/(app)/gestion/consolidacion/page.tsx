@@ -7,14 +7,11 @@ import {
   FILTROS_CONSOLIDACION,
   normalizarFiltroConsolidacion,
   obtenerConsolidacion,
+  unidadesDe,
 } from "@/lib/consolidacion";
 import { puede, puedeVerModulo } from "@/lib/permisos";
 import BotonExportarExcel from "../../boton-exportar-excel";
 import BotonImprimir from "../../reportes/boton-imprimir";
-
-function lps(n: number) {
-  return "L " + n.toLocaleString("es-HN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
 
 function numero(n: number) {
   return n.toLocaleString("es-HN");
@@ -49,7 +46,7 @@ export default async function Consolidacion({
   const totalRenglones = ordenes.reduce((suma, orden) => suma + orden.items.length, 0);
   const totalMateriales = grupos.reduce((suma, grupo) => suma + grupo.items.length, 0);
   const renglonesRepetidos = Math.max(0, totalRenglones - totalMateriales);
-  const totalGeneral = grupos.reduce((suma, grupo) => suma + grupo.total, 0);
+  const unidadesGeneral = grupos.reduce((suma, grupo) => suma + grupo.unidades, 0);
   const nombreFiltro = FILTROS_CONSOLIDACION.find((opcion) => opcion.valor === filtro)?.etiqueta || "Aprobadas";
   const generado = new Date().toLocaleString("es-HN", {
     day: "2-digit",
@@ -79,7 +76,7 @@ export default async function Consolidacion({
           <div><span className="text-tinta2">Requisiciones:</span> <strong>{ordenes.length}</strong></div>
           <div><span className="text-tinta2">Proveedores:</span> <strong>{grupos.length}</strong></div>
           <div><span className="text-tinta2">Renglones:</span> <strong>{totalRenglones}</strong></div>
-          <div><span className="text-tinta2">Total estimado:</span> <strong>{lps(totalGeneral)}</strong></div>
+          <div><span className="text-tinta2">Unidades consolidadas:</span> <strong>{numero(unidadesGeneral)}</strong></div>
         </div>
       </div>
 
@@ -127,13 +124,13 @@ export default async function Consolidacion({
           texto="Renglones repetidos"
           alerta={renglonesRepetidos > 0}
         />
-        <Indicador valor={lps(totalGeneral)} texto="Total estimado" />
+        <Indicador valor={numero(unidadesGeneral)} texto="Unidades consolidadas" />
       </div>
 
       <div className="tarjeta p-3.5 mb-4 text-sm text-tinta2 no-imprimir">
         <strong className="text-tinta">Cómo se consolida:</strong> se suman las cantidades del mismo material cuando
-        existen en varias requisiciones del mismo proveedor. Se muestra el promedio de precios y el subtotal de cada
-        material. Las requisiciones pendientes solo aparecen cuando seleccionas esa opción.
+        existen en varias requisiciones del mismo proveedor, de modo que en una sola fila ves cuánto pedirle a ese
+        proveedor. Las requisiciones pendientes solo aparecen cuando seleccionas esa opción.
       </div>
 
       {grupos.length ? (
@@ -141,15 +138,22 @@ export default async function Consolidacion({
           {grupos.map((grupo) => {
             const estados = [...new Set(grupo.ordenes.map((orden) => orden.estado))];
             return (
-              <section key={grupo.proveedor.id} className="tarjeta mb-4 overflow-hidden consolidacion-grupo">
+              <section key={grupo.proveedor?.id ?? "sin-proveedor"} className="tarjeta mb-4 overflow-hidden consolidacion-grupo">
                 <div className="p-4 border-b border-borde">
                   <div className="flex items-start gap-3 flex-wrap">
                     <div>
-                      <h3 className="font-sora font-semibold text-lg">{grupo.proveedor.nombre}</h3>
+                      <h3 className="font-sora font-semibold text-lg">
+                        {grupo.proveedor?.nombre ?? "Sin proveedor"}
+                      </h3>
                       <p className="text-sm text-tinta2 mt-0.5">
-                        {grupo.proveedor.codigo ? `${grupo.proveedor.codigo} · ` : ""}
+                        {grupo.proveedor?.codigo ? `${grupo.proveedor.codigo} · ` : ""}
                         {grupo.ordenes.length} requisición(es) · {grupo.items.length} material(es) distinto(s)
                       </p>
+                      {!grupo.proveedor && (
+                        <p className="text-xs text-tinta2 mt-1">
+                          Estas requisiciones se enviaron sin proveedor: hay que asignárselo antes de comprar.
+                        </p>
+                      )}
                       <div className="flex gap-1.5 flex-wrap mt-2">
                         {estados.map((estado) => (
                           <span key={estado} className={"etiqueta " + claseEstado(estado)}>{estado}</span>
@@ -157,8 +161,8 @@ export default async function Consolidacion({
                       </div>
                     </div>
                     <div className="ml-auto text-right">
-                      <div className="text-xs text-tinta2">Total estimado del proveedor</div>
-                      <div className="font-sora text-xl font-semibold text-verde mt-0.5">{lps(grupo.total)}</div>
+                      <div className="text-xs text-tinta2">Unidades del proveedor</div>
+                      <div className="font-sora text-xl font-semibold text-verde mt-0.5">{numero(grupo.unidades)}</div>
                     </div>
                   </div>
                   <div className="flex items-center gap-1.5 flex-wrap mt-3 text-xs text-tinta2">
@@ -176,22 +180,19 @@ export default async function Consolidacion({
                 </div>
 
                 <div className="overflow-x-auto">
-                  <table className="w-full tabla" style={{ minWidth: 900 }}>
+                  <table className="w-full tabla" style={{ minWidth: 700 }}>
                     <thead>
                       <tr>
                         <th>Material</th>
                         <th>Variante</th>
                         <th>Unidad</th>
                         <th className="text-right">Cantidad consolidada</th>
-                        <th className="text-right">Precio promedio</th>
-                        <th className="text-right">Subtotal</th>
                         <th>Origen</th>
                       </tr>
                     </thead>
                     <tbody>
                       {grupo.items.map((item) => {
                         const folios = [...item.folios];
-                        const precioPromedio = item.cantidad ? item.total / item.cantidad : 0;
                         return (
                           <tr key={item.material.id}>
                             <td>
@@ -199,10 +200,8 @@ export default async function Consolidacion({
                               <div className="text-xs text-tinta2 font-mono mt-0.5">{item.material.codigo}</div>
                             </td>
                             <td>{item.material.variante || "—"}</td>
-                            <td>{item.material.unidad}</td>
+                            <td>{unidadesDe(item.unidades)}</td>
                             <td className="text-right font-semibold">{numero(item.cantidad)}</td>
-                            <td className="text-right">{lps(precioPromedio)}</td>
-                            <td className="text-right font-semibold">{lps(item.total)}</td>
                             <td>
                               {folios.length > 1 ? (
                                 <span className="etiqueta et-pendiente">En {folios.length} requisiciones</span>
@@ -225,12 +224,12 @@ export default async function Consolidacion({
 
           <div className="tarjeta p-4 flex items-center justify-between gap-3 flex-wrap">
             <div>
-              <div className="font-sora font-semibold">Total estimado consolidado</div>
+              <div className="font-sora font-semibold">Unidades consolidadas</div>
               <div className="text-xs text-tinta2 mt-1">
                 {ordenes.length} requisición(es) en {grupos.length} proveedor(es)
               </div>
             </div>
-            <div className="font-sora text-2xl font-semibold text-verde">{lps(totalGeneral)}</div>
+            <div className="font-sora text-2xl font-semibold text-verde">{numero(unidadesGeneral)}</div>
           </div>
         </>
       ) : (

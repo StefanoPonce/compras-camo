@@ -160,7 +160,7 @@ export default function PaginaIngreso() {
             </div>
             <div>
               <p className={estilos.nombreMarca}>CAMO Honduras</p>
-              <p className={estilos.descripcionMarca}>Sistema de proceso de compras</p>
+              <p className={estilos.descripcionMarca}>Sistema Gestion de compras</p>
             </div>
           </header>
 
@@ -171,7 +171,7 @@ export default function PaginaIngreso() {
                 Iniciar sesión
               </h1>
               <p className={estilos.subtitulo}>
-                Ingresa con tu usuario  para continuar.
+                Ingresa  tu usuario y contraseña  para continuar.
               </p>
             </div>
 
@@ -291,7 +291,7 @@ export default function PaginaIngreso() {
               “Con orden, <em>construimos confianza.</em>”
             </h2>
             <p>
-              Una plataforma para gestionar requisiciones, proveedores y materiales con
+              Un sistema para gestionar requisiciones, proveedores y materiales con
               transparencia y trazabilidad.
             </p>
           </div>

@@ -73,13 +73,15 @@ export default function ControlSesion() {
       }
     }
 
-    function cerrarSiEsLaUltimaPestana() {
+    function soltarLaPagina() {
       if (cierreEnviado) return;
 
       const pestanas = leerPestanas();
       delete pestanas[idPestana];
       guardarPestanas(pestanas);
 
+      // Si hay otra pestaña viva de este mismo sistema, esa sigue renovando
+      // la sesión, así que aquí no hay que hacer nada.
       const hayOtraPestana = Object.entries(pestanas).some(
         ([id, ultimaActividad]) =>
           id !== idPestana && Date.now() - ultimaActividad <= PESTANA_STALE_MS,
@@ -87,25 +89,19 @@ export default function ControlSesion() {
       if (hayOtraPestana) return;
 
       cierreEnviado = true;
-      const cuerpo = JSON.stringify({ accion: "cerrar" });
 
-      // `keepalive` permite completar la petición durante `pagehide` y borrar
-      // además la cookie. `sendBeacon` es el respaldo para liberar el bloqueo
-      // en el servidor si el navegador corta la respuesta.
+      // Esto NO cierra la sesión: solo le avisa al servidor que acorte el
+      // vencimiento y espere. Si en realidad fue una recarga, la página que
+      // viene a cargar renueva la sesión con su primer latido. Si el
+      // navegador se cerró de verdad, al vencer ese margen la cuenta queda
+      // libre. `keepalive` deja que la petición se complete durante `pagehide`.
       void fetch("/api/sesion", {
         method: "POST",
         credentials: "same-origin",
         headers: { "Content-Type": "application/json" },
-        body: cuerpo,
+        body: JSON.stringify({ accion: "cerrar" }),
         keepalive: true,
       }).catch(() => undefined);
-
-      if (typeof navigator.sendBeacon === "function") {
-        navigator.sendBeacon(
-          "/api/sesion",
-          new Blob([cuerpo], { type: "application/json" }),
-        );
-      }
     }
 
     marcarPestanaActiva();
@@ -123,12 +119,12 @@ export default function ControlSesion() {
       }
     };
 
-    window.addEventListener("pagehide", cerrarSiEsLaUltimaPestana);
+    window.addEventListener("pagehide", soltarLaPagina);
     document.addEventListener("visibilitychange", alVolverAVisible);
 
     return () => {
       window.clearInterval(intervalo);
-      window.removeEventListener("pagehide", cerrarSiEsLaUltimaPestana);
+      window.removeEventListener("pagehide", soltarLaPagina);
       document.removeEventListener("visibilitychange", alVolverAVisible);
 
       const pestanas = leerPestanas();

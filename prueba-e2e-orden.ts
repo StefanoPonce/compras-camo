@@ -93,7 +93,7 @@ async function main() {
   const fm = reply([
     ["codigo", "PRUEBA-IMG"], ["categoria", "Prueba"], ["nombre", "Material prueba imagen"],
     ["unidad", "Unidad"], ["proveedorId", String(proveedor.id)],
-    ["existencia", "5"], ["minimo", "1"], ["precio", "10.50"],
+    ["existencia", "5"], ["minimo", "1"],
   ]);
   fm.set("1_imagen", new File([readFileSync("public/logo-camo.png")], "logo.png", { type: "image/png" }));
   fm.set("0", '[{"error":null},"$K1"]');
@@ -109,7 +109,6 @@ async function main() {
     ["lugar", "Santa Rosa de Copán"],
     ["materialId", String(material.id)],
     ["cantidad", "2"],
-    ["precio", "10.50"],
   ]);
   const r2 = await llamar(idCrearOrden, "/ordenes/nueva", fo);
   const orden = await prisma.ordenCompra.findFirst({ where: { folio: { startsWith: "OC-" } }, orderBy: { id: "desc" } });

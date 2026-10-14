@@ -2,10 +2,11 @@
 const nextConfig = {
   experimental: {
     serverActions: {
-      // Límite del cuerpo de las server actions. Sube del 1 MB por
-      // defecto para que entre la imagen del material en el formulario
-      // (se comprime en el navegador, pero con margen de sobra).
-      bodySizeLimit: "8mb",
+      // Límite del cuerpo de las server actions. Da margen para la foto del
+      // catálogo, la de cada material y los adjuntos (PDF) de los renglones:
+      // aunque cada archivo tope los 8 MB, en una requisición pueden ir varios
+      // a la vez y todos viajan en el mismo envío.
+      bodySizeLimit: "25mb",
     },
   },
 };

@@ -1,12 +1,4 @@
 "use server";
-// Todas las operaciones que cambian datos pasan por aquí. Cada una
-// revisa la sesión, hace el cambio, deja el rastro en la bitácora
-// y le avisa a Next.js qué páginas debe refrescar.
-//
-// Las que se usan con useFormState (crear/editar) devuelven
-// { error: string | null } en vez de lanzar una excepción — así un
-// dato duplicado o un campo vacío se muestra como aviso dentro del
-// formulario, en lugar de tumbar la página con el error rojo de Next.js.
 import { getServerSession } from "next-auth";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -25,6 +17,14 @@ import {
   type Permiso,
 } from "@/lib/permisos";
 import { leerImagenAdjunta, subirImagenMaterial, borrarImagenMaterial } from "@/lib/imagenes";
+import { borrarAdjunto } from "@/lib/adjuntos";
+import { normalizarUnidad } from "@/lib/unidades";
+import {
+  datosRenglon,
+  deshacerSubidas,
+  leerItems as leerItemsDelFormulario,
+  resolverAdjuntos,
+} from "@/lib/items-requisicion";
 
 export type EstadoForm = { error: string | null };
 
@@ -32,9 +32,6 @@ async function sesionObligatoria() {
   const sesion = await getServerSession(authOptions);
   if (!sesion) redirect("/login");
 
-  // Si el id de la sesión ya no apunta a ningún usuario (por ejemplo, la
-  // seed volvió a crear la tabla), no se puede escribir ninguna llave
-  // foránea: mejor pedir que vuelva a entrar para refrescar el token.
   const id = Number(sesion.user.id);
   const existe = Number.isInteger(id)
     ? await prisma.usuario.findUnique({ where: { id }, select: { id: true, activo: true } })
@@ -44,7 +41,6 @@ async function sesionObligatoria() {
   return sesion;
 }
 
-/** Devuelve la sesión solo si el rol tiene ese permiso. */
 async function exigirPermiso(permiso: Permiso) {
   const sesion = await sesionObligatoria();
   if (!puede(sesion.user.rol, permiso)) {
@@ -57,13 +53,6 @@ async function exigirPermiso(permiso: Permiso) {
   return sesion;
 }
 
-function lps(n: number) {
-  return "L " + n.toLocaleString("es-HN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
-
-/** Lee un entero ≥ 0 del formulario. Vacío → `porDefecto` (así un campo en
- *  blanco nunca bloquea el guardado), con decimal se redondea y lo negativo
- *  o no numérico → null para poder responder con un aviso claro. */
 function enteroDelFormulario(valor: unknown, porDefecto: number): number | null {
   const texto = String(valor ?? "").trim();
   if (!texto) return porDefecto;
@@ -72,18 +61,6 @@ function enteroDelFormulario(valor: unknown, porDefecto: number): number | null 
   return Math.round(n);
 }
 
-/** Igual que `enteroDelFormulario` pero acepta decimales (precios). */
-function decimalDelFormulario(valor: unknown, porDefecto: number): number | null {
-  const texto = String(valor ?? "").trim();
-  if (!texto) return porDefecto;
-  const n = Number(texto);
-  if (!Number.isFinite(n) || n < 0) return null;
-  return n;
-}
-
-/** Convierte un error de restricción única de Prisma (P2002) en un
- *  mensaje legible. Si el error no es de ese tipo, lo vuelve a lanzar
- *  para que no se esconda un problema real (por ejemplo de conexión). */
 function mensajeSiEsDuplicado(e: unknown, camposLegibles: Record<string, string>): string {
   if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
     const objetivo = (e.meta?.target as string[] | undefined) || [];
@@ -94,11 +71,6 @@ function mensajeSiEsDuplicado(e: unknown, camposLegibles: Record<string, string>
   throw e;
 }
 
-/* ------------------------------ PROVEEDORES ------------------------------ */
-
-/** Siguiente código libre en el formato PROV-001, PROV-002… El Excel del
- *  catálogo trae esa columna vacía, así que siempre hay que terminar con un
- *  valor (a mano o generado). */
 async function siguienteCodigoProveedor(): Promise<string> {
   const existentes = await prisma.proveedor.findMany({ select: { codigo: true } });
   const usados = new Set(existentes.map((p) => p.codigo).filter((c): c is string => Boolean(c)));
@@ -130,7 +102,7 @@ export async function crearProveedor(_prev: EstadoForm, datos: FormData): Promis
     });
     await registrarMovimiento({
       usuarioId: Number(sesion.user.id), modulo: "Proveedores", accion: "Registró proveedor",
-      detalle: `${proveedor.nombre} (${proveedor.codigo})${proveedor.rtn ? " · RTN " + proveedor.rtn : ""}`,
+      detalle: `${proveedor.nombre} (${proveedor.codigo})${proveedor.rtn ? " — RTN " + proveedor.rtn : ""}`,
     });
   } catch (e) {
     return { error: mensajeSiEsDuplicado(e, { rtn: "RTN", codigo: "código" }) };
@@ -192,8 +164,6 @@ export async function eliminarProveedor(_prev: EstadoForm, datos: FormData): Pro
   return { error: null };
 }
 
-/* ------------------------------- MATERIALES ------------------------------- */
-
 export async function crearMaterial(_prev: EstadoForm, datos: FormData): Promise<EstadoForm> {
   const sesion = await exigirPermiso("materiales.gestionar");
   const codigo = String(datos.get("codigo") || "").trim();
@@ -206,16 +176,11 @@ export async function crearMaterial(_prev: EstadoForm, datos: FormData): Promise
   if (!categoria) return { error: "La categoría es obligatoria." };
   if (!unidad) return { error: "La unidad de medida es obligatoria." };
 
-  // Campos numéricos opcionales: vacío = 0, y nunca bloquean el guardado.
   const existencia = enteroDelFormulario(datos.get("existencia"), 0);
   const minimo = enteroDelFormulario(datos.get("minimo"), 0);
-  const precio = decimalDelFormulario(datos.get("precio"), 0);
   if (existencia === null) return { error: "La existencia debe ser un número igual o mayor a cero." };
   if (minimo === null) return { error: "El mínimo en bodega debe ser un número igual o mayor a cero." };
-  if (precio === null) return { error: "El precio debe ser un número igual o mayor a cero." };
 
-  // Con variantes dos materiales pueden compartir nombre (BOLSA PLASTICA 4X8
-  // y 6X10), así que solo chocan cuando coinciden el nombre Y la variante.
   const nombreRepetido = variante
     ? await prisma.material.findFirst({
         where: { nombre: { equals: nombre, mode: "insensitive" }, variante: { equals: variante, mode: "insensitive" } },
@@ -230,21 +195,20 @@ export async function crearMaterial(_prev: EstadoForm, datos: FormData): Promise
   const adjunta = leerImagenAdjunta(datos);
   if (adjunta.error) return { error: adjunta.error };
 
-  // La imagen se sube primero para poder guardar su URL en la misma
-  // consulta; si luego el material no se crea, se borra para no dejar
-  // archivos huérfanos en el storage.
   let imagenUrl: string | null = null;
   try {
     if (adjunta.archivo) imagenUrl = await subirImagenMaterial(adjunta.archivo);
 
     const material = await prisma.material.create({
       data: {
-        codigo, nombre, categoria, unidad,
+        codigo, nombre, categoria,
+        // La unidad se guarda en forma canónica ("CAJA", no "CAJAS" ni "caja")
+        // para que no vuelvan a aparecer unidades duplicadas en el catálogo.
+        unidad: normalizarUnidad(unidad),
         familia: familia || null,
         variante: variante || null,
         existencia,
         minimo,
-        precioUltimo: precio,
         proveedorId: Number(datos.get("proveedorId")) || null,
         imagenUrl,
       },
@@ -274,27 +238,16 @@ export async function editarMaterial(id: number, _prev: EstadoForm, datos: FormD
   if (!categoria) return { error: "La categoría es obligatoria." };
   if (!unidad) return { error: "La unidad de medida es obligatoria." };
 
-  // Aquí NO se valida el nombre contra los demás materiales: el catálogo del
-  // Excel trae 12 parejas con el mismo nombre y códigos distintos, y bloquear
-  // la edición dejaría esos productos incompletables. La unicidad real la
-  // garantiza el código (columna única en la base).
-
   const adjunta = leerImagenAdjunta(datos);
   if (adjunta.error) return { error: adjunta.error };
 
   const anterior = await prisma.material.findUniqueOrThrow({ where: { id } });
-  // Numéricos opcionales: vacío = conserva el valor que ya tenía el material
-  // (así se puede editar sin tocar la existencia ni bajarla sin querer).
   const nuevaExistencia = enteroDelFormulario(datos.get("existencia"), anterior.existencia);
   const nuevoMinimo = enteroDelFormulario(datos.get("minimo"), anterior.minimo);
-  const nuevoPrecio = decimalDelFormulario(datos.get("precio"), Number(anterior.precioUltimo));
   if (nuevaExistencia === null) return { error: "La existencia debe ser un número igual o mayor a cero." };
   if (nuevoMinimo === null) return { error: "El mínimo en bodega debe ser un número igual o mayor a cero." };
-  if (nuevoPrecio === null) return { error: "El precio debe ser un número igual o mayor a cero." };
 
   const quitarImagen = datos.get("quitarImagen") === "1";
-  // Regla sencilla: si llega archivo nuevo manda ese; si no, si marcó
-  // "quitar" se deja sin imagen; si no, se conserva la que ya tenía.
   let imagenNueva: string | null = null;
   if (adjunta.archivo) {
     try {
@@ -310,12 +263,13 @@ export async function editarMaterial(id: number, _prev: EstadoForm, datos: FormD
     const material = await prisma.material.update({
       where: { id },
       data: {
-        codigo, nombre, categoria, unidad,
+        codigo, nombre, categoria,
+        // Igual que al crear: la unidad se deja siempre en forma canónica.
+        unidad: normalizarUnidad(unidad),
         familia: familia || null,
         variante: variante || null,
         existencia: nuevaExistencia,
         minimo: nuevoMinimo,
-        precioUltimo: nuevoPrecio,
         proveedorId: Number(datos.get("proveedorId")) || null,
         imagenUrl,
       },
@@ -326,8 +280,6 @@ export async function editarMaterial(id: number, _prev: EstadoForm, datos: FormD
         (anterior.existencia !== nuevaExistencia ? ` (existencia ${anterior.existencia} → ${nuevaExistencia})` : "") +
         (cambioDeImagen ? (imagenUrl ? " (cambio de imagen)" : " (se quitó la imagen)") : ""),
     });
-    // Recién cuando la BD ya quedó con la URL nueva se borra la foto
-    // anterior del storage.
     if (cambioDeImagen) await borrarImagenMaterial(anterior.imagenUrl);
   } catch (e) {
     await borrarImagenMaterial(imagenNueva);
@@ -354,18 +306,15 @@ export async function eliminarMaterial(_prev: EstadoForm, datos: FormData): Prom
   return { error: null };
 }
 
-/* ----------------------------- REQUISICIONES ----------------------------- */
-
-/** De dónde sale el proveedor de la orden. Manda lo que se eligió en el
- *  formulario (una columna por renglón); si ese renglón quedó vacío, se usa
- *  el proveedor que tenga asignado el material. El catálogo del Excel no
- *  relaciona materiales con proveedores, así que muchos llegan sin uno y hay
- *  que poder elegirlo aquí mismo. */
+/** Busca el proveedor de la requisición entre los elegidos en los renglones y,
+ *  si ninguno lo trae, entre los proveedores que ya tiene asignados el catálogo.
+ *  El proveedor es opcional: si no aparece ninguno se devuelve null y la
+ *  requisición se guarda sin él. En la consolidación sale en un grupo aparte. */
 async function resolverProveedorDeItems(
   items: { materialId: number; proveedorId: number | null }[],
-): Promise<{ ok: true; id: number } | { ok: false; error: string }> {
+): Promise<number | null> {
   const elegido = items.find((it) => it.proveedorId);
-  if (elegido?.proveedorId) return { ok: true, id: elegido.proveedorId };
+  if (elegido?.proveedorId) return elegido.proveedorId;
 
   const materiales = await prisma.material.findMany({
     where: { id: { in: items.map((it) => it.materialId) } },
@@ -373,75 +322,92 @@ async function resolverProveedorDeItems(
   });
   const porId = new Map(materiales.map((m) => [m.id, m]));
   const conProveedor = items.find((it) => porId.get(it.materialId)?.proveedorId);
-  if (conProveedor) {
-    const id = porId.get(conProveedor.materialId)!.proveedorId!;
-    return { ok: true, id };
-  }
+  if (conProveedor) return porId.get(conProveedor.materialId)!.proveedorId!;
 
-  return { ok: false, error: "Elige el proveedor de la requisición en la columna \"Proveedor\" del primer renglón." };
+  return null;
 }
 
-function leerItems(datos: FormData) {
-  const materialIds = datos.getAll("materialId") as string[];
-  const cantidades = datos.getAll("cantidad") as string[];
-  const precios = datos.getAll("precio") as string[];
-  const proveedores = datos.getAll("proveedorId") as string[];
-  return materialIds
-    .map((mid, i) => ({
-      materialId: Number(mid),
-      cantidad: Number(cantidades[i]),
-      precio: Number(precios[i]),
-      // Siempre hay un valor por renglón (aunque sea vacío) para que los
-      // arreglos queden alineados con getAll("materialId").
-      proveedorId: Number(proveedores[i]) || null,
-    }))
-    .filter((it) => it.materialId && it.cantidad > 0);
+// La lectura de los renglones (cantidad, programa y adjuntos por material)
+// vive en items-requisicion.ts, junto con el manejo de los archivos. El
+// borrador pasa `borrador: true` para que no se le exijan los datos que faltan.
+function leerItems(datos: FormData, opciones: { borrador?: boolean } = {}) {
+  return leerItemsDelFormulario(datos, opciones);
+}
+
+/** Arma el folio del año: OC-<año>-<número>, con el número siguiente al más
+ *  alto que ya existe.
+ *
+ *  Antes se usaba el número de requisiciones del año + 1, que se equivoca en
+ *  cuanto hay un hueco: si se borró una (0004, por ejemplo) quedan cuatro y el
+ *  siguiente folio salía 0005, que ya existía, y el guardado reventaba con
+ *  "folio duplicado". Borrar borradores deja huecos con frecuencia, así que se
+ *  toma el máximo y no la cantidad. */
+async function siguienteFolioOrden(): Promise<string> {
+  const anio = new Date().getFullYear();
+  const prefijo = `OC-${anio}-`;
+  const ultimo = await prisma.ordenCompra.findFirst({
+    where: { folio: { startsWith: prefijo } },
+    orderBy: { folio: "desc" },
+    select: { folio: true },
+  });
+  const mayor = ultimo ? Number(ultimo.folio.slice(prefijo.length)) : 0;
+  return `${prefijo}${String((Number.isFinite(mayor) ? mayor : 0) + 1).padStart(4, "0")}`;
 }
 
 export async function crearOrden(_prev: EstadoForm, datos: FormData): Promise<EstadoForm> {
   const sesion = await exigirPermiso("ordenes.crear");
+  // El mismo formulario sirve para dejar la requisición a medias y para
+  // enviarla. El botón que se apretó lo dice el campo "intento".
+  const esBorrador = datos.get("intento") === "borrador";
   const dependencia = String(datos.get("dependencia") || "").trim();
-  const lugar = String(datos.get("lugar") || "").trim();
   const justificacion = String(datos.get("justificacion") || "").trim();
-  const items = leerItems(datos);
+  const items = leerItems(datos, { borrador: esBorrador });
 
-  if (!dependencia) return { error: "La dependencia es obligatoria." };
-  if (!lugar) return { error: "El lugar es obligatorio." };
-  if (!items.length) return { error: "Agrega al menos un material con cantidad mayor a cero." };
+  // Un borrador se guarda con lo que haya: por eso estas revisiones solo
+  // aplican cuando la requisición se envía de verdad.
+  if (!esBorrador) {
+    if (!dependencia) return { error: "La dependencia es obligatoria." };
+    if (!items.length) return { error: "Agrega al menos un material con cantidad mayor a cero." };
+    // El programa ahora es de cada renglón, así que se revisa material por
+    // material en vez de una sola vez para toda la requisición.
+    const sinPrograma = items.findIndex((it) => !it.programa);
+    if (sinPrograma !== -1) {
+      return { error: "Elige el programa del material de la fila " + (sinPrograma + 1) + "." };
+    }
+  }
 
-  const proveedor = await resolverProveedorDeItems(items);
-  if (!proveedor.ok) return proveedor;
-
-  const total = items.reduce((s, it) => s + it.cantidad * it.precio, 0);
-  const anio = new Date().getFullYear();
+  const proveedorId = await resolverProveedorDeItems(items);
 
   let ordenId: number;
+  // Los adjuntos se suben antes de tocar la base: si la requisición no se
+  // guarda, se deshacen las subidas para no dejar archivos huérfanos.
+  const adjuntos = await resolverAdjuntos(items, new Map());
   try {
-    const enElAnio = await prisma.ordenCompra.count({ where: { folio: { startsWith: `OC-${anio}-` } } });
-    const folio = `OC-${anio}-${String(enElAnio + 1).padStart(4, "0")}`;
+    const folio = await siguienteFolioOrden();
 
     const orden = await prisma.ordenCompra.create({
       data: {
-        folio, proveedorId: proveedor.id, dependencia: dependencia || null, lugar: lugar || null, justificacion,
+        folio,
+        // El borrador nace con folio propio para que el solicitante lo
+        // distinga de una requisición enviada.
+        estado: esBorrador ? "Borrador" : "Pendiente",
+        proveedorId, dependencia: dependencia || null, justificacion,
         solicitanteId: Number(sesion.user.id),
-        total,
-        // Cada renglón guarda además su propio proveedor: es el que muestra
-        // la requisición al imprimir. `proveedorId` vacío queda en null y la
-        // impresión cae al proveedor de la orden.
-        items: {
-          create: items.map(({ materialId, cantidad, precio, proveedorId }) => ({ materialId, cantidad, precio, proveedorId })),
-        },
+        items: { create: adjuntos.items.map(datosRenglon) },
       },
     });
     ordenId = orden.id;
 
     await registrarMovimiento({
-      usuarioId: Number(sesion.user.id), modulo: "Requisiciones", accion: "Creó requisición",
-      detalle: `${orden.folio} por ${lps(total)} (${items.length} material(es))`,
+      usuarioId: Number(sesion.user.id), modulo: "Requisiciones",
+      accion: esBorrador ? "Guardó borrador" : "Creó requisición",
+      detalle: `${orden.folio} (${items.length} material(es))`,
     });
   } catch (e) {
+    await deshacerSubidas(adjuntos.subidos);
     console.error("crearOrden:", e);
-    return { error: "No se pudo crear la requisición. Verifica los datos e intenta de nuevo." };
+    const msg = e instanceof Error ? e.message : "Error desconocido";
+    return { error: "No se pudo crear la requisición: " + msg };
   }
 
   revalidatePath("/ordenes");
@@ -458,11 +424,15 @@ export async function editarOrden(id: number, _prev: EstadoForm, datos: FormData
 
   const orden = await prisma.ordenCompra.findUniqueOrThrow({ where: { id } });
   const esPropia = orden.solicitanteId === Number(sesion.user.id);
+  const eraBorrador = orden.estado === "Borrador";
 
-  // Recibida: ya no se toca. Aprobada: solo administración. El resto: su
-  // solicitante o quien puede editar todas.
   if (orden.estado === "Recibida") {
     return { error: "Una requisición recibida ya no puede editarse." };
+  }
+  // Un borrador es trabajo en curso personal: solo quien lo empezó lo
+  // continúa, aunque su rol pueda editar requisiciones ajenas.
+  if (eraBorrador && !esPropia) {
+    return { error: "Este borrador es de otro usuario: no puedes continuarlo." };
   }
   if (orden.estado === "Aprobada" && !puedeAprobadas) {
     return { error: "Solo el administrador o el sub administrador pueden editar una requisición aprobada." };
@@ -472,58 +442,110 @@ export async function editarOrden(id: number, _prev: EstadoForm, datos: FormData
   }
   const eraAprobada = orden.estado === "Aprobada";
 
+  // Mientras siga siendo borrador se guarda aunque falten datos. Al enviarlo
+  // pasa a "Pendiente" y entra a revisión como cualquier requisición nueva.
+  const esBorrador = datos.get("intento") === "borrador";
   const dependencia = String(datos.get("dependencia") || "").trim();
-  const lugar = String(datos.get("lugar") || "").trim();
   const justificacion = String(datos.get("justificacion") || "").trim();
-  const items = leerItems(datos);
+  const items = leerItems(datos, { borrador: esBorrador });
 
-  if (!dependencia) return { error: "La dependencia es obligatoria." };
-  if (!lugar) return { error: "El lugar es obligatorio." };
-  if (!items.length) return { error: "Agrega al menos un material con cantidad mayor a cero." };
+  if (!esBorrador) {
+    if (!dependencia) return { error: "La dependencia es obligatoria." };
+    if (!items.length) return { error: "Agrega al menos un material con cantidad mayor a cero." };
+    const sinPrograma = items.findIndex((it) => !it.programa);
+    if (sinPrograma !== -1) {
+      return { error: "Elige el programa del material de la fila " + (sinPrograma + 1) + "." };
+    }
+  }
 
-  const proveedor = await resolverProveedorDeItems(items);
-  if (!proveedor.ok) return proveedor;
+  const proveedorId = await resolverProveedorDeItems(items);
 
-  const total = items.reduce((s, it) => s + it.cantidad * it.precio, 0);
+  // Los adjuntos que ya tenía la requisición se leen antes de la transacción,
+  // porque esta borra los renglones y los vuelve a crear: sin esto no se
+  // sabría qué archivo conservar, reemplazar o borrar del storage.
+  const renglonesPrevios = await prisma.detalleOrden.findMany({
+    where: { ordenId: id },
+    select: { adjuntoUrl: true, adjuntoNombre: true },
+  });
+  const adjuntosConocidos = new Map<string, string>();
+  for (const r of renglonesPrevios) {
+    if (r.adjuntoUrl) adjuntosConocidos.set(r.adjuntoUrl, r.adjuntoNombre || "adjunto");
+  }
 
+  const adjuntos = await resolverAdjuntos(items, adjuntosConocidos);
   try {
     await prisma.$transaction([
       prisma.detalleOrden.deleteMany({ where: { ordenId: id } }),
-      ...items.map((it) =>
-        prisma.detalleOrden.create({
-          data: {
-            ordenId: id,
-            materialId: it.materialId,
-            cantidad: it.cantidad,
-            precio: it.precio,
-            proveedorId: it.proveedorId,
-          },
-        })
+      ...adjuntos.items.map((it) =>
+        prisma.detalleOrden.create({ data: { ordenId: id, ...datosRenglon(it) } })
       ),
       prisma.ordenCompra.update({
         where: { id },
         data: {
-          proveedorId: proveedor.id, dependencia, lugar, justificacion, total,
-          // La aprobada se edita pero conserva su estado y su revisión; las
-          // demás vuelven a quedar pendientes de revisión.
+          proveedorId, dependencia, justificacion,
           ...(eraAprobada
             ? {}
-            : { estado: "Pendiente", revisorId: null, fechaRevision: null, comentario: null }),
+            : // Una requisición que no estaba aprobada vuelve a quedar
+              // pendiente de revisión, salvo que se esté guardando como
+              // borrador: entonces se queda esperando en ese estado.
+              { estado: esBorrador ? "Borrador" : "Pendiente",
+                revisorId: null, fechaRevision: null, comentario: null }),
         },
       }),
     ]);
+    // Ya está guardado: los adjuntos reemplazados o quitados se pueden borrar.
+    await Promise.all(adjuntos.porBorrar.map((url) => borrarAdjunto(url)));
     await registrarMovimiento({
-      usuarioId: Number(sesion.user.id), modulo: "Requisiciones", accion: "Editó requisición",
-      detalle: `${orden.folio} — se actualizaron los materiales y quedó ` +
-        (eraAprobada ? "aprobada." : "pendiente de revisión."),
+      usuarioId: Number(sesion.user.id), modulo: "Requisiciones",
+      accion: esBorrador ? "Guardó borrador" : "Editó requisición",
+      detalle: esBorrador
+        ? `${orden.folio} — quedó en borrador (${items.length} material(es)).`
+        : `${orden.folio} — se actualizaron los materiales y quedó ` +
+          (eraAprobada ? "aprobada." : "pendiente de revisión."),
     });
   } catch {
+    // La requisición no cambió, así que los archivos nuevos sobran.
+    await deshacerSubidas(adjuntos.subidos);
     return { error: "No se pudo guardar la requisición. Verifica los datos e intenta de nuevo." };
   }
 
   revalidatePath("/ordenes");
   revalidatePath(`/ordenes/${id}`);
-  redirect(`/ordenes/${id}`);
+  // Al guardar el borrador se vuelve al formulario para seguir llenándolo; al
+  // enviar la requisición ya se va a su página.
+  redirect(esBorrador ? `/ordenes/${id}/editar` : `/ordenes/${id}`);
+}
+
+/** Borra un borrador. Solo aplica a los borradores: una requisición que ya se
+ *  envió no se elimina, se rechaza. */
+export async function eliminarBorrador(id: number) {
+  const sesion = await sesionObligatoria();
+  if (!puedeVerModulo(sesion.user.rol, sesion.user.modulosPermitidos, "ordenes")) {
+    throw new Error("No tienes acceso al módulo de requisiciones.");
+  }
+
+  const orden = await prisma.ordenCompra.findUniqueOrThrow({
+    where: { id },
+    include: { items: { select: { adjuntoUrl: true } } },
+  });
+  if (orden.estado !== "Borrador") {
+    throw new Error("Solo se puede borrar una requisición que sigue en borrador.");
+  }
+  const esPropia = orden.solicitanteId === Number(sesion.user.id);
+  if (!esPropia && !puede(sesion.user.rol, "ordenes.editarTodas")) {
+    throw new Error("Solo quien creó el borrador o un administrador pueden borrarlo.");
+  }
+
+  // Los renglones se van en cascada con la orden; los adjuntos que el
+  // solicitante subió a Supabase hay que borrarlos aparte.
+  await prisma.ordenCompra.delete({ where: { id } });
+  await Promise.all(orden.items.map((it) => it.adjuntoUrl).filter(Boolean).map(borrarAdjunto));
+
+  await registrarMovimiento({
+    usuarioId: Number(sesion.user.id), modulo: "Requisiciones",
+    accion: "Borró borrador", detalle: `${orden.folio}`,
+  });
+  revalidatePath("/ordenes");
 }
 
 export async function resolverOrden(id: number, nuevoEstado: "Aprobada" | "Rechazada", comentario: string) {
@@ -541,7 +563,7 @@ export async function resolverOrden(id: number, nuevoEstado: "Aprobada" | "Recha
   await registrarMovimiento({
     usuarioId: Number(sesion.user.id), modulo: "Requisiciones",
     accion: nuevoEstado === "Aprobada" ? "Aprobó requisición" : "Rechazó requisición",
-    detalle: `${orden.folio} por ${lps(Number(orden.total))}${comentario ? " — " + comentario : ""}`,
+    detalle: `${orden.folio}${comentario ? " — " + comentario : ""}`,
   });
   revalidatePath("/ordenes");
   revalidatePath(`/ordenes/${id}`);
@@ -561,7 +583,7 @@ export async function recibirOrden(id: number) {
     ...orden.items.map((it) =>
       prisma.material.update({
         where: { id: it.materialId },
-        data: { existencia: { increment: it.cantidad }, precioUltimo: it.precio },
+        data: { existencia: { increment: it.cantidad } },
       })
     ),
     prisma.ordenCompra.update({
@@ -580,9 +602,6 @@ export async function recibirOrden(id: number) {
   revalidatePath("/");
 }
 
-/* -------------------------------- USUARIOS -------------------------------- */
-
-/** Lee el panel de módulos del formulario sin permitir salir del alcance del rol. */
 function modulosDelFormulario(datos: FormData, rol: ReturnType<typeof rolValido>): string[] {
   if (rol === "administrador") return [MODULOS_DEL_ROL];
 
@@ -607,7 +626,7 @@ export async function crearUsuario(_prev: EstadoForm, datos: FormData): Promise<
     await prisma.usuario.create({ data: { nombre, usuario, claveHash, rol, modulosPermitidos } });
     await registrarMovimiento({
       usuarioId: Number(sesion.user.id), modulo: "Usuarios", accion: "Creó usuario",
-      detalle: `${nombre} (${usuario}) con rol ${rol} · módulos: ${modulosPermitidos.join(", ") || "ninguno"}`,
+      detalle: `${nombre} (${usuario}) con rol ${rol} — módulos: ${modulosPermitidos.join(", ") || "ninguno"}`,
     });
   } catch (e) {
     return { error: mensajeSiEsDuplicado(e, { usuario: "nombre de cuenta" }) };
@@ -642,8 +661,6 @@ export async function editarUsuario(id: number, _prev: EstadoForm, datos: FormDa
     };
     if (clave) {
       data.claveHash = await bcrypt.hash(clave, 10);
-      // Cambiar la contraseña invalida cualquier dispositivo que ya tenga una
-      // sesión abierta con el perfil.
       data.sesionToken = null;
       data.sesionExpira = null;
     }
@@ -652,7 +669,7 @@ export async function editarUsuario(id: number, _prev: EstadoForm, datos: FormDa
     await registrarMovimiento({
       usuarioId: Number(sesion.user.id), modulo: "Usuarios", accion: "Editó usuario",
       detalle: nombre + (anterior.rol !== rol ? ` (rol ${anterior.rol} → ${rol})` : "") +
-        ` · módulos: ${modulosPermitidos.join(", ") || "ninguno"}` +
+        ` — módulos: ${modulosPermitidos.join(", ") || "ninguno"}` +
         (clave ? " — se cambió la contraseña" : ""),
     });
   } catch (e) {
@@ -670,8 +687,6 @@ export async function alternarUsuario(id: number) {
     where: { id },
     data: {
       activo: !usuario.activo,
-      // Desactivar o reactivar un perfil libera cualquier sesión que hubiera
-      // quedado abierta en otro dispositivo.
       sesionToken: null,
       sesionExpira: null,
     },
@@ -685,11 +700,6 @@ export async function alternarUsuario(id: number) {
   revalidatePath("/usuarios");
 }
 
-/* --------------------------- DESCARGO DE INVENTARIO --------------------------- */
-
-/** Resta existencia a un material (salida de bodega). Deja el renglón en
- *  `descargos_inventario` con cuánto había, cuánto se llevó y quién lo hizo,
- *  y el rastro en la bitácora. */
 export async function descargarInventario(_prev: EstadoForm, datos: FormData): Promise<EstadoForm> {
   const sesion = await exigirPermiso("inventario.descargar");
 
@@ -715,8 +725,6 @@ export async function descargarInventario(_prev: EstadoForm, datos: FormData): P
     prisma.descargoInventario.create({
       data: {
         materialId,
-        // Ya se validó arriba que el usuario de la sesión existe; si el id
-        // fuera inválido, Postgres rechazaría la fila por la llave foránea.
         usuarioId: Number(sesion.user.id),
         cantidad,
         motivo,

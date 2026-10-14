@@ -75,7 +75,6 @@ export default function FormularioCrearMaterial({ proveedores, familias }: { pro
         </select>
         <input className="campo-input" name="existencia" type="number" min={0} placeholder="Existencia en bodega (vacío = 0)" />
         <input className="campo-input" name="minimo" type="number" min={0} placeholder="Mínimo para avisar faltantes (vacío = 0)" />
-        <input className="campo-input" name="precio" type="number" min={0} step="0.01" placeholder="Precio unitario en L. Ej. 12.50 (vacío = 0)" />
 
         <div className="sm:col-span-2 border-t border-borde pt-3">
           <label className="block text-sm text-tinta2 mb-1.5 font-medium">Imagen del producto</label>

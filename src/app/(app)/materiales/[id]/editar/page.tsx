@@ -26,7 +26,7 @@ export default async function EditarMaterial({ params }: { params: { id: string 
     <div className="max-w-lg">
       <h2 className="text-xl font-sora font-semibold mb-4">Editar material</h2>
       <FormularioEditarMaterial
-        m={{ ...m, precioUltimo: Number(m.precioUltimo), imagenUrl: m.imagenUrl }}
+        m={m}
         proveedores={proveedores}
         familias={familias}
       />
