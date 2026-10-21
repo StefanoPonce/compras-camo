@@ -10,26 +10,15 @@ export default async function EditarMaterial({ params }: { params: { id: string 
   if (!sesion || !puedeVerModulo(sesion.user.rol, sesion.user.modulosPermitidos, "materiales")) redirect("/materiales");
   if (!puede(sesion.user.rol, "materiales.gestionar")) redirect("/materiales");
 
-  const [m, proveedores, familiasBrutas] = await Promise.all([
+  const [m, proveedores] = await Promise.all([
     prisma.material.findUniqueOrThrow({ where: { id: Number(params.id) } }),
     prisma.proveedor.findMany({ orderBy: { nombre: "asc" } }),
-    prisma.material.findMany({
-      where: { familia: { not: null } },
-      select: { familia: true },
-      distinct: ["familia"],
-      orderBy: { familia: "asc" },
-    }),
   ]);
-  const familias = familiasBrutas.map((f) => f.familia).filter((f): f is string => Boolean(f));
 
   return (
     <div className="max-w-lg">
       <h2 className="text-xl font-sora font-semibold mb-4">Editar material</h2>
-      <FormularioEditarMaterial
-        m={m}
-        proveedores={proveedores}
-        familias={familias}
-      />
+      <FormularioEditarMaterial m={m} proveedores={proveedores} />
     </div>
   );
 }

@@ -32,6 +32,7 @@ export default async function DetalleOrden({ params }: { params: { id: string } 
       proveedor: true,
       solicitante: true,
       revisor: true,
+      recibidoPor: true,
       items: { include: { material: true, proveedor: true } },
     },
   });
@@ -127,12 +128,15 @@ export default async function DetalleOrden({ params }: { params: { id: string } 
 
       <p className="text-xs text-tinta2">
         Solicitó {o.solicitante.nombre}
-        {o.revisor && ` · Revisó ${o.revisor.nombre} el ${o.fechaRevision ? fechaHora(o.fechaRevision) : ""}`}
+        {o.revisor && (o.estado === "Rechazada"
+          ? ` · Rechazó ${o.revisor.nombre} el ${o.fechaRevision ? fechaHora(o.fechaRevision) : ""}`
+          : ` · Revisó ${o.revisor.nombre} el ${o.fechaRevision ? fechaHora(o.fechaRevision) : ""}`)}
+        {o.recibidoPor && ` · Entregó ${o.recibidoPor.nombre} el ${o.fechaRecepcion ? fechaHora(o.fechaRecepcion) : ""}`}
       </p>
       {o.comentario && <p className="bg-superficie2 px-3 py-2.5 rounded-lg text-sm mt-2">{o.comentario}</p>}
 
       {(puedeAutorizar || puedeRecibir) && !esBorrador && (
-        <BotonesOrden id={o.id} estado={o.estado} puedeAutorizar={puedeAutorizar} puedeRecibir={puedeRecibir} />
+        <BotonesOrden id={o.id} folio={o.folio} estado={o.estado} puedeAutorizar={puedeAutorizar} puedeRecibir={puedeRecibir} />
       )}
     </div>
   );

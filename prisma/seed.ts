@@ -9,12 +9,11 @@
 // Qué hace con las columnas que el Excel no trae:
 //  · Proveedor.codigo  → vacío en las 28 filas del archivo, así que inventa
 //    códigos PROV-001, PROV-002… (si el Excel trae uno, se respeta).
-//  · Material.familia / Material.variante → se derivan con reglas claras
-//    (nombres repetidos, tamaños "4X8", "535 ML", paréntesis "(TAMAÑO …)",
-//    adjetivos PEQUEÑA/MEDIANA/GRANDE y prefijos comunes). Lo que no calza
-//    queda vacío y se completa desde la pantalla de materiales.
 //  · Material.categoria → se infiere del primer dígito del código usando
 //    las 7 filas de categoría del propio Excel (100, 200, 300… 700).
+//  · Material.familia / Material.variante → ya no existen: la presentación va
+//    dentro del nombre ("BOLSA PLASTICA 4X8", "AGUA 12 ONZ"). Se quitaron con
+//    prisma/migracion-sin-familia-variante.sql.
 import { readFileSync } from "node:fs";
 import * as XLSX from "xlsx";
 import { PrismaClient } from "@prisma/client";
@@ -25,7 +24,7 @@ const prisma = new PrismaClient();
 const EXCEL =
   process.env.CATALOGO_XLSX || "C:/Users/stefa/Downloads/Catalogo de Compras, Proveedores y Roles BD-2026.xlsx";
 const LIMPIAR = process.argv.includes("--limpiar");
-/** --solo-reporte: lee y deriva, imprime el resumen, pero no escribe nada. */
+/** --solo-reporte: lee el catálogo, imprime el resumen, pero no escribe nada. */
 const SOLO_REPORTE = process.argv.includes("--solo-reporte");
 
 /* ------------------------------- utilidades ------------------------------- */
@@ -35,42 +34,11 @@ const norm = (v: string) => v.normalize("NFC").replace(/\s+/g, " ").trim().toUpp
 /** Igual que `norm` pero sin acentos, para comparar encabezados del Excel. */
 const claveNorm = (v: string) => norm(v).normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 
-const PREPOSICIONES = new Set([
-  "DE", "DEL", "LA", "EL", "LOS", "LAS", "EN", "A", "AL", "CON", "PARA",
-  "POR", "Y", "E", "SOBRE", "HASTA", "DESDE", "COMO",
-]);
-
-const TAMANIOS = /^(PEQUEÑ[AO]S?|MEDIAN[AO]S?|GRANDES?|JUMBO|GIGANTE)$/;
-
-/** Quita espacios sobrantes, separadores colgados y preposiciones finales
- *  de un candidato a "familia". Devuelve null si no queda nada usable. */
-function podarFamilia(texto: string): string | null {
-  let x = limpiar(texto).replace(/[\s/\-–—:,.]+$/, "");
-  for (;;) {
-    const palabras = x.split(" ").filter(Boolean);
-    if (palabras.length > 1 && PREPOSICIONES.has(norm(palabras[palabras.length - 1]))) {
-      x = palabras.slice(0, -1).join(" ");
-      continue;
-    }
-    break;
-  }
-  const palabras = x.split(" ").filter(Boolean);
-  if (!palabras.length) return null;
-  if (palabras.every((p) => PREPOSICIONES.has(norm(p)))) return null;
-  return palabras.join(" ");
-}
-
-type Regla = "nombres repetidos" | "paréntesis de tamaño" | "adjetivo de tamaño" | "número final" | "prefijo común" | "sin derivar";
-
 type Producto = {
   codigo: string;
   nombre: string;
   unidad: string;
   categoria: string;
-  familia: string | null;
-  variante: string | null;
-  palabras: string[];
-  regla: Regla;
 };
 
 /* ------------------------- lectura del Excel -------------------------- */
@@ -116,10 +84,6 @@ function leerExcel() {
       nombre: b.nombre,
       unidad: b.unidad,
       categoria: (prefijo !== null && categorias.get(prefijo)) || "General",
-      familia: null,
-      variante: null,
-      palabras: b.nombre.split(" ").filter(Boolean),
-      regla: "sin derivar",
     };
   });
 
@@ -155,128 +119,6 @@ function leerExcel() {
     .filter((p) => p.nombre);
 
   return { productos, proveedores, categorias, codigosDeTexto };
-}
-
-/* ------------------ derivación de familia y variante ------------------ */
-
-/** "BOLSA PLASTICA 4X8" → familia "BOLSA PLASTICA", variante "4X8". */
-function partirPorNumero(nombre: string): { familia: string; variante: string } | null {
-  const pruebas: RegExp[] = [
-    /(\d+\s*[Xx]\s*\d+\s*[A-Za-z]{0,3})\s*$/, // 4X8, 10X12, 40X 25 CM
-    /(?:\/\s*)?(\d+(?:[.,]\d+)?\s*(?:UNIDADES?|ML|KG|KGS|GR|LTR?|CM|MM|M|OZ|ONZ|PLG|PULG)S?)\s*(")?\s*$/i, // 535 ML, 5kg, 24 UNIDADES
-    /(\d+(?:[.,]\d+)?\s*")\s*$/, // 32"
-  ];
-  for (const re of pruebas) {
-    const m = nombre.match(re);
-    if (!m || m.index === undefined) continue;
-    const variante = limpiar((m[1] || "") + (m[2] || ""));
-    const familia = podarFamilia(nombre.slice(0, m.index));
-    if (familia && variante) return { familia, variante };
-  }
-  return null;
-}
-
-function derivarFamilias(productos: Producto[]) {
-  /* Regla 1 — el mismo nombre repetido con distinta unidad.
-     Ej: "GEL DESINFECTANTE" en BOTE y en GALÓN. */
-  const porNombre = new Map<string, Producto[]>();
-  for (const p of productos) {
-    const lista = porNombre.get(norm(p.nombre));
-    if (lista) lista.push(p);
-    else porNombre.set(norm(p.nombre), [p]);
-  }
-  for (const grupo of porNombre.values()) {
-    if (grupo.length < 2) continue;
-    const unidadesDistintas = new Set(grupo.map((p) => norm(p.unidad))).size > 1;
-    for (const p of grupo) {
-      p.familia = podarFamilia(p.nombre);
-      p.variante = unidadesDistintas ? p.unidad : null;
-      p.regla = "nombres repetidos";
-    }
-  }
-
-  /* Reglas 2-4 — una sola fila. */
-  for (const p of productos) {
-    if (p.familia) continue;
-
-    const par = p.nombre.match(/\s*\(([^)]*TAMAÑO[^)]*)\)\s*$/i);
-    if (par && par.index !== undefined) {
-      const familia = podarFamilia(p.nombre.slice(0, par.index));
-      const variante = limpiar(par[1]);
-      if (familia && variante) {
-        p.familia = familia;
-        p.variante = variante;
-        p.regla = "paréntesis de tamaño";
-        continue;
-      }
-    }
-
-    const idx = p.palabras.findIndex((pal, i) => i > 0 && TAMANIOS.test(norm(pal)));
-    if (idx > 0) {
-      const familia = podarFamilia(p.palabras.slice(0, idx).join(" "));
-      const variante = limpiar(p.palabras.slice(idx).join(" "));
-      if (familia && variante) {
-        p.familia = familia;
-        p.variante = variante;
-        p.regla = "adjetivo de tamaño";
-        continue;
-      }
-    }
-
-    const num = partirPorNumero(p.nombre);
-    if (num) {
-      p.familia = num.familia;
-      p.variante = num.variante;
-      p.regla = "número final";
-    }
-  }
-
-  /* Regla 5 — prefijo común de 2+ palabras entre los que aún no tienen familia,
-     siempre dentro de la misma categoría y sin terminar en preposición
-     (evita familias absurdas como "JUEGO DE"). */
-  let pendientes = productos.filter((p) => !p.familia);
-  let algo = true;
-  while (algo && pendientes.length > 1) {
-    algo = false;
-    const maxPalabras = Math.max(...pendientes.map((p) => p.palabras.length));
-
-    for (let k = maxPalabras - 1; k >= 2; k--) {
-      const grupos = new Map<string, Producto[]>();
-      for (const p of pendientes) {
-        if (p.palabras.length <= k) continue;
-        const clave = norm(p.categoria) + "||" + norm(p.palabras.slice(0, k).join(" "));
-        const lista = grupos.get(clave);
-        if (lista) lista.push(p);
-        else grupos.set(clave, [p]);
-      }
-
-      let asigno = false;
-      for (const g of grupos.values()) {
-        if (g.length < 2) continue;
-        const prefijo = podarFamilia(g[0].palabras.slice(0, k).join(" "));
-        if (!prefijo || prefijo.split(" ").length < 2) continue;
-
-        const n = prefijo.split(" ").length;
-        const validos = g.filter(
-          (p) => p.palabras.length > n && norm(p.palabras.slice(0, n).join(" ")) === norm(prefijo),
-        );
-        if (validos.length < 2) continue;
-
-        for (const p of validos) {
-          p.familia = prefijo;
-          p.variante = limpiar(p.palabras.slice(n).join(" "));
-          p.regla = "prefijo común";
-        }
-        asigno = true;
-      }
-
-      if (asigno) {
-        algo = true;
-        pendientes = productos.filter((p) => !p.familia);
-        break;
-      }
-    }
-  }
 }
 
 /* ------------------------------ carga ------------------------------ */
@@ -324,11 +166,9 @@ async function main() {
     console.log(`  ⚠ ${codigosDeTexto.length} código(s) que no son números (quedan sin categoría General): ${codigosDeTexto.join(", ")}`);
   }
 
-  derivarFamilias(productos);
-
   // Nombres repetidos: el Excel trae 12 parejas con el mismo texto pero código
   // distinto. Se listan aquí porque la regla de unicidad del formulario de
-  // materiales trabaja sobre el nombre.
+  // materiales trabaja sobre el nombre junto con la unidad.
   const porNombreDup = new Map<string, Producto[]>();
   for (const p of productos) {
     const lista = porNombreDup.get(norm(p.nombre));
@@ -341,31 +181,6 @@ async function main() {
     for (const g of duplicados) {
       console.log("   " + g.map((p) => `${p.codigo}[${p.unidad}]`).join(" = ") + `  «${g[0].nombre}»`);
     }
-  }
-
-  if (SOLO_REPORTE) console.log("\nFamilias derivadas (para revisar antes de cargar):");
-  if (SOLO_REPORTE) {
-    const grupos = new Map<string, Producto[]>();
-    for (const p of productos) {
-      if (!p.familia) continue;
-      const lista = grupos.get(p.familia);
-      if (lista) lista.push(p);
-      else grupos.set(p.familia, [p]);
-    }
-    const varios = [...grupos.entries()].filter(([, g]) => g.length > 1).sort((a, b) => b[1].length - a[1].length);
-    for (const [familia, g] of varios) {
-      console.log(`\n  ${familia} (${g.length})`);
-      for (const p of g) console.log(`     ${p.codigo}  ${p.nombre}  →  ${p.variante ?? "—"}  [${p.unidad}]`);
-    }
-    const solas = [...grupos.values()].filter((g) => g.length === 1).length;
-    console.log(`\n  + ${solas} familia(s) con un solo miembro (no se listan).`);
-
-    // Lo que trae números o tamaños y aun así no se derivó: es lo más
-    // probable que haya que marcar a mano desde la pantalla de materiales.
-    const SENAL = /TAMAÑO|PEQUEÑ|MEDIAN|GRANDE|JUMBO|\d/;
-    const sinDerivar = productos.filter((p) => !p.familia && SENAL.test(p.nombre));
-    console.log(`\nCon números/tamaños pero sin familia (${sinDerivar.length}) — completar a mano:`);
-    for (const p of sinDerivar) console.log(`   ${p.codigo}  ${p.nombre}`);
   }
 
   if (SOLO_REPORTE) {
@@ -444,8 +259,6 @@ async function main() {
           nombre: p.nombre,
           categoria: p.categoria,
           unidad: p.unidad,
-          familia: p.familia,
-          variante: p.variante,
           proveedorId: null, // el Excel no relaciona materiales con proveedores
         },
       });
@@ -454,27 +267,13 @@ async function main() {
   }
 
   /* ---- reporte ---- */
-  const conFamilia = productos.filter((p) => p.familia).length;
-  const conVariante = productos.filter((p) => p.variante).length;
-  const familias = new Set(productos.map((p) => p.familia).filter(Boolean) as string[]);
+  const conImagen = await prisma.material.count({ where: { imagenUrl: { not: null } } }).catch(() => 0);
 
   console.log("\nResumen:");
   console.log(`  Proveedores: ${provCreados} creados, ${provSaltados} ya existían`);
   console.log(`               ${provFicticios} con código ficticio generado (PROV-001, PROV-002…)`);
-
-  const ordenReglas: Regla[] = ["nombres repetidos", "paréntesis de tamaño", "adjetivo de tamaño", "número final", "prefijo común", "sin derivar"];
   console.log(`  Materiales:  ${matCreados} creados, ${matSaltados} ya existían`);
-  console.log(`               ${conFamilia}/${productos.length} con familia · ${conVariante} con variante · ${familias.size} familias distintas`);
-  for (const r of ordenReglas) {
-    const n = productos.filter((p) => p.regla === r).length;
-    if (n) console.log(`                 ${String(n).padStart(4)}  ${r}`);
-  }
-
-  const ejemplos = productos.filter((p) => p.familia).slice(0, 6);
-  if (ejemplos.length) {
-    console.log("\n  Ejemplos derivados:");
-    for (const p of ejemplos) console.log(`    ${p.codigo} ${p.nombre}  →  ${p.familia} / ${p.variante ?? "—"}`);
-  }
+  if (conImagen) console.log(`               ${conImagen} con imagen`);
 
   console.log(`\nListo. Cuentas: admin/admin123 · subadmin, jefe, compras/compras123`);
 }

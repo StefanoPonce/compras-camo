@@ -13,7 +13,6 @@ type MaterialOrden = {
   nombre: string;
   categoria: string;
   unidad: string;
-  variante: string | null;
   imagenUrl: string | null;
   proveedor: { id: number; nombre: string } | null;
 };
@@ -255,7 +254,6 @@ export default function FormularioOrden({ accion, materiales, proveedores, inici
                 {materiales.map((m) => (
                   <option key={m.id} value={m.id}>
                     {m.codigo} · {m.nombre}
-                    {m.variante ? ` — ${m.variante}` : ""}
                   </option>
                 ))}
               </select>

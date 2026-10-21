@@ -6,7 +6,6 @@ import { ACEPTA_IMAGENES, comprimirImagen, esImagenValida } from "../../../image
 
 type Material = {
   id: number; codigo: string; nombre: string; categoria: string; unidad: string;
-  familia: string | null; variante: string | null;
   existencia: number; minimo: number; proveedorId: number | null;
   imagenUrl: string | null;
 };
@@ -17,14 +16,35 @@ function BotonGuardar() {
   return <button className="btn" disabled={pending}>{pending ? "Guardando…" : "Guardar"}</button>;
 }
 
+/** Campo con su nombre arriba. Al editar, los campos ya vienen llenos y el
+ *  texto de ayuda (placeholder) no se ve, así que el nombre de cada campo
+ *  tiene que estar escrito siempre. */
+function Campo({
+  name,
+  etiqueta,
+  ayuda,
+  children,
+}: {
+  name: string;
+  etiqueta: string;
+  ayuda?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div>
+      <label htmlFor={name} className="block text-xs text-tinta2 mb-1 font-medium">{etiqueta}</label>
+      {children}
+      {ayuda && <p className="text-xs text-tinta2 mt-1">{ayuda}</p>}
+    </div>
+  );
+}
+
 export default function FormularioEditarMaterial({
   m,
   proveedores,
-  familias,
 }: {
   m: Material;
   proveedores: Proveedor[];
-  familias: string[];
 }) {
   const accion = editarMaterial.bind(null, m.id);
   const [estado, ejecutar] = useFormState(accion, { error: null });
@@ -77,43 +97,54 @@ export default function FormularioEditarMaterial({
     >
       {estado.error && <div className="bg-rojoclaro text-rojo text-sm px-3 py-2 rounded-lg">{estado.error}</div>}
       <div className="grid sm:grid-cols-2 gap-3.5">
-        <input className="campo-input" name="codigo" placeholder="Código (MED-004)" defaultValue={m.codigo} required />
-        <input className="campo-input" name="categoria" placeholder="Categoría" defaultValue={m.categoria} required />
+        <Campo name="codigo" etiqueta="Código *">
+          <input id="codigo" className="campo-input" name="codigo" defaultValue={m.codigo} required />
+        </Campo>
+        <Campo name="categoria" etiqueta="Categoría *">
+          <input id="categoria" className="campo-input" name="categoria" defaultValue={m.categoria} required />
+        </Campo>
       </div>
-      <input className="campo-input" name="nombre" placeholder="Nombre del material" defaultValue={m.nombre} required />
-      {/* Familia = producto base; la variante es la presentación concreta.
-          El datalist deja elegir entre las familias ya usadas. */}
+      <Campo name="nombre" etiqueta="Nombre del material *">
+        <input id="nombre" className="campo-input" name="nombre" defaultValue={m.nombre} required />
+      </Campo>
       <div className="grid sm:grid-cols-2 gap-3.5">
-        <input className="campo-input" name="familia" list="familias-existentes" placeholder="Producto (familia)" defaultValue={m.familia || ""} />
-        <input className="campo-input" name="variante" placeholder="Variante (4X8, 150 ml, BOTE)" defaultValue={m.variante || ""} />
-        <datalist id="familias-existentes">
-          {familias.map((f) => <option key={f} value={f} />)}
-        </datalist>
-      </div>
-      <div className="grid sm:grid-cols-2 gap-3.5">
-        <input className="campo-input" name="unidad" placeholder="Unidad (Caja de 100)" defaultValue={m.unidad} required />
+        <Campo name="unidad" etiqueta="Unidad *" ayuda="Cómo se pide y se cuenta en bodega.">
+          <input id="unidad" className="campo-input" name="unidad" defaultValue={m.unidad} required />
+        </Campo>
         {/* Sin proveedor asignado el select quedaría en blanco sin decir
             nada: la opción vacía explica para qué es el campo. */}
-        <select className="campo-input" name="proveedorId" defaultValue={m.proveedorId ?? ""}>
-          <option value="">Elige proveedor…</option>
-          {proveedores.map((p) => <option key={p.id} value={p.id}>{p.nombre}</option>)}
-        </select>
-        {/* Si el valor es 0 se deja el campo en blanco para que el placeholder
-            explique para qué sirve; guardar en blanco conserva el valor actual. */}
-        <input
-          className="campo-input" name="existencia" type="number" min={0}
-          defaultValue={m.existencia || ""}
-          placeholder="Existencia en bodega (vacío = la que ya tiene)"
-        />
-        <input
-          className="campo-input" name="minimo" type="number" min={0}
-          defaultValue={m.minimo || ""}
-          placeholder="Mínimo para avisar faltantes (vacío = el que ya tiene)"
-        />
+        <Campo name="proveedorId" etiqueta="Proveedor">
+          <select id="proveedorId" className="campo-input" name="proveedorId" defaultValue={m.proveedorId ?? ""}>
+            <option value="">Elige proveedor…</option>
+            {proveedores.map((p) => <option key={p.id} value={p.id}>{p.nombre}</option>)}
+          </select>
+        </Campo>
+        {/* Si el valor es 0 se deja el campo en blanco; guardar en blanco
+            conserva la existencia o el mínimo que ya tiene. */}
+        <Campo name="existencia" etiqueta="Existencia en bodega" ayuda="Déjalo vacío para no cambiarla.">
+          <input
+            id="existencia"
+            className="campo-input"
+            name="existencia"
+            type="number"
+            min={0}
+            defaultValue={m.existencia || ""}
+          />
+        </Campo>
+        <Campo name="minimo" etiqueta="Mínimo que se mantiene" ayuda="Debajo de esto el sistema avisa que hace falta. Déjalo vacío para no cambiarlo.">
+          <input
+            id="minimo"
+            className="campo-input"
+            name="minimo"
+            type="number"
+            min={0}
+            defaultValue={m.minimo || ""}
+          />
+        </Campo>
       </div>
 
       <div className="border-t border-borde pt-3">
-        <label className="block text-sm text-tinta2 mb-1.5 font-medium">Imagen del producto</label>
+        <label htmlFor="imagen" className="block text-sm text-tinta2 mb-1.5 font-medium">Imagen del producto</label>
         <div className="flex items-center gap-3 flex-wrap">
           <div className="h-24 w-24 shrink-0 rounded-lg border border-borde bg-superficie2 overflow-hidden flex items-center justify-center text-tinta2">
             {mostrarVistaPrevia && origen ? (
@@ -126,6 +157,7 @@ export default function FormularioEditarMaterial({
           <div className="flex flex-col gap-1.5">
             <input
               ref={inputImagen}
+              id="imagen"
               className="campo-input max-w-[260px]"
               type="file"
               name="imagen"

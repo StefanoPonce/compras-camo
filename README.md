@@ -23,6 +23,19 @@ puede ver cada persona. El panel está disponible al crear o editar un usuario e
 **Usuarios**. Los permisos de acciones dentro de cada módulo siguen dependiendo
 del rol seleccionado.
 
+### Quién ve el historial de requisiciones
+
+- **Administrador, Sub Administrador y Jefe inmediato** (los roles que
+  autorizan) ven **todas** las requisiciones: las lista, las revisan, las
+  aprueban y las imprimen.
+- **Responsable de solicitar** ve **solo las requisiciones que él creó**. No
+  aparece en su lista ninguna requisición de otro usuario, y tampoco puede
+  abrir ni imprimir la hoja de una requisición ajena.
+
+La entrega de los materiales (el botón *Registrar entrega*) la hace el
+solicitante de esa requisición o, si no es de él, cualquiera de los roles que
+autorizan.
+
 ## 1. Requisitos
 
 - [Node.js](https://nodejs.org) versión 18 o superior
@@ -104,6 +117,25 @@ npm install
    programa que ya tenían las requisiciones viejas a sus renglones, así que no
    se pierde nada.
 
+   Y para quitarle al material la familia y la variante (la presentación ya va
+   dentro del nombre):
+
+   ```bash
+   npx prisma db execute --file prisma/migracion-sin-familia-variante.sql --schema prisma/schema.prisma
+   ```
+
+   Esa copia primero lo que había en la tabla `materiales_familia_variante_respaldo`
+   y luego borra las dos columnas. Si algún día hacen falta, se recuperan de ahí.
+
+   Y para agregar la cuenta bancaria de los proveedores:
+
+   ```bash
+   npx prisma db execute --file prisma/migracion-cuenta-bancaria.sql --schema prisma/schema.prisma
+   ```
+
+   Esa deja la columna vacía en los proveedores que ya estaban registrados: el
+   número de cuenta se captura desde **Proveedores → Editar**.
+
    Ojo: después de cualquier cambio en `schema.prisma` hay que correr
    `npx prisma generate`. `npm run dev` no lo hace solo (solo lo hacen
    `postinstall` y `build`), y si te lo saltas el sistema se queja con
@@ -150,6 +182,9 @@ compras-camo/
 │  │                        renglón y agrega los adjuntos por material
 │  ├─ migracion-unidad-por-renglon.sql → la unidad pasa a ser de cada
 │  ──────────────────────── renglón y normaliza CAJA/CAJAS, BOTE/BOTES
+│  ├─ migracion-cuenta-bancaria.sql → agrega la cuenta bancaria del proveedor
+│  ├─ migracion-sin-familia-variante.sql → borra familia/variante del material
+│  ──────────────────────── (guarda antes una copia en el respaldo)
 │  └─ seed.ts            → datos de prueba
 ├─ src/
 │  ├─ lib/
@@ -160,6 +195,8 @@ compras-camo/
 │  │  ├─ adjuntos.ts     → subida/borrado de los archivos que adjunta el
 │  │  │                    solicitante (foto o PDF) en cada renglón
 │  │  ├─ programas.ts    → catálogo de programas de CAMO (código → nombre)
+│  │  ├─ reportes.ts     → reglas de qué entra al reporte y cómo se agrupa
+│  │  ├─ exportar-excel.ts → arma los .xlsx (una o varias hojas, con estilo)
 │  │  └─ bitacora.ts     → función para registrar cada movimiento
 │  ├─ middleware.ts      → exige sesión para entrar a la aplicación
 │  └─ app/
@@ -172,6 +209,7 @@ compras-camo/
 │        ├─ proveedores/
 │        ├─ materiales/
 │        ├─ ordenes/
+│        ├─ gestion/     → consolidación de compras (los datos se ven al entrar)
 │        ├─ inventario/  → descargo de inventario (salida de bodega)
 │        ├─ reportes/    → reportes de gestión y de insumos
 │        ├─ bitacora/    → solo administrador
@@ -210,7 +248,40 @@ Prisma trae su propio panel para ver y editar filas sin escribir SQL:
 npm run prisma:studio
 ```
 
-## 11. Publicar el sistema para que la fundación lo use
+## 11. Exportar listados a Excel y a PDF
+
+En **Proveedores** y **Materiales** hay dos botones arriba a la derecha:
+
+- **Exportar a Excel** — baja un `.xlsx` con autofiltro y anchos de columna.
+- **Exportar a PDF** — abre el diálogo de impresión del navegador con el
+  listado ya maquetado para papel. En *Destino* se elige **Guardar como PDF**.
+
+El PDF respeta los filtros que estén puestos en pantalla (búsqueda y categoría
+en Materiales; búsqueda y estado en Proveedores) y lleva arriba el logo, la fecha
+y el nombre de quien lo sacó. Al imprimir se ocultan el menú, los botones y la
+columna de acciones, y el encabezado de la tabla se repite en cada página.
+
+El botón "Imprimir / Guardar como PDF" de **Reportes** funciona igual.
+
+## 12. Exportar los reportes a Excel
+
+En **Reportes** el botón **Exportar a Excel** baja el reporte que se está
+viendo en pantalla, con los mismos filtros puestos (tipo de reporte, período y
+requisiciones a incluir). Cada tabla del reporte es una hoja del libro:
+
+| Reporte | Hojas del `.xlsx` |
+| --- | --- |
+| Gestionado | *Por estado* y *Por proveedor* |
+| Insumos comprados | *Por material* y *Por categoría* |
+
+Cada hoja lleva el título de la tabla, el período y la fecha de generación,
+autofiltro en el encabezado, anchos de columna y una fila de total al final.
+
+Los números del Excel salen de las mismas funciones que usa la página
+(`src/lib/reportes.ts`), así que el archivo y la pantalla nunca se
+contradicen.
+
+## 13. Publicar el sistema para que la fundación lo use
 
 Cuando esté listo:
 
@@ -226,7 +297,7 @@ Cuando esté listo:
    crear las tablas, y `npm run prisma:seed` una sola vez si quieres
    dejar los datos de ejemplo (o créalos manualmente desde la app).
 
-## 12. Respaldos
+## 14. Respaldos
 
 Con acceso a la base, un respaldo completo se hace con:
 

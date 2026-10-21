@@ -11,7 +11,7 @@ function BotonGuardar() {
   return <button className="btn sm:col-span-2 justify-self-start" disabled={pending}>{pending ? "Guardando…" : "Guardar material"}</button>;
 }
 
-export default function FormularioCrearMaterial({ proveedores, familias }: { proveedores: Proveedor[]; familias: string[] }) {
+export default function FormularioCrearMaterial({ proveedores }: { proveedores: Proveedor[] }) {
   const [estado, accion] = useFormState(crearMaterial, { error: null });
   // La imagen viaja comprimida desde el navegador: se guarda en el estado
   // y se pega al FormData justo antes de mandar la acción del servidor.
@@ -61,14 +61,6 @@ export default function FormularioCrearMaterial({ proveedores, familias }: { pro
         <input className="campo-input" name="codigo" placeholder="Código (MED-004)" required />
         <input className="campo-input" name="categoria" placeholder="Categoría" required />
         <input className="campo-input sm:col-span-2" name="nombre" placeholder="Nombre del material" required />
-        {/* Familia = producto base, variante = presentación (4X8, 150 ml, BOTE).
-            El datalist sugiere las familias ya usadas para que no se dupliquen
-            por erratas. Ambos quedan vacíos si el producto no tiene variantes. */}
-        <input className="campo-input" name="familia" list="familias-existentes" placeholder="Producto (familia). Ej. BOLSA PLASTICA" />
-        <input className="campo-input" name="variante" placeholder="Variante. Ej. 4X8, 150 ml, BOTE" />
-        <datalist id="familias-existentes">
-          {familias.map((f) => <option key={f} value={f} />)}
-        </datalist>
         <input className="campo-input" name="unidad" placeholder="Unidad (Caja de 100)" required />
         <select className="campo-input" name="proveedorId">
           {proveedores.map((p) => <option key={p.id} value={p.id}>{p.nombre}</option>)}

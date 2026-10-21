@@ -149,7 +149,7 @@ async function main() {
   ok(!panel.includes(borrador.folio), "el panel no lista el borrador");
   const reportes = await (await fetch(`${ORIGEN}/reportes`, { headers: { Cookie: galleta } })).text();
   ok(!reportes.includes(borrador.folio), "los reportes no lo cuentan");
-  const gestion = await (await fetch(`${ORIGEN}/gestion/consolidacion`, { headers: { Cookie: galleta } })).text();
+  const gestion = await (await fetch(`${ORIGEN}/gestion`, { headers: { Cookie: galleta } })).text();
   ok(!gestion.includes(borrador.folio), "la consolidación no lo agrupa");
   ok(!gestion.includes(String(borrador.items[0].materialId) + ">"), "ni sus renglones llegan a consolidar");
 

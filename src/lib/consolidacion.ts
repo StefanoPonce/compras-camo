@@ -77,7 +77,6 @@ export async function obtenerConsolidacion({
                       OR: [
                         { codigo: { contains: busqueda, mode: "insensitive" } },
                         { nombre: { contains: busqueda, mode: "insensitive" } },
-                        { variante: { contains: busqueda, mode: "insensitive" } },
                       ],
                     },
                   },

@@ -1,30 +1,12 @@
 import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
 import { puede, puedeVerModulo } from "@/lib/permisos";
-import { unidadesDe } from "@/lib/consolidacion";
+import { fecha, hoy, obtenerReporte, primerDiaDelMes } from "@/lib/reportes";
 import BotonImprimir from "./boton-imprimir";
+import BotonExportarExcel from "../boton-exportar-excel";
 import Image from "next/image";
 
-
-function fecha(d: Date | string) {
-  return new Date(d).toLocaleDateString("es-HN", { day: "2-digit", month: "short", year: "numeric" });
-}
-function primerDiaDelMes() {
-  const d = new Date(); d.setDate(1);
-  return d.toISOString().slice(0, 10);
-}
-function hoy() {
-  return new Date().toISOString().slice(0, 10);
-}
-
-const ESTADOS_VALIDOS = ["Pendiente", "Aprobada", "Rechazada", "Recibida"] as const;
-
-// En los reportes el estado "Recibida" se muestra como "Entregada".
-function nombreEstado(e: string) {
-  return e === "Recibida" ? "Entregada" : e;
-}
 
 export default async function Reportes({
   searchParams,
@@ -39,84 +21,23 @@ export default async function Reportes({
   const reporte = searchParams.reporte === "insumos" ? "insumos" : "gestionado";
   const esGestionado = reporte === "gestionado";
 
-  // "todas" son todas las requisiciones jugables. Borrador nunca entra a los
-// reportes: es un trabajo a medias que todavía no se ha enviado.
-let estados: string[] = [...ESTADOS_VALIDOS];
-  if (estadoParam === "AR") estados = ["Aprobada", "Recibida"];
-  else if ((ESTADOS_VALIDOS as readonly string[]).includes(estadoParam)) estados = [estadoParam];
+  // El Excel se arma con los mismos filtros que se están viendo en pantalla.
+  const exportarHref =
+    `/reportes/exportar?${new URLSearchParams({
+      reporte,
+      desde,
+      hasta,
+      estado: estadoParam,
+    }).toString()}`;
 
-  const ordenes = await prisma.ordenCompra.findMany({
-    where: {
-      fecha: { gte: new Date(desde + "T00:00:00"), lte: new Date(hasta + "T23:59:59") },
-      ...(estados ? { estado: { in: estados as ("Pendiente" | "Aprobada" | "Rechazada" | "Recibida")[] } } : {}),
-    },
-    include: { proveedor: true, items: { include: { material: true } } },
-    orderBy: { fecha: "asc" },
-  });
-
-  // Unidades por estado: cada renglón aporta las unidades que pide la orden.
-  const unidadesDeLaOrden = (o: (typeof ordenes)[number]) => o.items.reduce((s, it) => s + it.cantidad, 0);
-
-  const porEstado = new Map<string, { cant: number; unidades: number }>();
-  for (const o of ordenes) {
-    const actual = porEstado.get(o.estado) || { cant: 0, unidades: 0 };
-    actual.cant += 1;
-    actual.unidades += unidadesDeLaOrden(o);
-    porEstado.set(o.estado, actual);
-  }
-  const filasEstado = ESTADOS_VALIDOS.map((e) => {
-    const v = porEstado.get(e) || { cant: 0, unidades: 0 };
-    return { estado: nombreEstado(e), cant: v.cant, unidades: v.unidades };
-  });
-
-  // El proveedor es opcional, así que puede faltar. Esas requisiciones se
-  // cuentan en su propia fila ("Sin proveedor") y no se pierden del reporte.
-  const SIN_PROVEEDOR = 0;
-  const porProveedor = new Map<number, { nombre: string; ordenes: number; unidades: number; materiales: Set<number> }>();
-  for (const o of ordenes) {
-    const clave = o.proveedorId ?? SIN_PROVEEDOR;
-    const actual = porProveedor.get(clave) || {
-      nombre: o.proveedor?.nombre ?? "Sin proveedor",
-      ordenes: 0, unidades: 0, materiales: new Set<number>(),
-    };
-    actual.ordenes += 1;
-    actual.unidades += unidadesDeLaOrden(o);
-    for (const it of o.items) actual.materiales.add(it.materialId);
-    porProveedor.set(clave, actual);
-  }
-  const filasProveedor = [...porProveedor.values()]
-    .map((p) => ({ ...p, materiales: p.materiales.size }))
-    .sort((a, b) => (a.nombre === "Sin proveedor" ? 1 : 0) - (b.nombre === "Sin proveedor" ? 1 : 0) || b.unidades - a.unidades);
-
-  const porMaterial = new Map<number, { material: (typeof ordenes)[number]["items"][number]["material"]; cantidad: number; requisiciones: Set<number>; medidas: Set<string> }>();
-  for (const o of ordenes) {
-    for (const it of o.items) {
-      const actual = porMaterial.get(it.materialId) || { material: it.material, cantidad: 0, requisiciones: new Set<number>(), medidas: new Set<string>() };
-      actual.cantidad += it.cantidad;
-      actual.requisiciones.add(o.id);
-      // La unidad es la del renglón, no la del catálogo.
-      actual.medidas.add(it.unidad || it.material.unidad);
-      porMaterial.set(it.materialId, actual);
-    }
-  }
-  const filasMaterial = [...porMaterial.values()]
-    .map((m) => ({ ...m, requisiciones: m.requisiciones.size, unidades: unidadesDe(m.medidas) }))
-    .sort((a, b) => b.cantidad - a.cantidad);
-  const unidadesCompradas = filasMaterial.reduce((s, m) => s + m.cantidad, 0);
-
-  const porCategoria = new Map<string, { cantidad: number; materiales: Set<number> }>();
-  for (const o of ordenes) {
-    for (const it of o.items) {
-      const cat = it.material.categoria;
-      const actual = porCategoria.get(cat) || { cantidad: 0, materiales: new Set<number>() };
-      actual.cantidad += it.cantidad;
-      actual.materiales.add(it.materialId);
-      porCategoria.set(cat, actual);
-    }
-  }
-  const filasCategoria = [...porCategoria.entries()]
-    .map(([categoria, v]) => ({ categoria, cantidad: v.cantidad, materiales: v.materiales.size }))
-    .sort((a, b) => b.cantidad - a.cantidad);
+  const {
+    ordenes,
+    filasEstado,
+    filasProveedor,
+    filasMaterial,
+    filasCategoria,
+    unidadesCompradas,
+  } = await obtenerReporte({ desde, hasta, estado: estadoParam });
 
   const generado = new Date().toLocaleString("es-HN", {
     day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit",
@@ -157,7 +78,10 @@ let estados: string[] = [...ESTADOS_VALIDOS];
             </p>
           )}
         </div>
-        <div className="ml-auto"><BotonImprimir /></div>
+        <div className="ml-auto flex gap-2 flex-wrap items-center">
+          <BotonExportarExcel href={exportarHref} texto="Exportar a Excel" />
+          <BotonImprimir />
+        </div>
       </div>
 
       <form className="flex gap-2 flex-wrap items-end mb-6 no-imprimir" action="/reportes">

@@ -26,6 +26,21 @@ body {
 .et-variante { @apply bg-superficie2 text-tinta border border-borde; }
 
 .tarjeta { @apply bg-superficie border border-borde rounded-xl shadow-sm; }
+
+/* Columna de acciones (Editar / Eliminar / Descargar): se queda pegada al
+   borde derecho de la tabla, así los botones se ven siempre sin arrastrar
+   la tabla de lado a lado. */
+.tabla th.col-acciones,
+.tabla td.col-acciones {
+  position: sticky;
+  right: 0;
+  z-index: 5;
+  background: #FFFFFF;
+  box-shadow: -10px 0 12px -10px rgba(23, 33, 30, 0.28);
+}
+.tabla th.col-acciones {
+  background: #F7F9F6;
+}
 .btn { @apply inline-flex items-center justify-center gap-1 border border-verde bg-verde text-white px-4 py-2 rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50; }
 .btn-secundario { @apply btn bg-transparent text-tinta border-borde; }
 .btn-peligro { @apply btn bg-transparent text-rojo border-rojo; }
@@ -115,5 +130,48 @@ body {
   a {
     color: inherit !important;
     text-decoration: none !important;
+  }
+
+  /* Listados que el usuario guarda como PDF (Proveedores y Materiales): la
+     tabla entra completa en la hoja, el encabezado se repite en cada página y
+     ninguna fila queda partida a la mitad. */
+  .tabla-listado {
+    width: 100% !important;
+    min-width: 0 !important;
+    table-layout: auto;
+  }
+  /* En papel manda el ancho de la página: los anchos fijos de pantalla se
+     sueltan para que el listado entre completo en la hoja. */
+  .tabla-listado col {
+    width: auto !important;
+  }
+  .tabla-listado thead { display: table-header-group; }
+  .tabla-listado tfoot { display: table-footer-group; }
+  .tabla-listado tr { break-inside: avoid; page-break-inside: avoid; }
+  .tabla-listado th { padding: 4px 5px !important; font-size: 8pt; }
+  .tabla-listado td { padding: 4px 5px !important; font-size: 8pt; vertical-align: top; }
+  /* La miniatura del producto estorba en un listado de una hoja por página. */
+  .tabla-listado td > button {
+    width: 30px !important;
+    height: 30px !important;
+  }
+
+  /* Impreso no hay arrastre: la columna de acciones vuelve a su lugar. */
+  .tabla th.col-acciones,
+  .tabla td.col-acciones {
+    position: static !important;
+    box-shadow: none !important;
+  }
+
+  /* Las píldoras de estado (Activo/Inactivo, variantes) son color de fondo:
+     sin esto el navegador las imprimiría en blanco. */
+  .etiqueta,
+  .solo-impresion hr {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .etiqueta {
+    border: 1px solid #D3DACF;
+    font-size: 8pt;
   }
 }

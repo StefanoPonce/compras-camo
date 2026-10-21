@@ -12,7 +12,9 @@ export default function FormularioCrearProveedor() {
 
   return (
     <details className="tarjeta p-4 mb-5">
-      <summary className="cursor-pointer font-medium text-sm">+ Nuevo proveedor</summary>
+      {/* El resumen es el botón de "Agregar nuevo proveedor": verde como el
+          resto de las acciones principales del sistema. */}
+      <summary className="btn cursor-pointer select-none">+ Agregar nuevo proveedor</summary>
       <form action={accion} className="grid sm:grid-cols-2 gap-3 mt-4">
         {estado.error && (
           <div className="sm:col-span-2 bg-rojoclaro text-rojo text-sm px-3 py-2 rounded-lg">{estado.error}</div>
@@ -21,6 +23,7 @@ export default function FormularioCrearProveedor() {
         <input className="campo-input" name="codigo" placeholder="Código (se genera si lo dejas vacío)" />
         <input className="campo-input" name="tipoProducto" placeholder="Tipo de producto (Papelería, Dental…)" />
         <input className="campo-input" name="rtn" placeholder="RTN" />
+        <input className="campo-input" name="cuentaBancaria" placeholder="Número de cuenta bancaria" />
         <input className="campo-input" name="telefono" placeholder="Teléfono" />
         <input className="campo-input" name="contacto" placeholder="Persona de contacto" />
         <input className="campo-input" name="correo" type="email" placeholder="Correo" />

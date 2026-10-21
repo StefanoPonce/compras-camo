@@ -2,7 +2,7 @@ import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { puedeVerModulo } from "@/lib/permisos";
+import { puede, puedeVerModulo } from "@/lib/permisos";
 import { textoPrograma } from "@/lib/programas";
 import { etiquetaUnidad } from "@/lib/unidades";
 import ImagenLogo from "./imagen-logo";
@@ -31,6 +31,16 @@ export default async function Requisicion({ params }: { params: { id: string } }
   // Un borrador todavía no es una requisición: no hay nada que imprimir de él.
   if (o.estado === "Borrador") redirect(`/ordenes/${o.id}/editar`);
 
+  // La hoja es parte de la requisición: solo la abre su solicitante o quien
+  // tiene el historial completo (los roles que autorizan).
+  if (!puede(sesion.user.rol, "ordenes.verTodas") && o.solicitanteId !== Number(sesion.user.id)) {
+    redirect("/ordenes");
+  }
+
+  // La hoja lleva tres firmas y la del medio cambia según cómo terminó la
+  // requisición: "Aprobado por" o "Rechazado por".
+  const esRechazada = o.estado === "Rechazada";
+
   return (
     <div className="max-w-3xl mx-auto">
       <div className="flex justify-end mb-4 no-imprimir">
@@ -43,8 +53,7 @@ export default async function Requisicion({ params }: { params: { id: string } }
         <div className="text-center mb-6">
           <ImagenLogo />
           <h1 className="font-sora text-xl font-semibold">Fundación CAMO - Honduras</h1>
-          <p className="text-sm mt-3">Área de Administración</p>
-          <p className="text-sm font-medium">Requisición de Productos y Materiales</p>
+          <p className="text-sm font-medium mt-3">Requisición de Productos y Materiales</p>
         </div>
 
         <table className="w-full text-sm mb-5">
@@ -118,19 +127,23 @@ export default async function Requisicion({ params }: { params: { id: string } }
             <p className="mt-3">Fecha de solicitud: <span className="font-medium">{fecha(o.fecha)}</span></p>
           </div>
           <div className="border-b border-tinta p-2.5">
-            <p>Aprobado por:</p>
+            {/* El revisor es el mismo usuario que aprobó o rechazó, así que
+                el recuadro cambia de nombre según cómo terminó la requisición. */}
+            <p>{esRechazada ? "Rechazado por:" : "Aprobado por:"}</p>
             <p className="mt-3">Nombre: <span className="font-medium">{o.revisor?.nombre || "—"}</span></p>
-            <p className="mt-3">Fecha de aprobación: <span className="font-medium">{o.fechaRevision ? fecha(o.fechaRevision) : "—"}</span></p>
+            <p className="mt-3">
+              {esRechazada ? "Fecha de rechazo: " : "Fecha de aprobación: "}
+              <span className="font-medium">{o.fechaRevision ? fecha(o.fechaRevision) : "—"}</span>
+            </p>
           </div>
-          <div className="border-r border-tinta p-2.5">
+          {/* "Entregado por" es quien registró la entrega de los materiales
+              (el mismo usuario que marca la requisición como recibida), así que
+              va centrado y ocupando toda la fila de abajo. Ya no se pide
+              "Recibí por": la hoja queda con tres firmas. */}
+          <div className="col-span-2 p-2.5 text-center">
             <p>Entregado por:</p>
-            <p className="mt-3">Nombre: <span className="font-medium">{o.proveedor?.nombre || "—"}</span></p>
-            <p className="mt-3">Fecha de entrega: <span className="font-medium">{o.fechaRecepcion ? fecha(o.fechaRecepcion) : "—"}</span></p>
-          </div>
-          <div className="p-2.5">
-            <p>Recibí por:</p>
             <p className="mt-3">Nombre: <span className="font-medium">{o.recibidoPor?.nombre || "—"}</span></p>
-            <p className="mt-3">Fecha de recepción: <span className="font-medium">{o.fechaRecepcion ? fecha(o.fechaRecepcion) : "—"}</span></p>
+            <p className="mt-3">Fecha de entrega: <span className="font-medium">{o.fechaRecepcion ? fecha(o.fechaRecepcion) : "—"}</span></p>
           </div>
         </div>
       </div>

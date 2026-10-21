@@ -15,7 +15,9 @@ export default async function EditarUsuario({ params }: { params: { id: string }
   return (
     <div className="max-w-2xl">
       <h2 className="text-xl font-sora font-semibold mb-4">Editar usuario</h2>
-      <p className="text-tinta2 text-sm mb-4">Deja la contraseña en blanco si no quieres cambiarla.</p>
+      <p className="text-tinta2 text-sm mb-4">
+        Deja la contraseña en blanco si no quieres cambiarla. La cuenta de acceso también se puede corregir.
+      </p>
       <FormularioEditarUsuario u={u} />
     </div>
   );

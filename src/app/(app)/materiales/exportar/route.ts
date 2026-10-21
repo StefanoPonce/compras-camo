@@ -26,8 +26,6 @@ export async function GET() {
     columnas: [
       { header: "Código", width: 15 },
       { header: "Material", width: 34 },
-      { header: "Familia", width: 25 },
-      { header: "Variante", width: 19 },
       { header: "Categoría", width: 21 },
       { header: "Unidad", width: 15 },
       { header: "Proveedor", width: 31 },
@@ -38,8 +36,6 @@ export async function GET() {
     filas: materiales.map((material) => [
       material.codigo,
       material.nombre,
-      material.familia ?? "",
-      material.variante ?? "",
       material.categoria,
       material.unidad,
       material.proveedor?.nombre ?? "",
@@ -49,10 +45,10 @@ export async function GET() {
     ]),
     textoTotal: `Total de materiales: ${materiales.length}`,
     resaltar: (fila, columna) => {
-      if (columna === 7 && typeof fila[7] === "number" && typeof fila[8] === "number" && fila[7] <= fila[8]) {
+      if (columna === 5 && typeof fila[5] === "number" && typeof fila[6] === "number" && fila[5] <= fila[6]) {
         return { fondo: "FFF6E6E4", texto: "FF8C2F2A", negrita: true };
       }
-      if (columna === 10) {
+      if (columna === 7) {
         return fila[columna] === "Activo"
           ? { fondo: "FFE2EDE9", texto: "FF12564A", negrita: true }
           : { fondo: "FFF6E6E4", texto: "FF8C2F2A", negrita: true };

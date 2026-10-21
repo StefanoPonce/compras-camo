@@ -16,7 +16,9 @@ export default async function LayoutApp({ children }: { children: React.ReactNod
         rol={sesion.user.rol}
         modulos={sesion.user.modulosPermitidos}
       />
-      <main className="px-5 py-6 pb-16 max-w-6xl w-full mx-auto flex-1">{children}</main>
+      {/* El contenido usa el mismo ancho que la barra de navegación (1480px) para
+          que las tablas largas no se queden estrechas y no haya que arrastrar. */}
+      <main className="px-5 py-6 pb-16 max-w-[1480px] w-full mx-auto flex-1">{children}</main>
       <footer className="px-5 py-4 border-t border-borde text-tinta2 text-xs text-center">
         Datos guardados en PostgreSQL — Fundación CAMO
       </footer>

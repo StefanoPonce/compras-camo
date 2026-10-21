@@ -98,6 +98,7 @@ export async function crearProveedor(_prev: EstadoForm, datos: FormData): Promis
         correo: String(datos.get("correo") || "").trim() || null,
         direccion: String(datos.get("direccion") || "").trim() || null,
         tipoProducto: String(datos.get("tipoProducto") || "").trim() || null,
+        cuentaBancaria: String(datos.get("cuentaBancaria") || "").trim() || null,
       },
     });
     await registrarMovimiento({
@@ -135,6 +136,7 @@ export async function editarProveedor(id: number, _prev: EstadoForm, datos: Form
         correo: String(datos.get("correo") || "").trim() || null,
         direccion: String(datos.get("direccion") || "").trim() || null,
         tipoProducto: String(datos.get("tipoProducto") || "").trim() || null,
+        cuentaBancaria: String(datos.get("cuentaBancaria") || "").trim() || null,
         activo: datos.get("activo") === "1",
       },
     });
@@ -170,8 +172,6 @@ export async function crearMaterial(_prev: EstadoForm, datos: FormData): Promise
   const nombre = String(datos.get("nombre") || "").trim();
   const categoria = String(datos.get("categoria") || "").trim();
   const unidad = String(datos.get("unidad") || "").trim();
-  const familia = String(datos.get("familia") || "").trim();
-  const variante = String(datos.get("variante") || "").trim();
   if (!codigo || !nombre) return { error: "El código y el nombre son obligatorios." };
   if (!categoria) return { error: "La categoría es obligatoria." };
   if (!unidad) return { error: "La unidad de medida es obligatoria." };
@@ -181,14 +181,20 @@ export async function crearMaterial(_prev: EstadoForm, datos: FormData): Promise
   if (existencia === null) return { error: "La existencia debe ser un número igual o mayor a cero." };
   if (minimo === null) return { error: "El mínimo en bodega debe ser un número igual o mayor a cero." };
 
-  const nombreRepetido = variante
-    ? await prisma.material.findFirst({
-        where: { nombre: { equals: nombre, mode: "insensitive" }, variante: { equals: variante, mode: "insensitive" } },
-      })
-    : await prisma.material.findFirst({ where: { nombre: { equals: nombre, mode: "insensitive" }, variante: null } });
+  // Lo que separa dos materiales es el nombre junto con la unidad: el Excel
+  // trae parejas legítimas con el mismo nombre en unidades distintas
+  // (GEL DESINFECTANTE en BOTE y en GALÓN), así que solo con el nombre
+  // aparecerían como repetidos.
+  const unidadCanonica = normalizarUnidad(unidad);
+  const nombreRepetido = await prisma.material.findFirst({
+    where: {
+      nombre: { equals: nombre, mode: "insensitive" },
+      unidad: { equals: unidadCanonica, mode: "insensitive" },
+    },
+  });
   if (nombreRepetido) {
     return {
-      error: `Ya existe "${nombreRepetido.nombre}"${nombreRepetido.variante ? " (" + nombreRepetido.variante + ")" : ""} con código ${nombreRepetido.codigo}. Usa otra variante o edita ese material.`,
+      error: `Ya existe "${nombreRepetido.nombre}" (${nombreRepetido.unidad}) con código ${nombreRepetido.codigo}. Edítalo o ponle otro nombre o unidad.`,
     };
   }
 
@@ -204,9 +210,7 @@ export async function crearMaterial(_prev: EstadoForm, datos: FormData): Promise
         codigo, nombre, categoria,
         // La unidad se guarda en forma canónica ("CAJA", no "CAJAS" ni "caja")
         // para que no vuelvan a aparecer unidades duplicadas en el catálogo.
-        unidad: normalizarUnidad(unidad),
-        familia: familia || null,
-        variante: variante || null,
+        unidad: unidadCanonica,
         existencia,
         minimo,
         proveedorId: Number(datos.get("proveedorId")) || null,
@@ -232,8 +236,6 @@ export async function editarMaterial(id: number, _prev: EstadoForm, datos: FormD
   const nombre = String(datos.get("nombre") || "").trim();
   const categoria = String(datos.get("categoria") || "").trim();
   const unidad = String(datos.get("unidad") || "").trim();
-  const familia = String(datos.get("familia") || "").trim();
-  const variante = String(datos.get("variante") || "").trim();
   if (!codigo || !nombre) return { error: "El código y el nombre son obligatorios." };
   if (!categoria) return { error: "La categoría es obligatoria." };
   if (!unidad) return { error: "La unidad de medida es obligatoria." };
@@ -266,8 +268,6 @@ export async function editarMaterial(id: number, _prev: EstadoForm, datos: FormD
         codigo, nombre, categoria,
         // Igual que al crear: la unidad se deja siempre en forma canónica.
         unidad: normalizarUnidad(unidad),
-        familia: familia || null,
-        variante: variante || null,
         existencia: nuevaExistencia,
         minimo: nuevoMinimo,
         proveedorId: Number(datos.get("proveedorId")) || null,
@@ -578,6 +578,12 @@ export async function recibirOrden(id: number) {
   if (orden.estado !== "Aprobada") {
     throw new Error("Solo se puede marcar como recibida una requisición aprobada.");
   }
+  // La entrega la registra el solicitante o quien tiene el historial completo
+  // (los roles que autorizan). Un usuario que solo ve sus propias
+  // requisiciones no puede entregar las de otro.
+  if (!puede(sesion.user.rol, "ordenes.verTodas") && orden.solicitanteId !== Number(sesion.user.id)) {
+    throw new Error("Solo puedes registrar la entrega de tus propias requisiciones.");
+  }
 
   await prisma.$transaction([
     ...orden.items.map((it) =>
@@ -639,16 +645,19 @@ export async function crearUsuario(_prev: EstadoForm, datos: FormData): Promise<
 export async function editarUsuario(id: number, _prev: EstadoForm, datos: FormData): Promise<EstadoForm> {
   const sesion = await exigirPermiso("usuarios.gestionar");
   const nombre = String(datos.get("nombre") || "").trim();
+  const usuario = String(datos.get("usuario") || "").trim().toLowerCase();
   const rol = rolValido(datos.get("rol"));
   const modulosPermitidos = modulosDelFormulario(datos, rol);
   const clave = String(datos.get("clave") || "");
   if (!nombre) return { error: "El nombre es obligatorio." };
+  if (!usuario) return { error: "La cuenta de acceso es obligatoria." };
   if (clave && clave.length < 6) return { error: "La contraseña debe tener al menos 6 caracteres." };
 
   try {
     const anterior = await prisma.usuario.findUniqueOrThrow({ where: { id } });
     const data: {
       nombre: string;
+      usuario?: string;
       rol: typeof rol;
       modulosPermitidos: string[];
       claveHash?: string;
@@ -659,6 +668,8 @@ export async function editarUsuario(id: number, _prev: EstadoForm, datos: FormDa
       rol,
       modulosPermitidos,
     };
+    // La cuenta de acceso se puede corregir. Si se deja igual, no se toca.
+    if (usuario !== anterior.usuario) data.usuario = usuario;
     if (clave) {
       data.claveHash = await bcrypt.hash(clave, 10);
       data.sesionToken = null;
@@ -668,7 +679,9 @@ export async function editarUsuario(id: number, _prev: EstadoForm, datos: FormDa
     await prisma.usuario.update({ where: { id }, data });
     await registrarMovimiento({
       usuarioId: Number(sesion.user.id), modulo: "Usuarios", accion: "Editó usuario",
-      detalle: nombre + (anterior.rol !== rol ? ` (rol ${anterior.rol} → ${rol})` : "") +
+      detalle: nombre +
+        (anterior.usuario !== usuario ? ` (cuenta ${anterior.usuario} → ${usuario})` : "") +
+        (anterior.rol !== rol ? ` (rol ${anterior.rol} → ${rol})` : "") +
         ` — módulos: ${modulosPermitidos.join(", ") || "ninguno"}` +
         (clave ? " — se cambió la contraseña" : ""),
     });

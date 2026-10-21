@@ -7,11 +7,13 @@ import { resolverOrden, recibirOrden } from "../../actions";
  *  Cada grupo se muestra según el permiso que traiga el rol en sesión. */
 export default function BotonesOrden({
   id,
+  folio,
   estado,
   puedeAutorizar,
   puedeRecibir,
 }: {
   id: number;
+  folio: string;
   estado: string;
   puedeAutorizar: boolean;
   puedeRecibir: boolean;
@@ -25,6 +27,14 @@ export default function BotonesOrden({
       alert("Escribe el motivo del rechazo antes de continuar.");
       return;
     }
+    // Aprobar o rechaza deja rastro en la requisición y notifica al
+    // solicitante, así que se pide confirmación antes de hacerlo.
+    const ok = window.confirm(
+      nuevo === "Rechazada"
+        ? `¿Seguro que quieres rechazar la requisición ${folio}?\n\nQuedará en estado Rechazada y el solicitante verá el motivo que escribiste.`
+        : `¿Seguro que quieres aprobar la requisición ${folio}?\n\nQuedará en estado Aprobada y desde ahí se podrá marcar como recibida.`
+    );
+    if (!ok) return;
     setOcupado(true);
     try {
       await resolverOrden(id, nuevo, comentario.trim());
@@ -42,7 +52,7 @@ export default function BotonesOrden({
       await recibirOrden(id);
       router.refresh();
     } catch {
-      alert("No se pudo marcar como recibida. Intenta de nuevo.");
+      alert("No se pudo registrar la entrega. Intenta de nuevo.");
     } finally {
       setOcupado(false);
     }
@@ -63,7 +73,9 @@ export default function BotonesOrden({
   if (estado === "Aprobada" && puedeRecibir) {
     return (
       <div className="flex justify-end mt-4">
-        <button disabled={ocupado} className="btn" onClick={recibir}>Marcar como recibida</button>
+        {/* Registrar la entrega deja el nombre de este usuario en el recuadro
+            "Entregado por" de la requisición impresa. */}
+        <button disabled={ocupado} className="btn" onClick={recibir}>Registrar entrega</button>
       </div>
     );
   }

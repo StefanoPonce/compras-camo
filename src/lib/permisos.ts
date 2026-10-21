@@ -13,6 +13,11 @@
 //                             consultar Gestión
 //   Responsable de solicitar→ crear requisiciones y descargar inventario
 //
+// Visibilidad del historial de requisiciones: solo los roles que autorizan
+// (administrador, sub administrador y jefe inmediato) tienen
+// "ordenes.verTodas" y ven el historial completo. Cualquier otro usuario ve
+// únicamente las requisiciones que él creó.
+//
 // Los módulos visibles pueden personalizarse por usuario; este archivo define
 // el alcance máximo que el rol permite.
 
@@ -41,7 +46,7 @@ export type Permiso =
   | "ordenes.autorizar"
   /** Marcar órdenes como recibidas (suma al inventario) */
   | "ordenes.recibir"
-  /** Ver las órdenes de todos, no solo las propias */
+  /** Ver las requisiciones de todos, no solo las propias */
   | "ordenes.verTodas"
   /** Restar productos del inventario (descargo) */
   | "inventario.descargar";
@@ -168,7 +173,6 @@ export const PERMISOS_POR_ROL: Record<Rol, Permiso[]> = {
   responsable_solicitante: [
     "ordenes.crear",
     "ordenes.recibir",
-    "ordenes.verTodas",
     "inventario.descargar",
   ],
 };

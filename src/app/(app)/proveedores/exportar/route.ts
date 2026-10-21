@@ -26,6 +26,7 @@ export async function GET() {
       { header: "Código", width: 15 },
       { header: "Proveedor", width: 34 },
       { header: "RTN", width: 19 },
+      { header: "Cuenta bancaria", width: 22 },
       { header: "Tipo de producto", width: 25 },
       { header: "Contacto", width: 25 },
       { header: "Teléfono", width: 17 },
@@ -37,6 +38,7 @@ export async function GET() {
       proveedor.codigo ?? "",
       proveedor.nombre,
       proveedor.rtn ?? "",
+      proveedor.cuentaBancaria ?? "",
       proveedor.tipoProducto ?? "",
       proveedor.contacto ?? "",
       proveedor.telefono ?? "",
@@ -46,7 +48,7 @@ export async function GET() {
     ]),
     textoTotal: `Total de proveedores: ${proveedores.length}`,
     resaltar: (fila, columna) => {
-      if (columna !== 8) return undefined;
+      if (columna !== 9) return undefined;
       return fila[columna] === "Activo"
         ? { fondo: "FFE2EDE9", texto: "FF12564A", negrita: true }
         : { fondo: "FFF6E6E4", texto: "FF8C2F2A", negrita: true };

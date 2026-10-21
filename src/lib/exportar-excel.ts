@@ -15,6 +15,19 @@ type ResaltadoCelda = {
   negrita?: boolean;
 };
 
+/** Una hoja del libro: su nombre, sus columnas y sus filas. */
+export type HojaExcel = {
+  nombreHoja: string;
+  /** Título de la hoja. Si no se pone, se usa el del libro. */
+  titulo?: string;
+  /** Texto bajo el título. Si no se pone, se usa el del libro. */
+  descripcion?: string;
+  columnas: ColumnaExcel[];
+  filas: ValorExcel[][];
+  textoTotal: string;
+  resaltar?: (fila: ValorExcel[], indiceColumna: number) => ResaltadoCelda | undefined;
+};
+
 type OpcionesExcel = {
   titulo: string;
   descripcion: string;
@@ -62,11 +75,28 @@ export async function crearExcelBonito({
   textoTotal,
   resaltar,
 }: OpcionesExcel): Promise<ArrayBuffer> {
+  return crearExcelConHojas({
+    titulo,
+    descripcion,
+    hojas: [{ nombreHoja, columnas, filas, textoTotal, resaltar }],
+  });
+}
+
+/**
+ * Crea un XLSX con una o varias hojas. Cada hoja lleva su propio título, sus
+ * columnas y sus filas, con el mismo estilo del resto de las exportaciones.
+ */
+export async function crearExcelConHojas({
+  titulo,
+  descripcion,
+  hojas,
+}: {
+  titulo: string;
+  descripcion: string;
+  hojas: HojaExcel[];
+}): Promise<ArrayBuffer> {
   const libro = new ExcelJS.Workbook();
   const fecha = new Date();
-  const ultimaColumna = columnas.length;
-  const filaEncabezado = 4;
-  const primeraFilaDatos = 5;
 
   libro.creator = "Sistema de Compras — Fundación CAMO";
   libro.lastModifiedBy = "Sistema de Compras — Fundación CAMO";
@@ -74,6 +104,35 @@ export async function crearExcelBonito({
   libro.modified = fecha;
   libro.subject = descripcion;
   libro.title = titulo;
+
+  for (const hoja of hojas) {
+    construirHoja(libro, {
+      ...hoja,
+      titulo: hoja.titulo ?? titulo,
+      descripcion: hoja.descripcion ?? descripcion,
+    });
+  }
+
+  const archivo = await libro.xlsx.writeBuffer({
+    useStyles: true,
+    useSharedStrings: true,
+  });
+
+  return Uint8Array.from(archivo as unknown as ArrayLike<number>).buffer;
+}
+
+/** Arma una hoja con el estilo del sistema: título, encabezado, filas y total. */
+function construirHoja(
+  libro: ExcelJS.Workbook,
+  { nombreHoja, titulo, descripcion, columnas, filas, textoTotal, resaltar }: HojaExcel & {
+    titulo: string;
+    descripcion: string;
+  }
+) {
+  const fecha = new Date();
+  const ultimaColumna = columnas.length;
+  const filaEncabezado = 4;
+  const primeraFilaDatos = 5;
 
   const hoja = libro.addWorksheet(nombreHoja, {
     properties: {
@@ -189,13 +248,6 @@ export async function crearExcelBonito({
   hoja.pageSetup.printArea = `A1:${ultimaLetra}${filaTotal}`;
   hoja.pageSetup.printTitlesRow = `1:${filaEncabezado}`;
   hoja.headerFooter.oddFooter = "Fundación CAMO — Página &P de &N";
-
-  const archivo = await libro.xlsx.writeBuffer({
-    useStyles: true,
-    useSharedStrings: true,
-  });
-
-  return Uint8Array.from(archivo as unknown as ArrayLike<number>).buffer;
 }
 
 export function respuestaExcel(archivo: ArrayBuffer, nombreArchivo: string): Response {

@@ -80,14 +80,14 @@ async function main() {
 
   // ── 4. La consolidación NO se la come: sale en su propio grupo.
   console.log("\n3. Consolidación");
-  const gestion = await (await fetch(`${ORIGEN}/gestion/consolidacion?estado=pendientes`, {
+  const gestion = await (await fetch(`${ORIGEN}/gestion?estado=pendientes`, {
     headers: { Cookie: galleta },
   })).text();
   ok(gestion.includes(orden.folio), "la requisición sin proveedor aparece en la consolidación");
   ok(gestion.includes("Sin proveedor"), "sale en un grupo 'Sin proveedor'");
   ok(gestion.includes(material.id.toString()) || gestion.includes("material"), "y conserva sus renglones");
 
-  const excel = await fetch(`${ORIGEN}/gestion/consolidacion/exportar?estado=pendientes`, {
+  const excel = await fetch(`${ORIGEN}/gestion/exportar?estado=pendientes`, {
     headers: { Cookie: galleta },
   });
   ok(excel.status === 200, `el Excel se genera sin romperse (${excel.status})`);

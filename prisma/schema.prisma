@@ -72,6 +72,9 @@ model Proveedor {
   direccion  String?
   // Tipo de producto que maneja el proveedor (viene en el Excel).
   tipoProducto String?
+  // Cuenta en la que la fundación deposita a este proveedor. Se guarda como
+  // texto para admitir guiones y espacios tal como lo da el banco.
+  cuentaBancaria String?
   activo     Boolean     @default(true)
   creadoEn   DateTime    @default(now())
 
@@ -89,12 +92,9 @@ model Material {
   categoria     String          @default("General")
   unidad        String          @default("Unidad")
 
-  // Variantes: agrupa productos que son el mismo artículo en distinta
-  // presentación. Ej: familia "BOLSA PLASTICA" con variantes 4X8, 6X10,
-  // 9X16…; familia "GEL DESINFECTANTE" con variantes BOTE y GALON.
-  // Ambos son opcionales: lo que la seed no pudo derivar se llena a mano.
-  familia       String?
-  variante      String?
+  // La presentación va dentro del nombre ("BOLSA PLASTICA 4X8", "AGUA 12 ONZ"):
+  // antes había familia y variante, pero eran un dato redundante que nadie iba
+  // a mantener. Ver prisma/migracion-sin-familia-variante.sql.
 
   existencia    Int             @default(0)
   minimo        Int             @default(0)

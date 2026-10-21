@@ -229,8 +229,8 @@ async function main() {
     "La acción del servidor rechaza al Jefe inmediato",
     `El jefe pasó el permiso de descargo: ${salidaJefe.slice(0, 200)}`);
 
-  /* ------------- 5. el catálogo del Excel y las variantes ------------ */
-  console.log("5. Catálogo importado del Excel (códigos, familias y variantes)");
+  /* ----------------- 5. el catálogo importado del Excel ----------------- */
+  console.log("5. Catálogo importado del Excel (códigos y categorías)");
   const [nMateriales, nProveedores, proveedoresSinCodigo] = await Promise.all([
     prisma.material.count(),
     prisma.proveedor.count(),
@@ -243,15 +243,28 @@ async function main() {
     "Los 28 proveedores tienen código (PROV-001…PROV-028 generados)",
     `Hay ${nProveedores} proveedores y ${proveedoresSinCodigo} sin código`);
 
-  const bolsa = await prisma.material.findFirst({ where: { familia: "BOLSA PLASTICA" } });
-  si(Boolean(bolsa?.variante),
-    `Las variantes se derivaron (ej. ${bolsa?.codigo} ${bolsa?.nombre} → ${bolsa?.variante})`,
-    "El material de bolsa no quedó con familia/variante");
+  // Familia y variante se quitaron de la base: la presentación va en el nombre.
+  const columnas = await prisma.$queryRawUnsafe<{ column_name: string }[]>(
+    `SELECT column_name FROM information_schema.columns
+      WHERE table_schema = 'public' AND table_name = 'materiales'
+        AND column_name IN ('familia','variante')`
+  );
+  si(columnas.length === 0,
+    "La tabla materiales ya no tiene las columnas familia ni variante",
+    `Las columnas siguen existiendo: ${columnas.map((c) => c.column_name).join(", ")}`);
 
-  const rMat = await pagina("/materiales?fam=" + encodeURIComponent("BOLSA PLASTICA"), sesiones.admin);
-  si(rMat.status === 200 && rMat.html.includes("4X8") && rMat.html.includes("6X10"),
-    "El filtro por familia lista las variantes del mismo producto",
-    "El filtro por familia no devolvió las variantes de BOLSA PLASTICA");
+  const bolsa = await prisma.material.findFirst({ where: { codigo: "260" } });
+  si(bolsa?.nombre === "BOLSA PLASTICA 4X8",
+    "La presentación va dentro del nombre del material (ej. 260 → BOLSA PLASTICA 4X8)",
+    `El material 260 quedó como "${bolsa?.nombre}"`);
+
+  const rMat = await pagina("/materiales", sesiones.admin);
+  si(rMat.status === 200 && !rMat.html.includes("Todas las familias"),
+    "El listado de materiales ya no ofrece el filtro de familias",
+    "El listado de materiales sigue ofreciendo el filtro de familias");
+  si(rMat.status === 200 && !/<th>Variante<\/th>/.test(rMat.html),
+    "El listado de materiales ya no muestra la columna Variante",
+    "El listado de materiales sigue mostrando la columna Variante");
 
   const rProv = await pagina("/proveedores", sesiones.admin);
   si(rProv.status === 200 && rProv.html.includes("PROV-001"),
@@ -265,8 +278,8 @@ async function main() {
     "El formulario de órdenes deja elegir proveedor cuando el material no tiene",
     "El formulario de órdenes no ofrece elegir proveedor");
   si(rNueva.html.includes("BOLSA PLASTICA 4X8"),
-    "El selector de materiales distingue las variantes",
-    "El selector de materiales no muestra el producto con su variante");
+    "El selector de materiales muestra la presentación dentro del nombre",
+    "El selector de materiales no muestra el producto con su presentación");
 
   /* ------- 6. crear una orden eligiendo el proveedor en el formulario ------- */
   console.log("6. Proveedor de la orden (caso: el material no tiene ninguno)");
