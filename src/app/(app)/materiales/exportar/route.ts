@@ -3,25 +3,38 @@ import { authOptions } from "@/lib/auth";
 import { crearExcelBonito, respuestaExcel } from "@/lib/exportar-excel";
 import { prisma } from "@/lib/prisma";
 import { puedeVerModulo } from "@/lib/permisos";
+import { describirFiltrosMateriales, normalizarFiltrosMateriales, whereMateriales } from "@/lib/materiales-filtros";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(request: Request) {
   const sesion = await getServerSession(authOptions);
   if (!sesion) return new Response("No autorizado", { status: 401 });
   if (!puedeVerModulo(sesion.user.rol, sesion.user.modulosPermitidos, "materiales")) {
     return new Response("No autorizado", { status: 403 });
   }
 
+  // Mismos filtros que la pantalla: lo que se ve en /materiales es lo que se
+  // descarga (búsqueda, categoría y existencia).
+  const filtros = normalizarFiltrosMateriales(Object.fromEntries(new URL(request.url).searchParams));
+
   const materiales = await prisma.material.findMany({
+    where: whereMateriales(filtros),
     include: { proveedor: { select: { nombre: true } } },
     orderBy: [{ codigo: "asc" }],
   });
 
+  const detalleFiltros = describirFiltrosMateriales(filtros);
+
   const archivo = await crearExcelBonito({
     titulo: "Listado de materiales",
-    descripcion: "Fundación CAMO · Catálogo de materiales e inventario",
+    descripcion: [
+      "Fundación CAMO · Catálogo de materiales e inventario",
+      detalleFiltros,
+    ]
+      .filter(Boolean)
+      .join(" · "),
     nombreHoja: "Materiales",
     columnas: [
       { header: "Código", width: 15 },

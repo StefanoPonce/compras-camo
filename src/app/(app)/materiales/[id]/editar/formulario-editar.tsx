@@ -42,9 +42,12 @@ function Campo({
 export default function FormularioEditarMaterial({
   m,
   proveedores,
+  categorias,
 }: {
   m: Material;
   proveedores: Proveedor[];
+  /** Categorías que ya existen en el catálogo, para la lista de Categoría. */
+  categorias: string[];
 }) {
   const accion = editarMaterial.bind(null, m.id);
   const [estado, ejecutar] = useFormState(accion, { error: null });
@@ -100,8 +103,13 @@ export default function FormularioEditarMaterial({
         <Campo name="codigo" etiqueta="Código *">
           <input id="codigo" className="campo-input" name="codigo" defaultValue={m.codigo} required />
         </Campo>
-        <Campo name="categoria" etiqueta="Categoría *">
-          <input id="categoria" className="campo-input" name="categoria" defaultValue={m.categoria} required />
+        {/* Campo abierto con lista: sugiere las categorías que ya hay y
+            permite escribir una nueva. */}
+        <Campo name="categoria" etiqueta="Categoría *" ayuda="Elige una existente o escribe una nueva.">
+          <input id="categoria" className="campo-input" name="categoria" list="categorias-material" defaultValue={m.categoria} required />
+          <datalist id="categorias-material">
+            {categorias.map((c) => <option key={c} value={c} />)}
+          </datalist>
         </Campo>
       </div>
       <Campo name="nombre" etiqueta="Nombre del material *">

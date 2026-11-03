@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { puede, puedeVerModulo, nombreRol, claseRol, normalizarModulos, MODULOS } from "@/lib/permisos";
 import FormularioCrearUsuario from "./formulario-crear";
 import BotonAlternarUsuario from "./boton-alternar";
+import BotonEliminarUsuario from "./boton-eliminar";
 
 export default async function Usuarios() {
   const sesion = await getServerSession(authOptions);
@@ -47,7 +48,12 @@ export default async function Usuarios() {
                   <td className="text-right">{u._count.movimientos}</td>
                   <td className="whitespace-nowrap">
                     <Link href={`/usuarios/${u.id}/editar`} className="btn-secundario btn-chico">Editar</Link>{" "}
-                    {String(u.id) !== sesion.user.id && <BotonAlternarUsuario id={u.id} activo={u.activo} />}
+                    {String(u.id) !== sesion.user.id && (
+                      <>
+                        <BotonAlternarUsuario id={u.id} activo={u.activo} />{" "}
+                        <BotonEliminarUsuario id={u.id} nombre={u.nombre} />
+                      </>
+                    )}
                   </td>
                 </tr>
               );

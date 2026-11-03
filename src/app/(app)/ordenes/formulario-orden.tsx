@@ -37,6 +37,8 @@ export type LineaOrden = {
 
 type InicialOrden = {
   dependencia: string;
+  /** Área que pide el material (dato nuevo; las requisiciones viejas van vacías). */
+  area: string;
   lugar: string;
   justificacion: string;
   lineas: LineaOrden[];
@@ -183,7 +185,7 @@ export default function FormularioOrden({ accion, materiales, proveedores, inici
   // guarda sin él y en la consolidación sale en un grupo aparte.
 
   return (
-    <form action={envia} className="tarjeta p-5 grid gap-4 max-w-5xl">
+    <form action={envia} className="tarjeta p-5 grid gap-4 max-w-6xl">
       {estado.error && <div className="bg-rojoclaro text-rojo text-sm px-3 py-2 rounded-lg">{estado.error}</div>}
 
       <div className="grid sm:grid-cols-2 gap-3.5">
@@ -201,9 +203,15 @@ export default function FormularioOrden({ accion, materiales, proveedores, inici
             <option value="gerente salud">Gerente Salud</option>
           </select>
         </div>
+        {/* El área que pide el material: texto libre, se muestra arriba de la
+            requisición cuando se visualiza. */}
         <div>
+          <label className="block text-sm text-tinta2 mb-1.5 font-medium" htmlFor="area">Área de</label>
+          <input id="area" className="campo-input" name="area" defaultValue={inicial?.area || ""} />
+        </div>
+        <div className="sm:col-span-2">
           <label className="block text-sm text-tinta2 mb-1.5 font-medium">Observaciones</label>
-          <input className="campo-input" name="justificacion" placeholder="" defaultValue={inicial?.justificacion || ""} />
+          <input className="campo-input" name="justificacion" defaultValue={inicial?.justificacion || ""} />
         </div>
       </div>
 
@@ -212,37 +220,34 @@ export default function FormularioOrden({ accion, materiales, proveedores, inici
         <p className="text-xs text-tinta2 mb-2">
           Elige cada producto o material de la lista; su categoría y unidad se llenan solos. Elige el programa al que
           se carga cada material: una misma requisición puede llevar materiales de programas distintos. El proveedor
-          es opcional. Con <strong>Adjuntar</strong> puedes subir una foto o un documento (PDF, hasta 8 MB) de ese
-          material.
+          es opcional. En la columna <strong>Adjuntar</strong>, después del proveedor, puedes subir una foto o un
+          documento (PDF, hasta 8 MB) de ese material.
         </p>
 
+        {/* Todo el cuadro entra en la tarjeta sin arrastre horizontal: las
+            columnas flexibles usan minmax(0, …) y las celdas min-w-0 (ver
+            .rejilla-renglon en globals.css), de modo que se encogen con el
+            ancho disponible en vez de forzar la barra de abajo. Adjuntar va
+            después de Proveedor. */}
         <div
-          className="grid gap-x-2 gap-y-1.5 mb-1.5 items-center"
-          style={{ gridTemplateColumns: "150px minmax(190px, 2fr) minmax(120px, 0.9fr) 70px 100px minmax(150px, 1.1fr) minmax(140px, 1fr) 34px", minWidth: 1020 }}
+          className="rejilla-renglon grid gap-x-2 gap-y-1.5 mb-1.5 items-center"
+          style={{ gridTemplateColumns: "40px minmax(0, 2fr) minmax(0, 0.95fr) 64px 92px minmax(0, 1.1fr) minmax(0, 1fr) minmax(0, 1.2fr) 30px" }}
         >
-          <div className="text-xs text-tinta2 font-semibold">Imagen / adjunto</div>
+          <div className="text-xs text-tinta2 font-semibold">Imagen</div>
           <div className="text-xs text-tinta2 font-semibold">Producto / material</div>
           <div className="text-xs text-tinta2 font-semibold">Categoría</div>
           <div className="text-xs text-tinta2 font-semibold text-right">Cant.</div>
           <div className="text-xs text-tinta2 font-semibold">Unidad</div>
           <div className="text-xs text-tinta2 font-semibold">Programa</div>
           <div className="text-xs text-tinta2 font-semibold">Proveedor</div>
+          <div className="text-xs text-tinta2 font-semibold">Adjuntar</div>
           <div></div>
 
           {lineas.map((l, i) => (
             <div key={i} className="contents">
-              {/* La foto del catálogo del material y, al lado, la casilla para
-                  que el solicitante adjunte su propia foto o documento. */}
-              <div className="flex items-center gap-2">
-                <ImagenMaterial src={l.imagenUrl} alt={l.nombre || "Material elegido"} className="h-9 w-9 shrink-0" />
-                <AdjuntoRenglon
-                  indice={i}
-                  nombreArchivo={l.nombre}
-                  existente={l.adjuntoUrl}
-                  nombreExistente={l.adjuntoNombre}
-                  onMensaje={setAvisoAdjunto}
-                />
-              </div>
+              {/* La foto del catálogo del material. El adjunto del solicitante
+                  va al final del renglón, en la columna Adjuntar. */}
+              <ImagenMaterial src={l.imagenUrl} alt={l.nombre || "Material elegido"} className="h-9 w-9" />
 
               <select
                 className="campo-input font-mono"
@@ -294,6 +299,15 @@ export default function FormularioOrden({ accion, materiales, proveedores, inici
                 {proveedores.map((p) => <option key={p.id} value={p.id}>{p.nombre}</option>)}
               </select>
 
+              {/* Subir la foto o el documento del material, después del proveedor. */}
+              <AdjuntoRenglon
+                indice={i}
+                nombreArchivo={l.nombre}
+                existente={l.adjuntoUrl}
+                nombreExistente={l.adjuntoNombre}
+                onMensaje={setAvisoAdjunto}
+              />
+
               <button type="button" onClick={() => quitar(i)} className="border border-borde text-rojo rounded-lg h-9" aria-label="Quitar">×</button>
             </div>
           ))}
@@ -315,7 +329,7 @@ export default function FormularioOrden({ accion, materiales, proveedores, inici
         )}
       </div>
 
-      <p className="text-xs text-tinta2 italic">
+      <p className="text-xs text-rojo italic">
         {permitirBorrador
           ? "Puedes guardarla como borrador y completarla más tarde sin perder lo escrito. Una vez enviada la Requisición no se podrá editar a menos que sea rechazada."
           : "Una vez enviada la Requisición no se podrá editar a menos que sea rechazada."}

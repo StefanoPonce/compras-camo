@@ -4,7 +4,10 @@ import { useRouter } from "next/navigation";
 import { resolverOrden, recibirOrden } from "../../actions";
 
 /** Botones de revisión: autorizar (aprobar/rechazar) y recibir.
- *  Cada grupo se muestra según el permiso que traiga el rol en sesión. */
+ *  Cada grupo se muestra según el permiso que traiga el rol en sesión.
+ *
+ *  Recibir ya no es un solo clic: el sub administrador escribe el nombre de
+ *  quien tomó el material y con eso se marca la requisición como recibida. */
 export default function BotonesOrden({
   id,
   folio,
@@ -19,6 +22,7 @@ export default function BotonesOrden({
   puedeRecibir: boolean;
 }) {
   const [comentario, setComentario] = useState("");
+  const [recibio, setRecibio] = useState("");
   const [ocupado, setOcupado] = useState(false);
   const router = useRouter();
 
@@ -47,9 +51,18 @@ export default function BotonesOrden({
   }
 
   async function recibir() {
+    const nombre = recibio.trim();
+    if (!nombre) {
+      alert("Escribe el nombre de quien recibió la entrega.");
+      return;
+    }
+    const ok = window.confirm(
+      `¿Registrar la entrega de la requisición ${folio}?\n\nRecibió: ${nombre}\n\nSe sumarán sus materiales al inventario y la requisición quedará como Recibida.`
+    );
+    if (!ok) return;
     setOcupado(true);
     try {
-      await recibirOrden(id);
+      await recibirOrden(id, nombre);
       router.refresh();
     } catch {
       alert("No se pudo registrar la entrega. Intenta de nuevo.");
@@ -72,10 +85,25 @@ export default function BotonesOrden({
   }
   if (estado === "Aprobada" && puedeRecibir) {
     return (
-      <div className="flex justify-end mt-4">
-        {/* Registrar la entrega deja el nombre de este usuario en el recuadro
-            "Entregado por" de la requisición impresa. */}
-        <button disabled={ocupado} className="btn" onClick={recibir}>Registrar entrega</button>
+      <div className="tarjeta p-4 mt-4">
+        <label htmlFor="recibio" className="block text-sm text-tinta2 mb-1.5 font-medium">
+          Registrar entrega
+        </label>
+        <p className="text-xs text-tinta2 mb-2">
+          Escribe el nombre de la persona que recibió el material. Este nombre quedará impreso en la requisición.
+        </p>
+        <input
+          id="recibio"
+          className="campo-input mb-3"
+          placeholder="Nombre de quien recibió la entrega"
+          value={recibio}
+          onChange={(e) => setRecibio(e.target.value)}
+        />
+        <div className="flex justify-end">
+          <button disabled={ocupado || !recibio.trim()} className="btn" onClick={recibir}>
+            {ocupado ? "Guardando…" : "Registrar entrega"}
+          </button>
+        </div>
       </div>
     );
   }

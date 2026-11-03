@@ -79,7 +79,7 @@ export default async function EditarOrden({ params }: { params: { id: string } }
         accion={editarOrden.bind(null, id)}
         materiales={materiales}
         proveedores={proveedores}
-        inicial={{ dependencia: o.dependencia || "", lugar: o.lugar || "", justificacion: o.justificacion || "", lineas }}
+        inicial={{ dependencia: o.dependencia || "", area: o.area || "", lugar: o.lugar || "", justificacion: o.justificacion || "", lineas }}
         cancelarHref={`/ordenes/${id}`}
         textoEnviar="Enviar requisición"
         // Una requisición aprobada ya no vuelve a borrador: al corregirla

@@ -32,7 +32,6 @@ export default async function DetalleOrden({ params }: { params: { id: string } 
       proveedor: true,
       solicitante: true,
       revisor: true,
-      recibidoPor: true,
       items: { include: { material: true, proveedor: true } },
     },
   });
@@ -54,10 +53,18 @@ export default async function DetalleOrden({ params }: { params: { id: string } 
     : (puedeEditar || esPropia);
 
   return (
-    <div className="max-w-2xl">
+    // Ancho amplio: la tabla de renglones tiene 8 columnas y en 672px
+    // (max-w-2xl) siempre terminaba desbordando y aparecía la barra de
+    // arrastre abajo.
+    <div className="max-w-5xl">
       <h2 className="text-xl font-sora font-semibold">
         Requisición <span className="font-mono">{o.folio}</span>
       </h2>
+      {/* El área que pide el material, arriba del todo como en el formato. */}
+      <p className="text-sm mt-1">
+        <span className="text-tinta2">Área de:</span>{" "}
+        <strong className="font-medium">{o.area || "—"}</strong>
+      </p>
       <p className="text-tinta2 text-sm mt-1 mb-4">
         {o.proveedor?.nombre || "Sin proveedor"} · {fecha(o.fecha)} · <span className={"etiqueta et-" + o.estado.toLowerCase()}>{o.estado}</span>
       </p>
@@ -99,14 +106,17 @@ export default async function DetalleOrden({ params }: { params: { id: string } 
             {o.items.map((it) => (
               <tr key={it.id}>
                 <td><ImagenMaterial src={it.material.imagenUrl} alt={it.material.nombre} className="h-12 w-12" /></td>
-                <td>{it.material.nombre}<div className="text-xs text-tinta2 font-mono">{it.material.codigo}</div></td>
-                <td>{it.material.categoria}</td>
+                {/* overflow-wrap:anywhere: un nombre o un archivo muy largo
+                    se parte dentro de su celda en vez de estirar la tabla y
+                    provocar la barra de arrastre abajo. */}
+                <td className="[overflow-wrap:anywhere]">{it.material.nombre}<div className="text-xs text-tinta2 font-mono">{it.material.codigo}</div></td>
+                <td className="[overflow-wrap:anywhere]">{it.material.categoria}</td>
                 <td>{etiquetaUnidad(it.unidad || it.material.unidad)}</td>
                 <td className="text-right">{it.cantidad}</td>
-                <td>{it.programa ? textoPrograma(it.programa) : <span className="text-xs text-tinta2">sin elegir</span>}</td>
+                <td className="[overflow-wrap:anywhere]">{it.programa ? textoPrograma(it.programa) : <span className="text-xs text-tinta2">sin elegir</span>}</td>
                 {/* Proveedor del renglón; en órdenes viejas, el de la orden. */}
-                <td>{it.proveedor?.nombre || o.proveedor?.nombre || "—"}</td>
-                <td>
+                <td className="[overflow-wrap:anywhere]">{it.proveedor?.nombre || o.proveedor?.nombre || "—"}</td>
+                <td className="[overflow-wrap:anywhere]">
                   {it.adjuntoUrl ? (
                     <a
                       href={it.adjuntoUrl}
@@ -131,7 +141,7 @@ export default async function DetalleOrden({ params }: { params: { id: string } 
         {o.revisor && (o.estado === "Rechazada"
           ? ` · Rechazó ${o.revisor.nombre} el ${o.fechaRevision ? fechaHora(o.fechaRevision) : ""}`
           : ` · Revisó ${o.revisor.nombre} el ${o.fechaRevision ? fechaHora(o.fechaRevision) : ""}`)}
-        {o.recibidoPor && ` · Entregó ${o.recibidoPor.nombre} el ${o.fechaRecepcion ? fechaHora(o.fechaRecepcion) : ""}`}
+        {o.recibidoPorTxt && ` · Recibió ${o.recibidoPorTxt} el ${o.fechaRecepcion ? fechaHora(o.fechaRecepcion) : ""}`}
       </p>
       {o.comentario && <p className="bg-superficie2 px-3 py-2.5 rounded-lg text-sm mt-2">{o.comentario}</p>}
 

@@ -23,7 +23,6 @@ export default async function Requisicion({ params }: { params: { id: string } }
       proveedor: true,
       solicitante: true,
       revisor: true,
-      recibidoPor: true,
       items: { include: { material: { include: { proveedor: true } }, proveedor: true }, orderBy: { id: "asc" } },
     },
   });
@@ -54,6 +53,8 @@ export default async function Requisicion({ params }: { params: { id: string } }
           <ImagenLogo />
           <h1 className="font-sora text-xl font-semibold">Fundación CAMO - Honduras</h1>
           <p className="text-sm font-medium mt-3">Requisición de Productos y Materiales</p>
+          {/* El área que el usuario escribió, visible bajo el nombre de la fundación. */}
+          <p className="text-sm mt-2">Área de: <span className="font-medium">{o.area || "—"}</span></p>
         </div>
 
         <table className="w-full text-sm mb-5">
@@ -136,13 +137,13 @@ export default async function Requisicion({ params }: { params: { id: string } }
               <span className="font-medium">{o.fechaRevision ? fecha(o.fechaRevision) : "—"}</span>
             </p>
           </div>
-          {/* "Entregado por" es quien registró la entrega de los materiales
-              (el mismo usuario que marca la requisición como recibida), así que
-              va centrado y ocupando toda la fila de abajo. Ya no se pide
-              "Recibí por": la hoja queda con tres firmas. */}
+          {/* "Recibido por" es el nombre que escribió el sub administrador al
+              registrar la entrega: la persona que tomó el material, que no
+              siempre tiene cuenta en el sistema. Por eso va como texto libre
+              y no se toma de la cuenta que registró el movimiento. */}
           <div className="col-span-2 p-2.5 text-center">
-            <p>Entregado por:</p>
-            <p className="mt-3">Nombre: <span className="font-medium">{o.recibidoPor?.nombre || "—"}</span></p>
+            <p>Recibido por:</p>
+            <p className="mt-3">Nombre: <span className="font-medium">{o.recibidoPorTxt || "—"}</span></p>
             <p className="mt-3">Fecha de entrega: <span className="font-medium">{o.fechaRecepcion ? fecha(o.fechaRecepcion) : "—"}</span></p>
           </div>
         </div>

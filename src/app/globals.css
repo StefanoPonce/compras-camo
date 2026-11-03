@@ -15,6 +15,9 @@ body {
 .et-subadmin { @apply bg-ambarclaro text-ambar; }
 .et-jefe { @apply bg-verdeclaro text-verde; }
 .et-responsable { @apply bg-superficie2 text-tinta border border-borde; }
+/* Responsable de gestión: etiqueta neutra con el azul del sistema para no
+   confundirla con el ambar del Sub Administrador ni el verde del Jefe. */
+.et-gestion { @apply bg-superficie2 text-azul border border-borde; }
 .et-usuario { @apply bg-verdeclaro text-verde; }
 .et-pendiente { @apply bg-ambarclaro text-ambar; }
 .et-aprobada { @apply bg-verdeclaro text-verde; }
@@ -46,6 +49,15 @@ body {
 .btn-peligro { @apply btn bg-transparent text-rojo border-rojo; }
 .btn-chico { @apply px-2.5 py-1 text-xs; }
 .campo-input { @apply w-full px-3 py-2 border border-borde rounded-lg bg-superficie text-tinta text-sm; }
+
+/* Cuadro de renglones de la requisición (nueva y edición): las celdas ceden
+   ante el ancho de la tarjeta —incluidas las que van dentro de un
+   display:contents— en vez de desbordarla, para que el formulario se vea
+   completo sin tener que arrastrar la barra horizontal de abajo. */
+.rejilla-renglon > *,
+.rejilla-renglon > * > * {
+  min-width: 0;
+}
 .tabla th { @apply text-left text-xs text-tinta2 font-semibold px-3.5 py-2.5 border-b border-borde bg-superficie2 whitespace-nowrap; }
 .tabla td { @apply px-3.5 py-2.5 border-b border-borde align-top text-sm; }
 

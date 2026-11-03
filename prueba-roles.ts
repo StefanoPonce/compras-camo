@@ -143,12 +143,29 @@ async function main() {
   si(rInvResp.html.includes("Últimos descargos"), "El apartado muestra el historial de descargos",
     "El apartado de inventario no muestra el historial");
 
+  // Solo lo propio: al responsable de solicitar le aparecen los materiales de
+  // las requisiciones que él envió (lo pedido y lo recibido) y nada más.
+  const compras = await prisma.usuario.findUnique({ where: { usuario: "compras" } });
+  if (!compras) throw new Error("No existe el usuario demo 'compras'");
+  const { materialesSolicitadosPor } = await import("./src/lib/materiales-solicitados");
+  const propios = await materialesSolicitadosPor(compras.id);
+  const esperados = await prisma.material.count({ where: { activo: true, id: { in: propios } } });
+  const opciones = [...rInvResp.html.matchAll(/<option/g)].length;
+  si(esperados > 0 && opciones === esperados,
+    `Su inventario lista solo sus materiales (${opciones} material/es)`,
+    `Su inventario lista ${opciones} material(es) y debía listar ${esperados}`);
+
   /* ---------------- 3. el descargo resta existencia real ---------------- */
   console.log("3. Descargo de inventario (acción real)");
   // El catálogo viene del Excel y arranca en existencia 0, así que a un
   // material se le pone stock temporal y al final se restaura el original.
-  let material = await prisma.material.findFirst({ where: { activo: true }, orderBy: { codigo: "asc" } });
-  if (!material) throw new Error("No hay materiales en el catálogo para la prueba");
+  // Ojo: este rol solo puede descargar de SU inventario, así que el material
+  // se elige de los que él solicitó y no del catálogo completo.
+  let material = await prisma.material.findFirst({
+    where: { activo: true, id: { in: propios } },
+    orderBy: { codigo: "asc" },
+  });
+  if (!material) throw new Error("No hay materiales en el inventario propio de 'compras' para la prueba");
 
   const existenciaOriginal = material.existencia;
   if (material.existencia < 3) {

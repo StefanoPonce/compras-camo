@@ -11,17 +11,25 @@
 //                             alimentar la BD y consultar Gestión
 //   Jefe inmediato          → crear/modificar/autorizar órdenes, reportes y
 //                             consultar Gestión
+//   Responsable de gestión  → consultar todas las requisiciones, la
+//                             consolidación de Gestión, descargar inventario
+//                             y ver reportes (no autoriza ni recibe)
 //   Responsable de solicitar→ crear requisiciones y descargar inventario
 //
-// Visibilidad del historial de requisiciones: solo los roles que autorizan
-// (administrador, sub administrador y jefe inmediato) tienen
-// "ordenes.verTodas" y ven el historial completo. Cualquier otro usuario ve
-// únicamente las requisiciones que él creó.
+// Visibilidad del historial de requisiciones: los roles con "ordenes.verTodas"
+// (administrador, sub administrador, jefe inmediato y responsable de gestión)
+// ven el historial completo. Cualquier otro usuario ve únicamente las
+// requisiciones que él creó.
 //
 // Los módulos visibles pueden personalizarse por usuario; este archivo define
 // el alcance máximo que el rol permite.
 
-export type Rol = "administrador" | "sub_administrador" | "jefe_inmediato" | "responsable_solicitante";
+export type Rol =
+  | "administrador"
+  | "sub_administrador"
+  | "jefe_inmediato"
+  | "responsable_gestion"
+  | "responsable_solicitante";
 
 export type Permiso =
   /** Crear usuarios, dar permisos y resetear contraseñas */
@@ -82,6 +90,9 @@ export const MODULOS_POR_ROL: Record<Rol, Modulo[]> = {
   administrador: MODULOS.map((m) => m.valor),
   sub_administrador: ["panel", "ordenes", "proveedores", "materiales", "gestion", "inventario", "reportes"],
   jefe_inmediato: ["panel", "ordenes", "proveedores", "materiales", "gestion", "reportes"],
+  // Requisiciones, Gestión, Descargo de inventario y Reportes (más el panel,
+  // que siempre está).
+  responsable_gestion: ["panel", "ordenes", "gestion", "inventario", "reportes"],
   responsable_solicitante: ["panel", "ordenes", "proveedores", "materiales", "inventario"],
 };
 
@@ -142,7 +153,8 @@ const ADMIN: Permiso[] = [
   "ordenes.editarTodas",
   "ordenes.editarAprobadas",
   "ordenes.autorizar",
-  "ordenes.recibir",
+  // "ordenes.recibir" no va aquí: registrar la entrega es tarea exclusiva
+  // del sub administrador, quien además escribe el nombre de quien recibe.
   "ordenes.verTodas",
   "inventario.descargar",
 ];
@@ -158,6 +170,8 @@ export const PERMISOS_POR_ROL: Record<Rol, Permiso[]> = {
     "ordenes.editarTodas",
     "ordenes.editarAprobadas",
     "ordenes.autorizar",
+    // Único rol que registra la entrega de una requisición: marca la orden
+    // como recibida (suma al inventario) y escribe quién recibió el material.
     "ordenes.recibir",
     "ordenes.verTodas",
     "inventario.descargar",
@@ -170,9 +184,19 @@ export const PERMISOS_POR_ROL: Record<Rol, Permiso[]> = {
     "ordenes.autorizar",
     "ordenes.verTodas",
   ],
+  // Consulta el historial completo de requisiciones, pero no aprueba, no
+  // recibe ni edita las de otros: solo crea las suyas.
+  responsable_gestion: [
+    "ordenes.crear",
+    "ordenes.verTodas",
+    "consolidacion.ver",
+    "inventario.descargar",
+    "reportes.ver",
+  ],
   responsable_solicitante: [
     "ordenes.crear",
-    "ordenes.recibir",
+    // Ya no registra la entrega de sus propias requisiciones: eso lo hace
+    // el sub administrador al recibir el material.
     "inventario.descargar",
   ],
 };
@@ -183,12 +207,20 @@ export function puede(rol: string | null | undefined, permiso: Permiso): boolean
   return lista ? lista.includes(permiso) : false;
 }
 
+/** ¿Este rol solo ve su propio inventario: los materiales de las requisiciones
+ *  que él solicitó (pendientes o ya recibidas) y los descargos que él registró?
+ *  Los demás roles ven el inventario completo de la fundación. */
+export function inventarioPropio(rol: string | null | undefined): boolean {
+  return rol === "responsable_solicitante";
+}
+
 /** Nombre bonito del rol para mostrar en el menú, la bitácora y las etiquetas. */
 export function nombreRol(rol: string | null | undefined): string {
   switch (rol) {
     case "administrador": return "Administrador";
     case "sub_administrador": return "Sub Administrador";
     case "jefe_inmediato": return "Jefe inmediato";
+    case "responsable_gestion": return "Responsable de gestión";
     case "responsable_solicitante": return "Responsable de solicitar";
     default: return rol || "—";
   }
@@ -200,6 +232,7 @@ export function claseRol(rol: string | null | undefined): string {
     case "administrador": return "et-admin";
     case "sub_administrador": return "et-subadmin";
     case "jefe_inmediato": return "et-jefe";
+    case "responsable_gestion": return "et-gestion";
     case "responsable_solicitante": return "et-responsable";
     default: return "et-usuario";
   }
@@ -210,6 +243,7 @@ export const ROLES: { valor: Rol; etiqueta: string }[] = [
   { valor: "administrador", etiqueta: "Administrador" },
   { valor: "sub_administrador", etiqueta: "Sub Administrador" },
   { valor: "jefe_inmediato", etiqueta: "Jefe inmediato" },
+  { valor: "responsable_gestion", etiqueta: "Responsable de gestión" },
   { valor: "responsable_solicitante", etiqueta: "Responsable de solicitar" },
 ];
 

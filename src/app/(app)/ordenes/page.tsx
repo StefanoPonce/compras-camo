@@ -38,7 +38,6 @@ export default async function Ordenes({ searchParams }: { searchParams: { estado
     { valor: "Pendiente", etiqueta: "Pendientes" },
     { valor: "Aprobada", etiqueta: "Aprobadas" },
     { valor: "Rechazada", etiqueta: "Rechazadas" },
-    { valor: "Recibida", etiqueta: "Recibidas" },
   ];
 
   // El programa ahora es de cada renglón, así que una requisición puede llevar

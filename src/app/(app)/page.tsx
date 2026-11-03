@@ -3,7 +3,8 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { puede, puedeVerModulo } from "@/lib/permisos";
+import { puede, puedeVerModulo, inventarioPropio } from "@/lib/permisos";
+import { materialesSolicitadosPor, filtroMaterialesPropios } from "@/lib/materiales-solicitados";
 
 function fecha(d: Date) {
   return new Date(d).toLocaleDateString("es-HN", { day: "2-digit", month: "short", year: "numeric" });
@@ -29,12 +30,18 @@ export default async function Panel() {
   const veReportes = puedeVerModulo(sesion.user.rol, sesion.user.modulosPermitidos, "reportes") && puede(sesion.user.rol, "reportes.ver");
   const uid = Number(sesion.user.id);
 
+  // El responsable de solicitar solo ve SU inventario: los materiales de las
+  // requisiciones que él envió. Los demás roles ven el catálogo completo.
+  const soloPropio = inventarioPropio(sesion.user.rol);
+  const propios = soloPropio ? await materialesSolicitadosPor(uid) : null;
+  const filtroPropios = filtroMaterialesPropios(propios);
+
   const [pendientes, proveedoresActivos, totalMateriales, bajos, ordenesRecientes] = await Promise.all([
     prisma.ordenCompra.count({ where: { estado: "Pendiente" } }),
     prisma.proveedor.count({ where: { activo: true } }),
-    prisma.material.count(),
+    prisma.material.count({ where: filtroPropios }),
     prisma.material.findMany({
-      where: { activo: true },
+      where: { activo: true, ...filtroPropios },
       include: { proveedor: true },
     }).then((ms) => ms.filter((m) => m.existencia <= m.minimo)),
     prisma.ordenCompra.findMany({
@@ -114,18 +121,24 @@ export default async function Panel() {
   {veMateriales && (
     <Indicador
       n={totalMateriales}
-      t="Materiales registrados"
+      t={soloPropio ? "Materiales en tus requisiciones" : "Materiales registrados"}
     />
   )}
 
   {veMateriales && (
     <Indicador
       n={bajos.length}
-      t="Materiales bajo el mínimo"
+      t={soloPropio ? "De tus materiales, bajo el mínimo" : "Materiales bajo el mínimo"}
       alerta={bajos.length > 0}
     />
   )}
 </div>
+
+      {soloPropio && veMateriales && (
+        <p className="text-xs text-tinta2 -mt-3 mb-5">
+          Solo se muestran los materiales de las requisiciones que tú enviaste (pendientes o ya recibidas).
+        </p>
+      )}
 
       {veMateriales && bajos.length > 0 && (
         <>

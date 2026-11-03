@@ -7,6 +7,7 @@ import { puede, puedeVerModulo } from "@/lib/permisos";
 import FormularioCrearProveedor from "./formulario-crear";
 import BotonEliminarProveedor from "./boton-eliminar";
 import BotonExportarExcel from "../boton-exportar-excel";
+import BotonExportarPdf from "../boton-exportar-pdf";
 import BotonPdf from "../boton-pdf";
 import EncabezadoImpresion from "../encabezado-impresion";
 
@@ -56,7 +57,8 @@ export default async function Proveedores({ searchParams }: { searchParams: { q?
         </div>
         <div className="ml-auto self-center flex gap-2 flex-wrap">
           <BotonExportarExcel href="/proveedores/exportar" />
-          <BotonPdf />
+          <BotonExportarPdf href="/proveedores/exportar-pdf" />
+          <BotonPdf texto="Imprimir" />
         </div>
       </div>
 

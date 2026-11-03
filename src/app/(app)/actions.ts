@@ -14,8 +14,10 @@ import {
   MODULOS_POR_ROL,
   MODULO_DE_PERMISO,
   puedeVerModulo,
+  inventarioPropio,
   type Permiso,
 } from "@/lib/permisos";
+import { materialesSolicitadosPor } from "@/lib/materiales-solicitados";
 import { leerImagenAdjunta, subirImagenMaterial, borrarImagenMaterial } from "@/lib/imagenes";
 import { borrarAdjunto } from "@/lib/adjuntos";
 import { normalizarUnidad } from "@/lib/unidades";
@@ -26,7 +28,7 @@ import {
   resolverAdjuntos,
 } from "@/lib/items-requisicion";
 
-export type EstadoForm = { error: string | null };
+export type EstadoForm = { error: string | null; exito?: string | null };
 
 async function sesionObligatoria() {
   const sesion = await getServerSession(authOptions);
@@ -360,6 +362,7 @@ export async function crearOrden(_prev: EstadoForm, datos: FormData): Promise<Es
   // enviarla. El botón que se apretó lo dice el campo "intento".
   const esBorrador = datos.get("intento") === "borrador";
   const dependencia = String(datos.get("dependencia") || "").trim();
+  const area = String(datos.get("area") || "").trim();
   const justificacion = String(datos.get("justificacion") || "").trim();
   const items = leerItems(datos, { borrador: esBorrador });
 
@@ -391,7 +394,7 @@ export async function crearOrden(_prev: EstadoForm, datos: FormData): Promise<Es
         // El borrador nace con folio propio para que el solicitante lo
         // distinga de una requisición enviada.
         estado: esBorrador ? "Borrador" : "Pendiente",
-        proveedorId, dependencia: dependencia || null, justificacion,
+        proveedorId, dependencia: dependencia || null, area: area || null, justificacion,
         solicitanteId: Number(sesion.user.id),
         items: { create: adjuntos.items.map(datosRenglon) },
       },
@@ -446,6 +449,7 @@ export async function editarOrden(id: number, _prev: EstadoForm, datos: FormData
   // pasa a "Pendiente" y entra a revisión como cualquier requisición nueva.
   const esBorrador = datos.get("intento") === "borrador";
   const dependencia = String(datos.get("dependencia") || "").trim();
+  const area = String(datos.get("area") || "").trim();
   const justificacion = String(datos.get("justificacion") || "").trim();
   const items = leerItems(datos, { borrador: esBorrador });
 
@@ -482,7 +486,7 @@ export async function editarOrden(id: number, _prev: EstadoForm, datos: FormData
       prisma.ordenCompra.update({
         where: { id },
         data: {
-          proveedorId, dependencia, justificacion,
+          proveedorId, dependencia, area: area || null, justificacion,
           ...(eraAprobada
             ? {}
             : // Una requisición que no estaba aprobada vuelve a quedar
@@ -569,20 +573,23 @@ export async function resolverOrden(id: number, nuevoEstado: "Aprobada" | "Recha
   revalidatePath(`/ordenes/${id}`);
 }
 
-export async function recibirOrden(id: number) {
+/** Registra la entrega de una requisición aprobada. Solo la recibe el sub
+ *  administrador (único rol con "ordenes.recibir") y escribe el nombre de la
+ *  persona que tomó el material: no siempre tiene cuenta en el sistema, así
+ *  que se guarda como texto y es lo que aparece impreso en la hoja. */
+export async function recibirOrden(id: number, recibioTxt: string) {
   const sesion = await exigirPermiso("ordenes.recibir");
+  const nombre = String(recibioTxt || "").trim();
+  if (!nombre) {
+    throw new Error("Escribe el nombre de quien recibió la entrega.");
+  }
+
   const orden = await prisma.ordenCompra.findUniqueOrThrow({
     where: { id },
     include: { items: true },
   });
   if (orden.estado !== "Aprobada") {
     throw new Error("Solo se puede marcar como recibida una requisición aprobada.");
-  }
-  // La entrega la registra el solicitante o quien tiene el historial completo
-  // (los roles que autorizan). Un usuario que solo ve sus propias
-  // requisiciones no puede entregar las de otro.
-  if (!puede(sesion.user.rol, "ordenes.verTodas") && orden.solicitanteId !== Number(sesion.user.id)) {
-    throw new Error("Solo puedes registrar la entrega de tus propias requisiciones.");
   }
 
   await prisma.$transaction([
@@ -594,13 +601,18 @@ export async function recibirOrden(id: number) {
     ),
     prisma.ordenCompra.update({
       where: { id },
-      data: { estado: "Recibida", fechaRecepcion: new Date(), recibidoPorId: Number(sesion.user.id) },
+      data: {
+        estado: "Recibida",
+        fechaRecepcion: new Date(),
+        recibidoPorId: Number(sesion.user.id),
+        recibidoPorTxt: nombre,
+      },
     }),
   ]);
 
   await registrarMovimiento({
     usuarioId: Number(sesion.user.id), modulo: "Inventario", accion: "Recibió materiales",
-    detalle: `${orden.folio} — se sumaron ${orden.items.length} material(es) a la existencia`,
+    detalle: `${orden.folio} — recibió ${nombre} — se sumaron ${orden.items.length} material(es) a la existencia`,
   });
   revalidatePath("/ordenes");
   revalidatePath(`/ordenes/${id}`);
@@ -627,6 +639,18 @@ export async function crearUsuario(_prev: EstadoForm, datos: FormData): Promise<
   if (!nombre || !usuario) return { error: "El nombre y la cuenta son obligatorios." };
   if (clave.length < 6) return { error: "La contraseña debe tener al menos 6 caracteres." };
 
+  // Reviso antes de insertar para poder decirle cuál cuenta ya está ocupada
+  // (el error de la base no trae el valor y suena muy genérico).
+  const existente = await prisma.usuario.findUnique({ where: { usuario }, select: { activo: true } });
+  if (existente) {
+    return {
+      error:
+        `Ya existe un usuario con la cuenta "${usuario}"` +
+        (existente.activo ? "" : " (está desactivado)") +
+        `. Puede haberse creado en un intento anterior: revísalo en la lista de abajo o usa otra cuenta.`,
+    };
+  }
+
   try {
     const claveHash = await bcrypt.hash(clave, 10);
     await prisma.usuario.create({ data: { nombre, usuario, claveHash, rol, modulosPermitidos } });
@@ -639,7 +663,7 @@ export async function crearUsuario(_prev: EstadoForm, datos: FormData): Promise<
   }
 
   revalidatePath("/usuarios");
-  return { error: null };
+  return { error: null, exito: `Usuario creado correctamente: ${nombre} (cuenta "${usuario}").` };
 }
 
 export async function editarUsuario(id: number, _prev: EstadoForm, datos: FormData): Promise<EstadoForm> {
@@ -713,6 +737,59 @@ export async function alternarUsuario(id: number) {
   revalidatePath("/usuarios");
 }
 
+/** Borra la cuenta del usuario. La base de datos no deja borrar a quien ya
+ *  tiene requisiciones o descargos (restricción de clave foránea), así que
+ *  eso se avisa antes en vez de reventar; en esos casos conviene desactivar
+ *  la cuenta. Tampoco se borra la propia ni al último administrador activo,
+ *  para no dejar el sistema sin quien pueda administrarlo. */
+export async function eliminarUsuario(_prev: EstadoForm, datos: FormData): Promise<EstadoForm> {
+  const sesion = await exigirPermiso("usuarios.gestionar");
+  const id = Number(datos.get("id"));
+  const propio = Number(sesion.user.id);
+
+  if (!Number.isInteger(id) || id <= 0) return { error: "Usuario no válido." };
+  if (id === propio) return { error: "No puedes eliminar tu propia cuenta." };
+
+  const usuario = await prisma.usuario.findUnique({ where: { id } });
+  if (!usuario) return { error: "Ese usuario ya no existe." };
+
+  if (usuario.rol === "administrador") {
+    const otrosAdmins = await prisma.usuario.count({
+      where: { rol: "administrador", id: { not: id }, activo: true },
+    });
+    if (otrosAdmins === 0) {
+      return { error: "No se puede eliminar: es el único administrador activo. Crea otro antes." };
+    }
+  }
+
+  const [requisiciones, descargos] = await Promise.all([
+    prisma.ordenCompra.count({ where: { solicitanteId: id } }),
+    prisma.descargoInventario.count({ where: { usuarioId: id } }),
+  ]);
+  if (requisiciones > 0) {
+    return {
+      error:
+        `No se puede eliminar: ${usuario.nombre} tiene ${requisiciones} requisición(es) a su nombre. ` +
+        `Desactiva la cuenta para quitarle el acceso sin perder su historial.`,
+    };
+  }
+  if (descargos > 0) {
+    return {
+      error:
+        `No se puede eliminar: ${usuario.nombre} registró ${descargos} descargo(s) de inventario. ` +
+        `Desactiva la cuenta para quitarle el acceso sin perder su historial.`,
+    };
+  }
+
+  await prisma.usuario.delete({ where: { id } });
+  await registrarMovimiento({
+    usuarioId: propio, modulo: "Usuarios", accion: "Eliminó usuario",
+    detalle: `${usuario.nombre} (${usuario.usuario}) con rol ${usuario.rol}`,
+  });
+  revalidatePath("/usuarios");
+  return { error: null, exito: `Usuario eliminado: ${usuario.nombre} (cuenta "${usuario.usuario}").` };
+}
+
 export async function descargarInventario(_prev: EstadoForm, datos: FormData): Promise<EstadoForm> {
   const sesion = await exigirPermiso("inventario.descargar");
 
@@ -726,6 +803,17 @@ export async function descargarInventario(_prev: EstadoForm, datos: FormData): P
 
   const material = await prisma.material.findUnique({ where: { id: materialId } });
   if (!material || !material.activo) return { error: "Ese material no existe o está desactivado." };
+
+  // El responsable de solicitar solo descarga de SU inventario: aunque el
+  // formulario no lo ofrezca, un material que no está en ninguna de sus
+  // requisiciones no le corresponde.
+  if (inventarioPropio(sesion.user.rol)) {
+    const propios = await materialesSolicitadosPor(Number(sesion.user.id));
+    if (!propios.includes(materialId)) {
+      return { error: "Solo puedes descargar materiales de tus propias requisiciones." };
+    }
+  }
+
   if (material.existencia < cantidad) {
     return { error: `Existencia insuficiente: hay ${material.existencia} ${material.unidad.toLowerCase()} de "${material.nombre}".` };
   }

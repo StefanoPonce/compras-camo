@@ -11,12 +11,13 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// Los 4 roles del sistema y lo que cada uno puede hacer.
+// Los 5 roles del sistema y lo que cada uno puede hacer.
 // La matriz de permisos vive en src/lib/permisos.ts — aquí solo el nombre.
 enum Rol {
   administrador
   sub_administrador
   jefe_inmediato
+  responsable_gestion
   responsable_solicitante
 }
 
@@ -121,6 +122,10 @@ model OrdenCompra {
   folio          String         @unique
   fecha          DateTime       @default(now())
   dependencia    String?
+  // Área que pide el material (Salud, Laboratorio, Facturación…): se escribe
+  // libremente en el formulario y se muestra arriba de la requisición cuando
+  // se visualiza.
+  area           String?
   lugar          String?
   justificacion  String?
   // El programa ya NO es de la requisición: ahora va en cada renglón de
@@ -150,6 +155,11 @@ model OrdenCompra {
 
   recibidoPorId  Int?
   recibidoPor    Usuario?       @relation("receptor", fields: [recibidoPorId], references: [id])
+
+  // Nombre de la persona que recibió la entrega, escrito a mano por el sub
+  // administrador al registrarla. Es texto libre (quien recibe no siempre
+  // tiene cuenta en el sistema) y es lo que aparece impreso en la hoja.
+  recibidoPorTxt String?
 
   items          DetalleOrden[]
 

@@ -8,23 +8,51 @@ import {
   normalizarFiltroConsolidacion,
   obtenerConsolidacion,
   unidadesDe,
+  type OrdenConsolidacion,
 } from "@/lib/consolidacion";
 import { puede, puedeVerModulo } from "@/lib/permisos";
+import { etiquetaUnidad } from "@/lib/unidades";
 import BotonExportarExcel from "../boton-exportar-excel";
 import BotonImprimir from "../reportes/boton-imprimir";
+import BotonRequisicionesMaterial, {
+  type RequisicionDelMaterial,
+} from "./boton-requisiciones-material";
 
 function numero(n: number) {
   return n.toLocaleString("es-HN");
 }
 
-function claseEstado(estado: string) {
-  return "et-" + estado.toLowerCase();
+function fechaCorta(d: Date) {
+  return new Date(d).toLocaleDateString("es-HN", { day: "2-digit", month: "short", year: "numeric" });
 }
 
-function Indicador({ valor, texto, alerta }: { valor: string | number; texto: string; alerta?: boolean }) {
+/** Las requisiciones del grupo que solicitan este material, con lo que pide
+ *  cada una: es la lista que abre el botón del renglón y coincide con los
+ *  folios de la columna "Origen". */
+function requisicionesDelMaterial(
+  ordenes: OrdenConsolidacion[],
+  materialId: number,
+): RequisicionDelMaterial[] {
+  return ordenes
+    .filter((orden) => orden.items.some((renglon) => renglon.material.id === materialId))
+    .map((orden) => {
+      const renglon = orden.items.find((r) => r.material.id === materialId)!;
+      return {
+        id: orden.id,
+        folio: orden.folio,
+        fecha: fechaCorta(orden.fecha),
+        estado: orden.estado,
+        solicitante: orden.solicitante.nombre,
+        cantidad: renglon.cantidad,
+        unidad: etiquetaUnidad(renglon.unidad || renglon.material.unidad),
+      };
+    });
+}
+
+function Indicador({ valor, texto }: { valor: string | number; texto: string }) {
   return (
     <div className="tarjeta p-4">
-      <div className={"font-sora text-2xl font-semibold " + (alerta ? "text-rojo" : "")}>{valor}</div>
+      <div className="font-sora text-2xl font-semibold">{valor}</div>
       <div className="text-sm text-tinta2 mt-1">{texto}</div>
     </div>
   );
@@ -47,8 +75,6 @@ export default async function VistaConsolidacion({
   const { ordenes, grupos } = await obtenerConsolidacion({ filtro, q });
 
   const totalRenglones = ordenes.reduce((suma, orden) => suma + orden.items.length, 0);
-  const totalMateriales = grupos.reduce((suma, grupo) => suma + grupo.items.length, 0);
-  const renglonesRepetidos = Math.max(0, totalRenglones - totalMateriales);
   const unidadesGeneral = grupos.reduce((suma, grupo) => suma + grupo.unidades, 0);
   const nombreFiltro = FILTROS_CONSOLIDACION.find((opcion) => opcion.valor === filtro)?.etiqueta || "Aprobadas";
   const generado = new Date().toLocaleString("es-HN", {
@@ -106,12 +132,7 @@ export default async function VistaConsolidacion({
           placeholder="Buscar folio, proveedor o material"
           defaultValue={q}
         />
-        <select className="campo-input max-w-[260px]" name="estado" defaultValue={filtro}>
-          {FILTROS_CONSOLIDACION.map((opcion) => (
-            <option key={opcion.valor} value={opcion.valor}>{opcion.etiqueta}</option>
-          ))}
-        </select>
-        <button className="btn-secundario">Aplicar</button>
+        <input type="hidden" name="estado" value={filtro} />
         {q && <Link href={`/gestion?estado=${filtro}`} className="btn-secundario">Limpiar</Link>}
       </form>
 
@@ -120,52 +141,30 @@ export default async function VistaConsolidacion({
         style={{ gridTemplateColumns: "repeat(auto-fit, minmax(175px,1fr))" }}
       >
         <Indicador valor={ordenes.length} texto="Requisiciones a consolidar" />
-        <Indicador valor={grupos.length} texto="Proveedores" />
-        <Indicador valor={totalRenglones} texto="Renglones" />
-        <Indicador
-          valor={renglonesRepetidos}
-          texto="Renglones repetidos"
-          alerta={renglonesRepetidos > 0}
-        />
         <Indicador valor={numero(unidadesGeneral)} texto="Unidades consolidadas" />
       </div>
 
       <div className="tarjeta p-3.5 mb-4 text-sm text-tinta2 no-imprimir">
         <strong className="text-tinta">Cómo se consolida:</strong> se suman las cantidades del mismo material cuando
         existen en varias requisiciones del mismo proveedor, de modo que en una sola fila ves cuánto pedirle a ese
-        proveedor. Las requisiciones pendientes solo aparecen cuando seleccionas esa opción.
+        proveedor.
       </div>
 
       {grupos.length ? (
         <>
           {grupos.map((grupo) => {
-            const estados = [...new Set(grupo.ordenes.map((orden) => orden.estado))];
             return (
               <section key={grupo.proveedor?.id ?? "sin-proveedor"} className="tarjeta mb-4 overflow-hidden consolidacion-grupo">
                 <div className="p-4 border-b border-borde">
                   <div className="flex items-start gap-3 flex-wrap">
                     <div>
-                      <h3 className="font-sora font-semibold text-lg">
-                        {grupo.proveedor?.nombre ?? "Sin proveedor"}
-                      </h3>
+                      {grupo.proveedor && (
+                        <h3 className="font-sora font-semibold text-lg">{grupo.proveedor.nombre}</h3>
+                      )}
                       <p className="text-sm text-tinta2 mt-0.5">
                         {grupo.proveedor?.codigo ? `${grupo.proveedor.codigo} · ` : ""}
                         {grupo.ordenes.length} requisición(es) · {grupo.items.length} material(es) distinto(s)
                       </p>
-                      {!grupo.proveedor && (
-                        <p className="text-xs text-tinta2 mt-1">
-                          Estas requisiciones se enviaron sin proveedor: hay que asignárselo antes de comprar.
-                        </p>
-                      )}
-                      <div className="flex gap-1.5 flex-wrap mt-2">
-                        {estados.map((estado) => (
-                          <span key={estado} className={"etiqueta " + claseEstado(estado)}>{estado}</span>
-                        ))}
-                      </div>
-                    </div>
-                    <div className="ml-auto text-right">
-                      <div className="text-xs text-tinta2">Unidades del proveedor</div>
-                      <div className="font-sora text-xl font-semibold text-verde mt-0.5">{numero(grupo.unidades)}</div>
                     </div>
                   </div>
                   <div className="flex items-center gap-1.5 flex-wrap mt-3 text-xs text-tinta2">
@@ -183,18 +182,22 @@ export default async function VistaConsolidacion({
                 </div>
 
                 <div className="overflow-x-auto">
-                  <table className="w-full tabla" style={{ minWidth: 700 }}>
+                  <table className="w-full tabla" style={{ minWidth: 830 }}>
                     <thead>
                       <tr>
                         <th>Material</th>
                         <th>Unidad</th>
                         <th className="text-right">Cantidad consolidada</th>
+                        {/* Columna solo en pantalla: en papel no hay botones que
+                            presionar, y la lista se ve en los folios de Origen. */}
+                        <th className="no-imprimir">Requisiciones</th>
                         <th>Origen</th>
                       </tr>
                     </thead>
                     <tbody>
                       {grupo.items.map((item) => {
                         const folios = [...item.folios];
+                        const requisiciones = requisicionesDelMaterial(grupo.ordenes, item.material.id);
                         return (
                           <tr key={item.material.id}>
                             <td>
@@ -203,6 +206,12 @@ export default async function VistaConsolidacion({
                             </td>
                             <td>{unidadesDe(item.unidades)}</td>
                             <td className="text-right font-semibold">{numero(item.cantidad)}</td>
+                            <td className="no-imprimir">
+                              <BotonRequisicionesMaterial
+                                material={{ nombre: item.material.nombre, codigo: item.material.codigo }}
+                                requisiciones={requisiciones}
+                              />
+                            </td>
                             <td>
                               {folios.length > 1 ? (
                                 <span className="etiqueta et-pendiente">En {folios.length} requisiciones</span>
@@ -222,16 +231,6 @@ export default async function VistaConsolidacion({
               </section>
             );
           })}
-
-          <div className="tarjeta p-4 flex items-center justify-between gap-3 flex-wrap">
-            <div>
-              <div className="font-sora font-semibold">Unidades consolidadas</div>
-              <div className="text-xs text-tinta2 mt-1">
-                {ordenes.length} requisición(es) en {grupos.length} proveedor(es)
-              </div>
-            </div>
-            <div className="font-sora text-2xl font-semibold text-verde">{numero(unidadesGeneral)}</div>
-          </div>
         </>
       ) : (
         <div className="tarjeta p-10 text-center text-tinta2">

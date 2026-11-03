@@ -1,7 +1,8 @@
 # Compras — Fundación CAMO
 
-Sistema de proceso de compras con cuatro roles (Administrador, Sub
-Administrador, Jefe inmediato y Responsable de solicitar), catálogo de
+Sistema de proceso de compras con cinco roles (Administrador, Sub
+Administrador, Jefe inmediato, Responsable de gestión y Responsable de
+solicitar), catálogo de
 proveedores y materiales, órdenes de compra, descargo de inventario y una
 bitácora que registra todo lo que hace cada usuario. Hecho con **Next.js 14**,
 **Prisma** y **PostgreSQL**.
@@ -16,7 +17,8 @@ La matriz vive en un solo archivo: `src/lib/permisos.ts`. Todo el sistema
 | 1 | **Administrador** | Acceso total: da permisos, resetea contraseñas, crea usuarios, ve bitácora, reportes, proveedores, materiales, órdenes e inventario. |
 | 2 | **Sub Administrador** | Genera reportes; realiza, modifica y autoriza órdenes; alimenta la base de datos (crea proveedores e insumos) y descarga inventario. |
 | 3 | **Jefe inmediato** | Realiza, modifica y autoriza órdenes, y genera reportes. |
-| 4 | **Responsable de solicitar** | Realiza requisiciones (órdenes de compra) y descarga inventario. |
+| 4 | **Responsable de gestión** | Consulta todas las requisiciones, entra a Gestión (consolidación), descarga inventario y genera reportes. No autoriza ni recibe. |
+| 5 | **Responsable de solicitar** | Realiza requisiciones (órdenes de compra) y descarga de bodega **solo de sus propias requisiciones**. |
 
 El administrador también puede personalizar, por usuario, qué módulos del menú
 puede ver cada persona. El panel está disponible al crear o editar un usuario en
@@ -25,9 +27,9 @@ del rol seleccionado.
 
 ### Quién ve el historial de requisiciones
 
-- **Administrador, Sub Administrador y Jefe inmediato** (los roles que
-  autorizan) ven **todas** las requisiciones: las lista, las revisan, las
-  aprueban y las imprimen.
+- **Administrador, Sub Administrador, Jefe inmediato y Responsable de
+  gestión** ven **todas** las requisiciones: las lista, las revisa y las
+  imprime. (Solo los tres primeros las aprueban.)
 - **Responsable de solicitar** ve **solo las requisiciones que él creó**. No
   aparece en su lista ninguna requisición de otro usuario, y tampoco puede
   abrir ni imprimir la hoja de una requisición ajena.
@@ -35,6 +37,21 @@ del rol seleccionado.
 La entrega de los materiales (el botón *Registrar entrega*) la hace el
 solicitante de esa requisición o, si no es de él, cualquiera de los roles que
 autorizan.
+
+### Inventario propio
+
+- **Responsable de solicitar** solo ve **su** inventario. En el **Panel**, los
+  indicadores de materiales y la tabla *Hay que reponer* muestran únicamente
+  los materiales de las requisiciones que él envió (lo solicitado y lo ya
+  recibido; un borrador todavía no cuenta). En **Descargo de inventario**
+  aparecen solo esos materiales, junto con **los descargos que él mismo
+  registró**: no ve las salidas que hizo otra persona. El servidor valida el
+  descargo, así que tampoco se puede restar existencia de un material ajeno
+  enviando el formulario a mano.
+- Los demás roles (Administrador, Sub Administrador, Jefe inmediato y
+  Responsable de gestión) ven el inventario completo de la fundación.
+- El catálogo de **Materiales** sigue siendo el mismo para todos; lo que se
+  limita por usuario es el módulo de inventario.
 
 ## 1. Requisitos
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useFormState, useFormStatus } from "react-dom";
 import { crearUsuario } from "../actions";
 import { MODULOS_POR_ROL, ROLES, type Modulo, type Rol } from "@/lib/permisos";
@@ -37,6 +37,16 @@ export default function FormularioCrearUsuario() {
   const [estado, accion] = useFormState(crearUsuario, { error: null });
   const [rol, setRol] = useState<Rol>("responsable_solicitante");
   const [seleccionados, setSeleccionados] = useState<Modulo[]>([...MODULOS_POR_ROL.responsable_solicitante]);
+  const formulario = useRef<HTMLFormElement>(null);
+
+  // Tras crear un usuario, vacío los campos. Si no, quedarían los mismos
+  // datos y un segundo clic en "Guardar" daría error de cuenta duplicada.
+  useEffect(() => {
+    if (!estado.exito) return;
+    formulario.current?.reset();
+    setRol("responsable_solicitante");
+    setSeleccionados([...MODULOS_POR_ROL.responsable_solicitante]);
+  }, [estado]);
 
   function cambiarRol(valor: string) {
     const nuevoRol = valor as Rol;
@@ -53,8 +63,13 @@ export default function FormularioCrearUsuario() {
 
   return (
     <details className="tarjeta p-4 mb-5">
-      <summary className="cursor-pointer font-medium text-sm">+ Nuevo usuario</summary>
-      <form action={accion} className="grid sm:grid-cols-2 gap-3 mt-4">
+      <summary className="btn cursor-pointer select-none">+ Nuevo usuario</summary>
+      <form ref={formulario} action={accion} className="grid sm:grid-cols-2 gap-3 mt-4">
+        {estado.exito && (
+          <div className="sm:col-span-2 bg-verdeclaro text-verde text-sm px-3 py-2 rounded-lg border border-verde/20">
+            ✓ {estado.exito}
+          </div>
+        )}
         {estado.error && (
           <div className="sm:col-span-2 bg-rojoclaro text-rojo text-sm px-3 py-2 rounded-lg">{estado.error}</div>
         )}

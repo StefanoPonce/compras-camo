@@ -18,9 +18,12 @@ function BotonDescargar() {
 export default function FormularioDescargo({
   materiales,
   inicial,
+  textoVacio,
 }: {
   materiales: Material[];
   inicial?: number;
+  /** Mensaje cuando la lista viene vacía (cambia según quién consulta). */
+  textoVacio?: string;
 }) {
   const [estado, accion] = useFormState(descargarInventario, { error: null });
 
@@ -30,14 +33,14 @@ export default function FormularioDescargo({
   if (!materiales.length) {
     return (
       <div className="tarjeta p-6 mb-5 text-tinta2 text-sm">
-        No hay materiales en el catálogo todavía.
+        {textoVacio || "No hay materiales en el catálogo todavía."}
       </div>
     );
   }
 
   return (
     <details className="tarjeta p-4 mb-5" open={Boolean(inicial)}>
-      <summary className="cursor-pointer font-medium text-sm">+ Nuevo descargo (salida de bodega)</summary>
+      <summary className="btn cursor-pointer select-none">+ Nuevo descargo (salida de bodega)</summary>
       <form action={accion} className="grid sm:grid-cols-2 gap-3 mt-4">
         {estado.error && (
           <div className="sm:col-span-2 bg-rojoclaro text-rojo text-sm px-3 py-2 rounded-lg">{estado.error}</div>

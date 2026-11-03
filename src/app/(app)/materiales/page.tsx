@@ -2,33 +2,46 @@ import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { puede, puedeVerModulo } from "@/lib/permisos";
+import { puede, puedeVerModulo, inventarioPropio } from "@/lib/permisos";
+import { materialesSolicitadosPor } from "@/lib/materiales-solicitados";
 import FormularioCrearMaterial from "./formulario-crear";
 import BotonEliminarMaterial from "./boton-eliminar";
 import ImagenMaterial from "../imagen-material";
 import BotonExportarExcel from "../boton-exportar-excel";
+import BotonExportarPdf from "../boton-exportar-pdf";
 import BotonPdf from "../boton-pdf";
 import EncabezadoImpresion from "../encabezado-impresion";
+import { describirFiltrosMateriales, normalizarFiltrosMateriales, paramsMateriales, whereMateriales } from "@/lib/materiales-filtros";
 import Link from "next/link";
 
-export default async function Materiales({ searchParams }: { searchParams: { q?: string; cat?: string } }) {
+export default async function Materiales({
+  searchParams,
+}: {
+  searchParams: { q?: string; cat?: string; ex?: string };
+}) {
   const sesion = await getServerSession(authOptions);
   if (!sesion || !puedeVerModulo(sesion.user.rol, sesion.user.modulosPermitidos, "materiales")) redirect("/");
   const puedeGestionar = puede(sesion.user.rol, "materiales.gestionar");
   const puedeDescargar =
     puede(sesion.user.rol, "inventario.descargar") &&
     puedeVerModulo(sesion.user.rol, sesion.user.modulosPermitidos, "inventario");
-  const q = searchParams.q || "";
-  const cat = searchParams.cat || "";
+
+  // El catálogo lo ven todos igual, pero el atajo "Descargar" solo apunta a
+  // materiales que este usuario realmente puede descargar: para el
+  // responsable de solicitar son los de sus propias requisiciones (lo pedido y
+  // lo recibido), tal como los lista /inventario.
+  const propios = inventarioPropio(sesion.user.rol)
+    ? await materialesSolicitadosPor(Number(sesion.user.id))
+    : null;
+  const puedeDescargarDe = (materialId: number) => puedeDescargar && (!propios || propios.includes(materialId));
+  const veAtajoDescargo = puedeDescargar && (!propios || propios.length > 0);
+
+  const filtros = normalizarFiltrosMateriales(searchParams);
+  const { q, cat, ex } = filtros;
 
   const [materiales, proveedores, categorias] = await Promise.all([
     prisma.material.findMany({
-      where: {
-        AND: [
-          q ? { OR: [{ nombre: { contains: q, mode: "insensitive" } }, { codigo: { contains: q, mode: "insensitive" } }] } : {},
-          cat ? { categoria: cat } : {},
-        ],
-      },
+      where: whereMateriales(filtros),
       include: { proveedor: true },
       orderBy: { codigo: "asc" },
     }),
@@ -38,10 +51,9 @@ export default async function Materiales({ searchParams }: { searchParams: { q?:
 
   // Lo que va impreso arriba de la tabla, para que el PDF diga con qué filtros
   // se sacó el listado.
-  const filtrosImpresion = [
-    q ? `Búsqueda: "${q}"` : "",
-    cat ? `Categoría: ${cat}` : "",
-  ].filter(Boolean).join(" · ");
+  const filtrosImpresion = describirFiltrosMateriales(filtros);
+  const queryExportar = paramsMateriales(filtros).toString();
+  const sufijoExportar = queryExportar ? `?${queryExportar}` : "";
 
   return (
     <>
@@ -61,8 +73,9 @@ export default async function Materiales({ searchParams }: { searchParams: { q?:
           </p>
         </div>
         <div className="ml-auto self-center flex gap-2 flex-wrap">
-          <BotonExportarExcel href="/materiales/exportar" />
-          <BotonPdf />
+          <BotonExportarExcel href={`/materiales/exportar${sufijoExportar}`} />
+          <BotonExportarPdf href={`/materiales/exportar-pdf${sufijoExportar}`} />
+          <BotonPdf texto="Imprimir" />
         </div>
       </div>
 
@@ -72,10 +85,19 @@ export default async function Materiales({ searchParams }: { searchParams: { q?:
           <option value="">Todas las categorías</option>
           {categorias.map((c) => <option key={c.categoria} value={c.categoria}>{c.categoria}</option>)}
         </select>
+        <select className="campo-input max-w-[220px]" name="ex" defaultValue={ex}>
+          <option value="">Todos los materiales</option>
+          <option value="con">Con existencia</option>
+          <option value="sin">Sin existencia</option>
+        </select>
         <button className="btn-secundario">Filtrar</button>
       </form>
 
-      {puedeGestionar && <div className="no-imprimir"><FormularioCrearMaterial proveedores={proveedores} /></div>}
+      {puedeGestionar && (
+        <div className="no-imprimir">
+          <FormularioCrearMaterial proveedores={proveedores} categorias={categorias.map((c) => c.categoria)} />
+        </div>
+      )}
 
       {materiales.length ? (
         <div className="tarjeta overflow-x-auto">
@@ -88,14 +110,14 @@ export default async function Materiales({ searchParams }: { searchParams: { q?:
               <col style={{ width: 110 }} />
               <col style={{ width: 100 }} />
               <col style={{ width: 170 }} />
-              {(puedeGestionar || puedeDescargar) && <col style={{ width: 215 }} />}
+              {(puedeGestionar || veAtajoDescargo) && <col style={{ width: 215 }} />}
             </colgroup>
             <thead>
               <tr>
                 <th>Imagen</th><th>Código</th><th>Material</th><th>Categoría</th>
                 <th className="text-right">Existencia</th><th className="text-right">Mínimo</th>
                 <th>Proveedor</th>
-                {(puedeGestionar || puedeDescargar) && <th className="no-imprimir col-acciones"></th>}
+                {(puedeGestionar || veAtajoDescargo) && <th className="no-imprimir col-acciones"></th>}
               </tr>
             </thead>
             <tbody>
@@ -112,9 +134,9 @@ export default async function Materiales({ searchParams }: { searchParams: { q?:
                     <td className={"text-right" + (bajo ? " text-rojo font-semibold" : "")}>{m.existencia}</td>
                     <td className="text-right">{m.minimo}</td>
                     <td className="break-words">{m.proveedor?.nombre || "—"}</td>
-                    {(puedeGestionar || puedeDescargar) && (
+                    {(puedeGestionar || veAtajoDescargo) && (
                       <td className="whitespace-nowrap no-imprimir col-acciones">
-                        {puedeDescargar && (
+                        {puedeDescargarDe(m.id) && (
                           <Link href={`/inventario?material=${m.id}`} className="btn-secundario btn-chico">Descargar</Link>
                         )}
                         {puedeGestionar && (
