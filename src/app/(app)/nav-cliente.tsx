@@ -15,7 +15,7 @@ import {
 } from "@/lib/permisos";
 import estilos from "./nav-cliente.module.css";
 
-type IconoMenu = "panel" | "ordenes" | "proveedores" | "materiales" | "gestion" | "inventario" | "reportes" | "bitacora" | "usuarios";
+type IconoMenu = "panel" | "ordenes" | "proveedores" | "materiales" | "gestion" | "compras" | "inventario" | "reportes" | "bitacora" | "usuarios";
 
 type ItemMenu = {
   href: string;
@@ -79,6 +79,17 @@ function IconoMenu({ tipo }: { tipo: IconoMenu }) {
     );
   }
 
+  // Carrito de compras: lo que hay que comprar y lo que ya llegó.
+  if (tipo === "compras") {
+    return (
+      <svg {...propiedades}>
+        <path d="M3 4.5h2.2l2.3 9.6h9.2L19 7.2H6.2" stroke="currentColor" strokeWidth="1.65" strokeLinecap="round" strokeLinejoin="round" />
+        <circle cx="9.5" cy="18.5" r="1.5" stroke="currentColor" strokeWidth="1.65" />
+        <circle cx="16.5" cy="18.5" r="1.5" stroke="currentColor" strokeWidth="1.65" />
+      </svg>
+    );
+  }
+
   return (
     <svg {...propiedades}>
       <rect x="4" y="4" width="6" height="6" rx="1" stroke="currentColor" strokeWidth="1.65" />
@@ -119,6 +130,7 @@ export default function NavCliente({
     { href: "/proveedores", etiqueta: "Proveedores", permiso: null, modulo: "proveedores", icono: "proveedores" },
     { href: "/materiales", etiqueta: "Materiales", permiso: null, modulo: "materiales", icono: "materiales" },
     { href: "/gestion", etiqueta: "Gestión", permiso: "consolidacion.ver", modulo: "gestion", icono: "gestion" },
+    { href: "/compras", etiqueta: "Compras", permiso: "compras.ver", modulo: "compras", icono: "compras" },
     { href: "/inventario", etiqueta: "Descargo de inventario", permiso: "inventario.descargar", modulo: "inventario", icono: "inventario" },
     { href: "/reportes", etiqueta: "Reportes", permiso: "reportes.ver", modulo: "reportes", icono: "reportes" },
     { href: "/bitacora", etiqueta: "Bitácora", permiso: "bitacora.ver", modulo: "bitacora", icono: "bitacora" },

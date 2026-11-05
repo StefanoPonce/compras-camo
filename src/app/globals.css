@@ -21,6 +21,12 @@ body {
 .et-usuario { @apply bg-verdeclaro text-verde; }
 .et-pendiente { @apply bg-ambarclaro text-ambar; }
 .et-aprobada { @apply bg-verdeclaro text-verde; }
+/* Estados de compra de un material (módulos Gestión y Compras). */
+.et-gestionado { @apply bg-azulclaro text-azul; }
+.et-entregado { @apply bg-verdeclaro text-verde; }
+/* Producto que el solicitante confirmó que ya le llegó (detalle de la
+   requisición): se distingue de ENTREGADO, que lo marca Compras. */
+.et-recibido { @apply bg-azulclaro text-azul; }
 .et-rechazada { @apply bg-rojoclaro text-rojo; }
 .et-recibida { @apply bg-azulclaro text-azul; }
 /* Píldora neutra: el borrador es un trabajo a medias, no una requisición en juego. */

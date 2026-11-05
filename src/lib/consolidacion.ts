@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import type { Prisma, Material, Proveedor } from "@prisma/client";
+import type { Prisma, Material, Proveedor, EstadoGestion } from "@prisma/client";
 import { etiquetaUnidad } from "@/lib/unidades";
 
 /** "CAJA" o, si el mismo material se pidió de varias formas, "CAJA / ROLLO". */
@@ -18,13 +18,22 @@ export type OrdenConsolidacion = Prisma.OrdenCompraGetPayload<{
   };
 }>;
 
-type ItemConsolidado = {
+export type ItemConsolidado = {
   material: Material;
   cantidad: number;
   folios: Set<string>;
   /** Unidades en las que se pidió este material. Casi siempre es una sola;
    *  si el mismo material se pidió de dos formas, se muestran todas. */
   unidades: Set<string>;
+  /** Fecha más antigua entre las requisiciones que traen este material: es la
+   *  que se muestra en la columna "Fecha" de Gestión y Compras. */
+  fecha: Date;
+  /** Estado de compra de cada renglón que trae este material. La fila muestra
+   *  el combinado con estadoDeFila() de src/lib/estado-gestion.ts. */
+  estados: Set<EstadoGestion>;
+  /** Ids de los renglones (detalle_orden) de esta fila: son los que se
+   *  actualizan cuando se cambia el Estado desde la tabla. */
+  lineaIds: number[];
 };
 
 export type GrupoConsolidado = {
@@ -134,12 +143,19 @@ export function agruparConsolidacion(ordenes: OrdenConsolidacion[]): GrupoConsol
         cantidad: 0,
         folios: new Set<string>(),
         unidades: new Set<string>(),
+        fecha: orden.fecha,
+        estados: new Set<EstadoGestion>(),
+        lineaIds: [] as number[],
       };
       actual.cantidad += item.cantidad;
       actual.folios.add(orden.folio);
       // La unidad es la del renglón, no la del catálogo: el solicitante pudo
       // pedirlo en una medida distinta a la que tiene registrada.
       actual.unidades.add(item.unidad || material.unidad);
+      // La fecha más vieja es la que cuenta: indica desde cuándo se pide.
+      if (orden.fecha < actual.fecha) actual.fecha = orden.fecha;
+      actual.estados.add(item.estadoGestion);
+      actual.lineaIds.push(item.id);
       grupo.items.set(material.id, actual);
     }
   }

@@ -11,6 +11,7 @@ export const config = {
     "/materiales/:path*",
     "/gestion",
     "/gestion/:path*",
+    "/compras/:path*",
     "/ordenes/:path*",
     "/inventario/:path*",
     "/reportes/:path*",

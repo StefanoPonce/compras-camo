@@ -5,6 +5,7 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { puede, puedeVerModulo } from "@/lib/permisos";
 import { textoPrograma } from "@/lib/programas";
+import { claseEstadoGestion, estadoDeFila, ETIQUETAS_REQUISICION } from "@/lib/estado-gestion";
 
 function fecha(d: Date) {
   return new Date(d).toLocaleDateString("es-HN", { day: "2-digit", month: "short", year: "numeric" });
@@ -16,6 +17,9 @@ export default async function Ordenes({ searchParams }: { searchParams: { estado
   const sesion = await getServerSession(authOptions);
   if (!sesion || !puedeVerModulo(sesion.user.rol, sesion.user.modulosPermitidos, "ordenes")) redirect("/");
   const veTodas = puede(sesion.user.rol, "ordenes.verTodas");
+  // Quien solo ve sus propias requisiciones siempre es el mismo solicitante en
+  // cada renglón: para ese rol la columna no aporta nada y se oculta.
+  const muestraSolicitante = sesion.user.rol !== "responsable_solicitante";
   const uid = Number(sesion!.user.id);
   const filtro = searchParams.estado || "";
 
@@ -81,11 +85,15 @@ export default async function Ordenes({ searchParams }: { searchParams: { estado
 
       {ordenes.length ? (
         <div className="tarjeta overflow-x-auto">
-          <table className="w-full tabla" style={{ minWidth: 680 }}>
-            <thead><tr><th>Folio</th><th>Fecha</th><th>Programa</th><th>Proveedor</th><th>Solicitante</th><th>Estado</th><th></th></tr></thead>
+          <table className="w-full tabla" style={{ minWidth: 780 }}>
+            <thead><tr><th>Folio</th><th>Fecha</th><th>Programa</th><th>Proveedor</th>{muestraSolicitante && <th>Solicitante</th>}<th>Estado</th><th>Estado de compra</th><th></th></tr></thead>
             <tbody>
               {ordenes.map((o) => {
                 const programas = programasDe(o.items);
+                // Estado de compra consolidado de SUS productos: si alguno
+                // sigue pendiente, la requisición aparece como pendiente
+                // (misma regla que las filas de Gestión y Compras).
+                const estadoCompra = estadoDeFila(o.items.map((it) => it.estadoGestion));
                 return (
                 <tr key={o.id}>
                   <td className="font-mono">{o.folio}</td>
@@ -98,8 +106,15 @@ export default async function Ordenes({ searchParams }: { searchParams: { estado
                   </td>
                   {/* Un borrador puede no tener proveedor todavía: se elige al enviar. */}
                   <td>{o.proveedor?.nombre || "—"}</td>
-                  <td>{o.solicitante.nombre}</td>
+                  {muestraSolicitante && <td>{o.solicitante.nombre}</td>}
                   <td><span className={"etiqueta et-" + o.estado.toLowerCase()}>{o.estado}</span></td>
+                  {/* Estado de compra del renglón: lo marcan Gestión y
+                      Compras. Se dice como lo vería quien lo pidió. */}
+                  <td>
+                    <span className={"etiqueta " + claseEstadoGestion(estadoCompra)}>
+                      {ETIQUETAS_REQUISICION[estadoCompra]}
+                    </span>
+                  </td>
                   <td>
                     {o.estado === "Borrador" ? (
                       // En un borrador lo que interesa es retomarlo, no verlo.

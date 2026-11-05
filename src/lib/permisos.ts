@@ -6,15 +6,20 @@
 //
 //   Administrador           → acceso total (usuarios, bitácora, reportes,
 //                             proveedores, materiales, órdenes, inventario,
-//                             gestión)
+//                             gestión, compras)
 //   Sub Administrador       → reportes, crear/modificar/autorizar órdenes,
-//                             alimentar la BD y consultar Gestión
+//                             alimentar la BD y consultar Gestión y Compras
 //   Jefe inmediato          → crear/modificar/autorizar órdenes, reportes y
-//                             consultar Gestión
+//                             consultar Gestión y Compras
 //   Responsable de gestión  → consultar todas las requisiciones, la
-//                             consolidación de Gestión, descargar inventario
-//                             y ver reportes (no autoriza ni recibe)
+//                             consolidación de Gestión, el módulo Compras,
+//                             descargar inventario y ver reportes (no autoriza
+//                             ni recibe)
 //   Responsable de solicitar→ crear requisiciones y descargar inventario
+//
+// Gestión y Compras trabajan sobre los mismos renglones: en Gestión se marca
+// cada material como Gestionado o Pendiente de Compra y lo que queda pendiente
+// aparece en Compras, donde además se registra la entrega (Entregado).
 //
 // Visibilidad del historial de requisiciones: los roles con "ordenes.verTodas"
 // (administrador, sub administrador, jefe inmediato y responsable de gestión)
@@ -40,6 +45,12 @@ export type Permiso =
   | "reportes.ver"
   /** Consultar la consolidación de requisiciones de compra */
   | "consolidacion.ver"
+  /** Marcar cada material de la consolidación como gestionado o pendiente */
+  | "consolidacion.editar"
+  /** Consultar el módulo Compras (materiales pendientes y entregados) */
+  | "compras.ver"
+  /** Marcar materiales como gestionados, pendientes o entregados en Compras */
+  | "compras.editar"
   /** Crear, editar y eliminar proveedores */
   | "proveedores.gestionar"
   /** Crear, editar y eliminar materiales (insumos) */
@@ -66,6 +77,7 @@ export type Modulo =
   | "proveedores"
   | "materiales"
   | "gestion"
+  | "compras"
   | "inventario"
   | "reportes"
   | "bitacora"
@@ -77,6 +89,7 @@ export const MODULOS: { valor: Modulo; etiqueta: string; descripcion: string }[]
   { valor: "proveedores", etiqueta: "Proveedores", descripcion: "Catálogo y datos de proveedores" },
   { valor: "materiales", etiqueta: "Materiales", descripcion: "Catálogo e inventario de materiales" },
   { valor: "gestion", etiqueta: "Gestión", descripcion: "Consolidación de requisiciones de compra" },
+  { valor: "compras", etiqueta: "Compras", descripcion: "Materiales pendientes de comprar y entregas" },
   { valor: "inventario", etiqueta: "Descargo de inventario", descripcion: "Salidas y descargos de bodega" },
   { valor: "reportes", etiqueta: "Reportes", descripcion: "Reportes de gestión y compras" },
   { valor: "bitacora", etiqueta: "Bitácora", descripcion: "Historial de movimientos del sistema" },
@@ -88,11 +101,11 @@ export const MODULOS_DEL_ROL = "__rol__" as const;
 
 export const MODULOS_POR_ROL: Record<Rol, Modulo[]> = {
   administrador: MODULOS.map((m) => m.valor),
-  sub_administrador: ["panel", "ordenes", "proveedores", "materiales", "gestion", "inventario", "reportes"],
-  jefe_inmediato: ["panel", "ordenes", "proveedores", "materiales", "gestion", "reportes"],
-  // Requisiciones, Gestión, Descargo de inventario y Reportes (más el panel,
-  // que siempre está).
-  responsable_gestion: ["panel", "ordenes", "gestion", "inventario", "reportes"],
+  sub_administrador: ["panel", "ordenes", "proveedores", "materiales", "gestion", "compras", "inventario", "reportes"],
+  jefe_inmediato: ["panel", "ordenes", "proveedores", "materiales", "gestion", "compras", "reportes"],
+  // Requisiciones, Gestión, Compras, Descargo de inventario y Reportes (más el
+  // panel, que siempre está).
+  responsable_gestion: ["panel", "ordenes", "gestion", "compras", "inventario", "reportes"],
   responsable_solicitante: ["panel", "ordenes", "proveedores", "materiales", "inventario"],
 };
 
@@ -131,6 +144,9 @@ export const MODULO_DE_PERMISO: Partial<Record<Permiso, Modulo>> = {
   "bitacora.ver": "bitacora",
   "reportes.ver": "reportes",
   "consolidacion.ver": "gestion",
+  "consolidacion.editar": "gestion",
+  "compras.ver": "compras",
+  "compras.editar": "compras",
   "proveedores.gestionar": "proveedores",
   "materiales.gestionar": "materiales",
   "ordenes.crear": "ordenes",
@@ -147,6 +163,9 @@ const ADMIN: Permiso[] = [
   "bitacora.ver",
   "reportes.ver",
   "consolidacion.ver",
+  "consolidacion.editar",
+  "compras.ver",
+  "compras.editar",
   "proveedores.gestionar",
   "materiales.gestionar",
   "ordenes.crear",
@@ -164,6 +183,9 @@ export const PERMISOS_POR_ROL: Record<Rol, Permiso[]> = {
   sub_administrador: [
     "reportes.ver",
     "consolidacion.ver",
+    "consolidacion.editar",
+    "compras.ver",
+    "compras.editar",
     "proveedores.gestionar",
     "materiales.gestionar",
     "ordenes.crear",
@@ -179,6 +201,9 @@ export const PERMISOS_POR_ROL: Record<Rol, Permiso[]> = {
   jefe_inmediato: [
     "reportes.ver",
     "consolidacion.ver",
+    "consolidacion.editar",
+    "compras.ver",
+    "compras.editar",
     "ordenes.crear",
     "ordenes.editarTodas",
     "ordenes.autorizar",
@@ -190,6 +215,9 @@ export const PERMISOS_POR_ROL: Record<Rol, Permiso[]> = {
     "ordenes.crear",
     "ordenes.verTodas",
     "consolidacion.ver",
+    "consolidacion.editar",
+    "compras.ver",
+    "compras.editar",
     "inventario.descargar",
     "reportes.ver",
   ],

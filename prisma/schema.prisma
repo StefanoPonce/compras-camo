@@ -32,6 +32,18 @@ enum EstadoOrden {
   Borrador
 }
 
+// Estado de compra de un renglón de requisición. Lo elige quien gestiona:
+//   Pendiente   → Pendiente de Compra (nace así y pasa al módulo Compras)
+//   Gestionado  → ya se resolvió por fuera, no necesita compra
+//   Entregado   → lo puso Compras cuando llegó el material; cuando TODOS los
+//                 renglones de una requisición quedan Entregados, la
+//                 requisición sola pasa a Recibida (ver actions.ts)
+enum EstadoGestion {
+  Pendiente
+  Gestionado
+  Entregado
+}
+
 model Usuario {
   id             Int           @id @default(autoincrement())
   usuario        String        @unique
@@ -204,6 +216,29 @@ model DetalleOrden {
 
   materialId  Int
   material    Material    @relation(fields: [materialId], references: [id])
+
+  // Estado de compra de ESTE renglón. Nace Pendiente: en Gestión se marca
+  // Gestionado o Pendiente de Compra y en Compras se agrega Entregado. Es por
+  // renglón (no por material) para que cada requisición lleve su propio
+  // avance y pueda alimentarse sola.
+  estadoGestion EstadoGestion @default(Pendiente)
+
+  // El solicitante confirma, producto por producto, que ya le llegó el
+  // material. Es una marca informativa: NO toca el inventario ni cambia el
+  // estado de la requisición (la recepción formal con la suma a la existencia
+  // la sigue registrando el sub administrador con "Registrar entrega"). Solo
+  // la pone el solicitante de ESTA requisición.
+  recibidoSolicitante   Boolean   @default(false)
+  // Cuándo la puso: queda vacío mientras no se haya confirmado.
+  recibidoSolicitanteEn DateTime?
+
+  // ¿Este renglón ya se sumó a la existencia? Solo suma quien registra la
+  // entrega y solo cuenta lo que NO está "Pendiente de Compra" (Gestionado y
+  // ENTREGADO sí). La marca evita contar dos veces cuando la entrega llega en
+  // partes: cada pase suma los renglones resueltos que falten.
+  inventariado     Boolean   @default(false)
+  // Cuándo entró a la existencia; vacío si todavía no se ha contado.
+  inventariadoEn   DateTime?
 
   @@map("detalle_orden")
 }

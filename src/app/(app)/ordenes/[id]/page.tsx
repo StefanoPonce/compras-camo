@@ -6,9 +6,11 @@ import { prisma } from "@/lib/prisma";
 import { puede, puedeVerModulo } from "@/lib/permisos";
 import BotonesOrden from "./botones-admin";
 import BorrarBorrador from "./borrar-borrador";
+import MarcarRecibido from "./marcar-recibido";
 import ImagenMaterial from "../../imagen-material";
 import { textoPrograma } from "@/lib/programas";
 import { etiquetaUnidad } from "@/lib/unidades";
+import { claseEstadoGestion, ETIQUETAS_REQUISICION } from "@/lib/estado-gestion";
 
 function fecha(d: Date) {
   return new Date(d).toLocaleDateString("es-HN", { day: "2-digit", month: "short", year: "numeric" });
@@ -52,8 +54,21 @@ export default async function DetalleOrden({ params }: { params: { id: string } 
     : o.estado === "Aprobada" ? puedeEditarAprobada
     : (puedeEditar || esPropia);
 
+  // Marcar un producto como recibido lo hace, producto por producto, el
+  // solicitante de ESA requisición (y solo cuando ya esté enviada: no se
+  // recibe algo pendiente o rechazado).
+  const puedeConfirmarRecibo = esPropia && (o.estado === "Aprobada" || o.estado === "Recibida");
+
+  // Lo que falta por sumar a la existencia: productos ya resueltos
+  // (Gestionado o ENTREGADO) que todavía no se han contado, y los que siguen
+  // pendientes de compra (esos no entran al inventario).
+  const porContar = o.items
+    .filter((it) => it.estadoGestion !== "Pendiente" && !it.inventariado)
+    .map((it) => it.material.nombre);
+  const pendientes = o.items.filter((it) => it.estadoGestion === "Pendiente").length;
+
   return (
-    // Ancho amplio: la tabla de renglones tiene 8 columnas y en 672px
+    // Ancho amplio: la tabla de renglones tiene 10 columnas y en 672px
     // (max-w-2xl) siempre terminaba desbordando y aparecía la barra de
     // arrastre abajo.
     <div className="max-w-5xl">
@@ -93,15 +108,27 @@ export default async function DetalleOrden({ params }: { params: { id: string } 
       {o.estado === "Aprobada" && puedeModificar && (
         <p className="text-xs text-tinta2 mb-4">La requisición está aprobada: puedes corregirla y conservará su estado.</p>
       )}
-      {o.estado === "Recibida" && (
+      {o.estado === "Recibida" && o.recibidoPorTxt && (
         <p className="text-xs text-tinta2 mb-4">Requisición recibida: ya no puede editarse.</p>
+      )}
+      {o.estado === "Recibida" && !o.recibidoPorTxt && (
+        <p className="text-xs text-tinta2 mb-4">
+          Ya no queda ningún material por gestionar en esta requisición. Falta registrar el nombre de quien
+          recibió la entrega para sumarlos al inventario.
+        </p>
+      )}
+      {o.estado === "Aprobada" && pendientes > 0 && porContar.length === 0 && (
+        <p className="text-xs text-tinta2 mb-4">
+          Faltan {pendientes} material(es) por comprar: no entran al inventario hasta que lleguen y se marquen como
+          Gestionado.
+        </p>
       )}
 
       {o.justificacion && <p className="mb-4">{o.justificacion}</p>}
 
       <div className="tarjeta overflow-x-auto mb-3">
-        <table className="w-full tabla">
-          <thead><tr><th>Imagen</th><th>Material</th><th>Categoría</th><th>Unidad</th><th className="text-right">Cant.</th><th>Programa</th><th>Proveedor</th><th>Adjunto</th></tr></thead>
+        <table className="w-full tabla" style={{ minWidth: 940 }}>
+          <thead><tr><th>Imagen</th><th>Material</th><th>Categoría</th><th>Unidad</th><th className="text-right">Cant.</th><th>Programa</th><th>Proveedor</th><th>Adjunto</th><th>Estado</th><th>Recibido</th></tr></thead>
           <tbody>
             {o.items.map((it) => (
               <tr key={it.id}>
@@ -130,6 +157,24 @@ export default async function DetalleOrden({ params }: { params: { id: string } 
                     <span className="text-xs text-tinta2">—</span>
                   )}
                 </td>
+                {/* Estado de compra del renglón: lo marcan Gestión y Compras,
+                    y es lo que alimenta esta requisición. */}
+                <td>
+                  <span className={"etiqueta " + claseEstadoGestion(it.estadoGestion)}>
+                    {ETIQUETAS_REQUISICION[it.estadoGestion]}
+                  </span>
+                </td>
+                {/* El solicitante confirma, renglón por renglón, que ya le
+                    llegó el material. Solo él puede poner esta marca. */}
+                <td>
+                  <MarcarRecibido
+                    lineaId={it.id}
+                    material={it.material.nombre}
+                    confirmado={it.recibidoSolicitante}
+                    fecha={it.recibidoSolicitanteEn ? fecha(it.recibidoSolicitanteEn) : null}
+                    puedeMarcar={puedeConfirmarRecibo}
+                  />
+                </td>
               </tr>
             ))}
           </tbody>
@@ -141,12 +186,21 @@ export default async function DetalleOrden({ params }: { params: { id: string } 
         {o.revisor && (o.estado === "Rechazada"
           ? ` · Rechazó ${o.revisor.nombre} el ${o.fechaRevision ? fechaHora(o.fechaRevision) : ""}`
           : ` · Revisó ${o.revisor.nombre} el ${o.fechaRevision ? fechaHora(o.fechaRevision) : ""}`)}
-        {o.recibidoPorTxt && ` · Recibió ${o.recibidoPorTxt} el ${o.fechaRecepcion ? fechaHora(o.fechaRecepcion) : ""}`}
+        {o.recibidoPorTxt &&
+          ` · Recibió ${o.recibidoPorTxt}${o.fechaRecepcion ? ` el ${fechaHora(o.fechaRecepcion)}` : ""}`}
       </p>
       {o.comentario && <p className="bg-superficie2 px-3 py-2.5 rounded-lg text-sm mt-2">{o.comentario}</p>}
 
       {(puedeAutorizar || puedeRecibir) && !esBorrador && (
-        <BotonesOrden id={o.id} folio={o.folio} estado={o.estado} puedeAutorizar={puedeAutorizar} puedeRecibir={puedeRecibir} />
+        <BotonesOrden
+          id={o.id}
+          folio={o.folio}
+          estado={o.estado}
+          puedeAutorizar={puedeAutorizar}
+          puedeRecibir={puedeRecibir}
+          porContar={porContar}
+          pendientes={pendientes}
+        />
       )}
     </div>
   );

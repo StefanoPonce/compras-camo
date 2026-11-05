@@ -29,6 +29,9 @@ export default async function Panel() {
   const vePendientes = veOrdenes && puede(sesion.user.rol, "ordenes.autorizar");
   const veReportes = puedeVerModulo(sesion.user.rol, sesion.user.modulosPermitidos, "reportes") && puede(sesion.user.rol, "reportes.ver");
   const uid = Number(sesion.user.id);
+  // Para el responsable de solicitar todas las filas son suyas: la columna
+  // "Solicitante" solo repite su nombre, así que se oculta en ese rol.
+  const muestraSolicitante = sesion.user.rol !== "responsable_solicitante";
 
   // El responsable de solicitar solo ve SU inventario: los materiales de las
   // requisiciones que él envió. Los demás roles ven el catálogo completo.
@@ -168,14 +171,14 @@ export default async function Panel() {
           {ordenesRecientes.length ? (
             <div className="tarjeta overflow-x-auto">
               <table className="w-full tabla" style={{ minWidth: 620 }}>
-                <thead><tr><th>Folio</th><th>Fecha</th><th>Proveedor</th><th>Solicitante</th><th>Estado</th></tr></thead>
+                <thead><tr><th>Folio</th><th>Fecha</th><th>Proveedor</th>{muestraSolicitante && <th>Solicitante</th>}<th>Estado</th></tr></thead>
                 <tbody>
                   {ordenesRecientes.map((o) => (
                     <tr key={o.id}>
                       <td className="font-mono"><Link className="text-verde" href={`/ordenes/${o.id}`}>{o.folio}</Link></td>
                       <td>{fecha(o.fecha)}</td>
                       <td>{o.proveedor?.nombre || "—"}</td>
-                      <td>{o.solicitante.nombre}</td>
+                      {muestraSolicitante && <td>{o.solicitante.nombre}</td>}
                       <td><span className={"etiqueta et-" + o.estado.toLowerCase()}>{o.estado}</span></td>
                     </tr>
                   ))}

@@ -14,17 +14,31 @@ export default function BotonesOrden({
   estado,
   puedeAutorizar,
   puedeRecibir,
+  porContar = [],
+  pendientes = 0,
 }: {
   id: number;
   folio: string;
   estado: string;
   puedeAutorizar: boolean;
   puedeRecibir: boolean;
+  /** Nombres de los materiales que faltan por sumar al inventario: los que ya
+   *  están Gestionados o ENTREGADOS y todavía no se han contado. Si la lista
+   *  está vacía no hay nada que registrar. */
+  porContar?: string[];
+  /** Renglones que siguen "Pendiente de Compra": esos NO entran a inventario
+   *  y dejan la requisición abierta para poder recibir el resto después. */
+  pendientes?: number;
 }) {
   const [comentario, setComentario] = useState("");
   const [recibio, setRecibio] = useState("");
   const [ocupado, setOcupado] = useState(false);
   const router = useRouter();
+
+  // Qué se va a sumar al inventario, en una línea legible (con muchas
+  // materias la lista completa no cabe en el mensaje).
+  const listaPorContar =
+    porContar.length > 6 ? `${porContar.slice(0, 6).join(", ")} +${porContar.length - 6} más` : porContar.join(", ");
 
   async function resolver(nuevo: "Aprobada" | "Rechazada") {
     if (nuevo === "Rechazada" && !comentario.trim()) {
@@ -57,7 +71,11 @@ export default function BotonesOrden({
       return;
     }
     const ok = window.confirm(
-      `¿Registrar la entrega de la requisición ${folio}?\n\nRecibió: ${nombre}\n\nSe sumarán sus materiales al inventario y la requisición quedará como Recibida.`
+      `¿Registrar la entrega de la requisición ${folio}?\n\nRecibió: ${nombre}\n\n` +
+        `Se sumarán al inventario ${porContar.length} producto(s): ${listaPorContar}.\n\n` +
+        (pendientes > 0
+          ? `Quedarán ${pendientes} material(es) pendiente de compra SIN sumar a la existencia y la requisición seguirá abierta.`
+          : `La requisición quedará como Recibida.`)
     );
     if (!ok) return;
     setOcupado(true);
@@ -83,14 +101,21 @@ export default function BotonesOrden({
       </div>
     );
   }
-  if (estado === "Aprobada" && puedeRecibir) {
+  // El panel aparece solo cuando hay algo que contar: material ya resuelto
+  // (Gestionado o ENTREGADO) que todavía no ha entrado a la existencia.
+  if ((estado === "Aprobada" || estado === "Recibida") && puedeRecibir && porContar.length > 0) {
     return (
       <div className="tarjeta p-4 mt-4">
         <label htmlFor="recibio" className="block text-sm text-tinta2 mb-1.5 font-medium">
           Registrar entrega
         </label>
         <p className="text-xs text-tinta2 mb-2">
-          Escribe el nombre de la persona que recibió el material. Este nombre quedará impreso en la requisición.
+          {pendientes > 0
+            ? `Todavía faltan ${pendientes} material(es) por comprar: esos NO entran al inventario ahora. Se suman solo los que ya están Gestionados, y puedes volver a registrar cuando llegue el resto.`
+            : "Se sumarán al inventario los materiales de esta requisición que falten por contar. Este nombre quedará impreso en la requisición."}
+        </p>
+        <p className="text-xs bg-superficie2 border border-borde rounded-md px-2.5 py-1.5 mb-3">
+          <strong className="font-medium">Se sumarán {porContar.length} material(es):</strong> {listaPorContar}
         </p>
         <input
           id="recibio"

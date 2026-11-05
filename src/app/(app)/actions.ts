@@ -22,6 +22,11 @@ import { leerImagenAdjunta, subirImagenMaterial, borrarImagenMaterial } from "@/
 import { borrarAdjunto } from "@/lib/adjuntos";
 import { normalizarUnidad } from "@/lib/unidades";
 import {
+  esEstadoGestion,
+  ETIQUETAS_GESTION,
+  type EstadoGestion,
+} from "@/lib/estado-gestion";
+import {
   datosRenglon,
   deshacerSubidas,
   leerItems as leerItemsDelFormulario,
@@ -52,6 +57,24 @@ async function exigirPermiso(permiso: Permiso) {
   if (modulo && !puedeVerModulo(sesion.user.rol, sesion.user.modulosPermitidos, modulo)) {
     throw new Error("No tienes acceso al módulo requerido para esta acción.");
   }
+  return sesion;
+}
+
+/** Exige al menos uno de varios permisos (cada uno con su módulo). Sirve para
+ *  las acciones que viven en más de un módulo: los estados de compra se
+ *  editan igual desde Gestión y desde Compras, y un usuario puede tener
+ *  visible solo uno de los dos. */
+async function exigirAlgunPermiso(permisos: Permiso[]) {
+  const sesion = await sesionObligatoria();
+  const delRol = permisos.filter((permiso) => puede(sesion.user.rol, permiso));
+  if (!delRol.length) throw new Error("Tu rol no tiene permiso para esta acción.");
+
+  const visible = delRol.some((permiso) => {
+    const modulo = MODULO_DE_PERMISO[permiso];
+    return !modulo || puedeVerModulo(sesion.user.rol, sesion.user.modulosPermitidos, modulo);
+  });
+  if (!visible) throw new Error("No tienes acceso al módulo requerido para esta acción.");
+
   return sesion;
 }
 
@@ -573,10 +596,174 @@ export async function resolverOrden(id: number, nuevoEstado: "Aprobada" | "Recha
   revalidatePath(`/ordenes/${id}`);
 }
 
+/** Cambia el estado de compra de una fila de la consolidación: recibe los
+ *  ids de los renglones (detalle_orden) que forman la fila y les pone el
+ *  estado nuevo. Gestión y Compras ofrecen hoy los mismos dos estados
+ *  (Gestionado / Pendiente de Compra), así que se acepta desde cualquiera de
+ *  los dos módulos. "Entregado" ya no se ofrece en la interfaz: queda solo
+ *  para los renglones marcados antes y sigue exigiendo Compras.
+ *
+ *  Cuando con esto ya no queda ningún renglón Pendiente en una requisición,
+ *  esa requisición pasa sola a Recibida con la fecha de entrega. No toca el
+ *  inventario: la recepción formal (nombre de quien recibe y suma a la
+ *  existencia) la sigue registrando el sub administrador desde la requisición. */
+export async function actualizarEstadoGestion(
+  lineaIds: number[],
+  nuevoEstado: EstadoGestion,
+): Promise<{ error?: string }> {
+  const sesion = await exigirAlgunPermiso(
+    nuevoEstado === "Entregado" ? ["compras.editar"] : ["consolidacion.editar", "compras.editar"],
+  );
+
+  if (!esEstadoGestion(nuevoEstado)) return { error: "Ese estado no existe." };
+  if (!Array.isArray(lineaIds) || !lineaIds.length || !lineaIds.every((id) => Number.isInteger(id))) {
+    return { error: "No se pudieron identificar los renglones a actualizar." };
+  }
+
+  const lineas = await prisma.detalleOrden.findMany({
+    where: { id: { in: lineaIds } },
+    include: {
+      orden: { select: { id: true, folio: true, estado: true } },
+      material: { select: { nombre: true } },
+    },
+  });
+  if (!lineas.length) return { error: "Esos renglones ya no existen." };
+
+  // Solo se gestiona lo que sigue aprobado: una requisición rechazada no pasa
+  // por Gestión y una cerrada ya no vuelve atrás. Además, un renglón que YA
+  // entró al inventario no se puede volver a dejar "Pendiente de Compra": ya
+  // está en bodega y eso dejaría la requisición sin poder cerrarse.
+  const editables = lineas.filter(
+    (l) => l.orden.estado === "Aprobada" && !(l.inventariado && nuevoEstado === "Pendiente"),
+  );
+  if (!editables.length) {
+    const yaContado = nuevoEstado === "Pendiente" && lineas.some((l) => l.inventariado);
+    return {
+      error: yaContado
+        ? "Ese material ya entró al inventario: su estado ya no se puede dejar como Pendiente de Compra."
+        : "Solo se puede cambiar el estado de los materiales de requisiciones aprobadas.",
+    };
+  }
+
+  const ids = editables.map((l) => l.id);
+  const ordenIds = [...new Set(editables.map((l) => l.orden.id))];
+  const folios = [...new Set(editables.map((l) => l.orden.folio))];
+  const materiales = [...new Set(editables.map((l) => l.material.nombre))];
+  const cerradas: string[] = [];
+
+  await prisma.$transaction(async (tx) => {
+    await tx.detalleOrden.updateMany({
+      where: { id: { in: ids } },
+      data: { estadoGestion: nuevoEstado },
+    });
+
+    // Una requisición queda "alimentada" cuando ya no tiene ningún renglón
+    // pendiente de compra (Gestionado y ENTREGADO cuentan como resueltos):
+    // sola pasa a Recibida. La suma al inventario NO pasa aquí: la registra
+    // el sub administrador (recibidoPorTxt queda vacío hasta entonces).
+    for (const ordenId of ordenIds) {
+      const renglones = await tx.detalleOrden.findMany({
+        where: { ordenId },
+        select: { estadoGestion: true },
+      });
+      if (!renglones.length || !renglones.every((r) => r.estadoGestion !== "Pendiente")) continue;
+
+      const orden = await tx.ordenCompra.findUnique({
+        where: { id: ordenId },
+        select: { estado: true, folio: true },
+      });
+      if (orden?.estado !== "Aprobada") continue;
+
+      await tx.ordenCompra.update({
+        where: { id: ordenId },
+        data: { estado: "Recibida", fechaRecepcion: new Date() },
+      });
+      cerradas.push(orden.folio);
+    }
+  });
+
+  await registrarMovimiento({
+    usuarioId: Number(sesion.user.id),
+    modulo: nuevoEstado === "Entregado" ? "Compras" : "Gestión",
+    accion: `Marcó material como ${ETIQUETAS_GESTION[nuevoEstado]}`,
+    detalle:
+      `${folios.join(", ")} — ${materiales.join(", ")}` +
+      (cerradas.length ? ` — requisición(es) sin pendientes: ${cerradas.join(", ")}` : ""),
+  });
+
+  revalidatePath("/gestion");
+  revalidatePath("/compras");
+  revalidatePath("/ordenes");
+  for (const ordenId of ordenIds) revalidatePath(`/ordenes/${ordenId}`);
+  return {};
+}
+
+/** El solicitante confirma, producto por producto, que ya le llegó el material.
+ *
+ *  Es solo una marca informativa por renglón: NO suma al inventario ni cambia
+ *  el estado de la requisición (la recepción formal la sigue registrando el
+ *  sub administrador con "Registrar entrega"). Puede marcarlo únicamente el
+ *  solicitante de ESA requisición, y solo cuando ya esté aprobada o recibida:
+ *  no se recibe algo que todavía no se ha autorizado. */
+export async function confirmarReciboProducto(
+  lineaId: number,
+  confirmado: boolean,
+): Promise<{ error?: string }> {
+  const sesion = await sesionObligatoria();
+
+  if (!Number.isInteger(lineaId)) return { error: "No se pudo identificar el producto." };
+  if (typeof confirmado !== "boolean") return { error: "Marca no válida." };
+
+  const linea = await prisma.detalleOrden.findUnique({
+    where: { id: lineaId },
+    include: {
+      orden: { select: { id: true, folio: true, estado: true, solicitanteId: true } },
+      material: { select: { nombre: true } },
+    },
+  });
+  if (!linea) return { error: "Ese producto ya no existe en la requisición." };
+
+  if (linea.orden.solicitanteId !== Number(sesion.user.id)) {
+    return { error: "Solo el solicitante de esta requisición puede confirmar la recepción de sus productos." };
+  }
+
+  const estado = linea.orden.estado;
+  if (estado !== "Aprobada" && estado !== "Recibida") {
+    return {
+      error:
+        estado === "Rechazada"
+          ? "Esta requisición fue rechazada: no se puede confirmar la recepción."
+          : "Este producto se puede marcar como recibido cuando la requisición esté aprobada.",
+    };
+  }
+
+  await prisma.detalleOrden.update({
+    where: { id: linea.id },
+    data: confirmado
+      ? { recibidoSolicitante: true, recibidoSolicitanteEn: new Date() }
+      : { recibidoSolicitante: false, recibidoSolicitanteEn: null },
+  });
+
+  await registrarMovimiento({
+    usuarioId: Number(sesion.user.id),
+    modulo: "Requisiciones",
+    accion: confirmado ? "Marcó producto como recibido" : "Dejó de marcar un producto como recibido",
+    detalle: `${linea.orden.folio} — ${linea.material.nombre}`,
+  });
+
+  revalidatePath("/ordenes");
+  revalidatePath(`/ordenes/${linea.orden.id}`);
+  return {};
+}
+
 /** Registra la entrega de una requisición aprobada. Solo la recibe el sub
  *  administrador (único rol con "ordenes.recibir") y escribe el nombre de la
  *  persona que tomó el material: no siempre tiene cuenta en el sistema, así
- *  que se guarda como texto y es lo que aparece impreso en la hoja. */
+ *  que se guarda como texto y es lo que aparece impreso en la hoja.
+ *
+ *  También sirve cuando la requisición ya está en Recibida porque el módulo
+ *  Compras marcó todos sus materiales como ENTREGADOS: ahí solo falta el
+ *  nombre de quien recibió y la suma al inventario. */
 export async function recibirOrden(id: number, recibioTxt: string) {
   const sesion = await exigirPermiso("ordenes.recibir");
   const nombre = String(recibioTxt || "").trim();
@@ -588,35 +775,65 @@ export async function recibirOrden(id: number, recibioTxt: string) {
     where: { id },
     include: { items: true },
   });
-  if (orden.estado !== "Aprobada") {
-    throw new Error("Solo se puede marcar como recibida una requisición aprobada.");
+  // Aprobada: entrega normal (total o parcial). Recibida: los productos se
+  // resolvieron desde Gestión/Compras y todavía puede faltar contarlos.
+  if (orden.estado !== "Aprobada" && orden.estado !== "Recibida") {
+    throw new Error("Solo se puede registrar la entrega de una requisición aprobada.");
   }
 
+  // Solo entra a la existencia lo que ya se resolvió —Gestionado o
+  // ENTREGADO— y todavía no se había contado. Lo que sigue "Pendiente de
+  // Compra" no ha llegado, y lo ya contado no se suma dos veces: así se
+  // puede registrar la entrega por partes.
+  const porContar = orden.items.filter((it) => it.estadoGestion !== "Pendiente" && !it.inventariado);
+  if (!porContar.length) {
+    throw new Error(
+      "No hay productos que sumar al inventario: lo que sigue pendiente de compra todavía no ha llegado.",
+    );
+  }
+
+  // La requisición se cierra cuando ya no queda ningún renglón pendiente de
+  // compra. Mientras falte uno, se queda Aprobada para poder registrar el
+  // resto más tarde (y para que lo pendiente siga visible en Compras).
+  const quedanPendientes = orden.items.some((it) => it.estadoGestion === "Pendiente");
+
   await prisma.$transaction([
-    ...orden.items.map((it) =>
+    ...porContar.map((it) =>
       prisma.material.update({
         where: { id: it.materialId },
         data: { existencia: { increment: it.cantidad } },
       })
     ),
+    prisma.detalleOrden.updateMany({
+      where: { id: { in: porContar.map((it) => it.id) } },
+      data: { inventariado: true, inventariadoEn: new Date() },
+    }),
     prisma.ordenCompra.update({
       where: { id },
       data: {
-        estado: "Recibida",
-        fechaRecepcion: new Date(),
+        // Una entrega parcial no cierra la requisición.
+        estado: quedanPendientes ? orden.estado : "Recibida",
+        // La fecha se pone al cerrar: si aún falta material, todavía no es la
+        // recepción completa (lo parcial queda en la bitácora).
+        fechaRecepcion: quedanPendientes ? orden.fechaRecepcion : (orden.fechaRecepcion ?? new Date()),
         recibidoPorId: Number(sesion.user.id),
         recibidoPorTxt: nombre,
       },
     }),
   ]);
 
+  const pendientes = orden.items.filter((it) => it.estadoGestion === "Pendiente").length;
   await registrarMovimiento({
     usuarioId: Number(sesion.user.id), modulo: "Inventario", accion: "Recibió materiales",
-    detalle: `${orden.folio} — recibió ${nombre} — se sumaron ${orden.items.length} material(es) a la existencia`,
+    detalle:
+      `${orden.folio} — recibió ${nombre} — se sumaron ${porContar.length} material(es) a la existencia` +
+      (pendientes ? ` — quedan ${pendientes} pendiente(s) de compra sin contar` : ""),
   });
   revalidatePath("/ordenes");
   revalidatePath(`/ordenes/${id}`);
   revalidatePath("/materiales");
+  revalidatePath("/gestion");
+  revalidatePath("/compras");
   revalidatePath("/");
 }
 

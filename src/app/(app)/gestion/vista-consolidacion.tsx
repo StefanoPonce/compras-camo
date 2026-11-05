@@ -7,46 +7,15 @@ import {
   FILTROS_CONSOLIDACION,
   normalizarFiltroConsolidacion,
   obtenerConsolidacion,
-  unidadesDe,
-  type OrdenConsolidacion,
 } from "@/lib/consolidacion";
 import { puede, puedeVerModulo } from "@/lib/permisos";
-import { etiquetaUnidad } from "@/lib/unidades";
+import { OPCIONES_GESTION } from "@/lib/estado-gestion";
 import BotonExportarExcel from "../boton-exportar-excel";
 import BotonImprimir from "../reportes/boton-imprimir";
-import BotonRequisicionesMaterial, {
-  type RequisicionDelMaterial,
-} from "./boton-requisiciones-material";
+import TablaConsolidacion from "./tabla-consolidacion";
 
 function numero(n: number) {
   return n.toLocaleString("es-HN");
-}
-
-function fechaCorta(d: Date) {
-  return new Date(d).toLocaleDateString("es-HN", { day: "2-digit", month: "short", year: "numeric" });
-}
-
-/** Las requisiciones del grupo que solicitan este material, con lo que pide
- *  cada una: es la lista que abre el botón del renglón y coincide con los
- *  folios de la columna "Origen". */
-function requisicionesDelMaterial(
-  ordenes: OrdenConsolidacion[],
-  materialId: number,
-): RequisicionDelMaterial[] {
-  return ordenes
-    .filter((orden) => orden.items.some((renglon) => renglon.material.id === materialId))
-    .map((orden) => {
-      const renglon = orden.items.find((r) => r.material.id === materialId)!;
-      return {
-        id: orden.id,
-        folio: orden.folio,
-        fecha: fechaCorta(orden.fecha),
-        estado: orden.estado,
-        solicitante: orden.solicitante.nombre,
-        cantidad: renglon.cantidad,
-        unidad: etiquetaUnidad(renglon.unidad || renglon.material.unidad),
-      };
-    });
 }
 
 function Indicador({ valor, texto }: { valor: string | number; texto: string }) {
@@ -114,8 +83,11 @@ export default async function VistaConsolidacion({
           <div className="text-xs font-semibold uppercase tracking-wide text-verde mb-1">Módulo de gestión</div>
           <h2 className="text-xl font-sora font-semibold">Consolidación de compras</h2>
           <p className="text-tinta2 text-sm mt-1 max-w-[68ch]">
-            Reúne las requisiciones por proveedor para revisar y preparar una compra consolidada. Esta vista no modifica
-            ni elimina las requisiciones originales.
+            Reúne las requisiciones aprobadas por proveedor para revisar y preparar una compra consolidada. En la
+            columna <strong className="text-tinta">Estado</strong> marcas cada material como{" "}
+            <strong className="text-tinta">Gestionado</strong> o{" "}
+            <strong className="text-tinta">Pendiente de Compra</strong>: lo que queda pendiente pasa al módulo
+            Compras. Esta vista no modifica ni elimina las requisiciones originales.
           </p>
         </div>
         <div className="ml-auto self-center flex gap-2 flex-wrap">
@@ -151,87 +123,7 @@ export default async function VistaConsolidacion({
       </div>
 
       {grupos.length ? (
-        <>
-          {grupos.map((grupo) => {
-            return (
-              <section key={grupo.proveedor?.id ?? "sin-proveedor"} className="tarjeta mb-4 overflow-hidden consolidacion-grupo">
-                <div className="p-4 border-b border-borde">
-                  <div className="flex items-start gap-3 flex-wrap">
-                    <div>
-                      {grupo.proveedor && (
-                        <h3 className="font-sora font-semibold text-lg">{grupo.proveedor.nombre}</h3>
-                      )}
-                      <p className="text-sm text-tinta2 mt-0.5">
-                        {grupo.proveedor?.codigo ? `${grupo.proveedor.codigo} · ` : ""}
-                        {grupo.ordenes.length} requisición(es) · {grupo.items.length} material(es) distinto(s)
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-1.5 flex-wrap mt-3 text-xs text-tinta2">
-                    <span>Requisiciones incluidas:</span>
-                    {grupo.ordenes.map((orden) => (
-                      <Link
-                        key={orden.id}
-                        href={`/ordenes/${orden.id}`}
-                        className="font-mono text-verde hover:underline"
-                      >
-                        {orden.folio}
-                      </Link>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="overflow-x-auto">
-                  <table className="w-full tabla" style={{ minWidth: 830 }}>
-                    <thead>
-                      <tr>
-                        <th>Material</th>
-                        <th>Unidad</th>
-                        <th className="text-right">Cantidad consolidada</th>
-                        {/* Columna solo en pantalla: en papel no hay botones que
-                            presionar, y la lista se ve en los folios de Origen. */}
-                        <th className="no-imprimir">Requisiciones</th>
-                        <th>Origen</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {grupo.items.map((item) => {
-                        const folios = [...item.folios];
-                        const requisiciones = requisicionesDelMaterial(grupo.ordenes, item.material.id);
-                        return (
-                          <tr key={item.material.id}>
-                            <td>
-                              <strong>{item.material.nombre}</strong>
-                              <div className="text-xs text-tinta2 font-mono mt-0.5">{item.material.codigo}</div>
-                            </td>
-                            <td>{unidadesDe(item.unidades)}</td>
-                            <td className="text-right font-semibold">{numero(item.cantidad)}</td>
-                            <td className="no-imprimir">
-                              <BotonRequisicionesMaterial
-                                material={{ nombre: item.material.nombre, codigo: item.material.codigo }}
-                                requisiciones={requisiciones}
-                              />
-                            </td>
-                            <td>
-                              {folios.length > 1 ? (
-                                <span className="etiqueta et-pendiente">En {folios.length} requisiciones</span>
-                              ) : (
-                                <span className="font-mono text-xs">{folios.join(", ")}</span>
-                              )}
-                              {folios.length > 1 && (
-                                <div className="text-xs text-tinta2 font-mono mt-1">{folios.join(", ")}</div>
-                              )}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              </section>
-            );
-          })}
-        </>
+        <TablaConsolidacion grupos={grupos} opciones={OPCIONES_GESTION} />
       ) : (
         <div className="tarjeta p-10 text-center text-tinta2">
           No hay requisiciones {filtro === "aprobadas" ? "aprobadas" : filtro === "pendientes" ? "pendientes" : "pendientes o aprobadas"} para consolidar con este filtro.
