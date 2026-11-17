@@ -3,8 +3,9 @@
 --
 -- Es lo que permite que Gestión marque cada material como gestionado o
 -- pendiente de compra, que Compras recoja los pendientes y que al marcar
--- ENTREGADO la requisición se alimente sola (cuando todos sus renglones
--- quedan Entregados, la requisición pasa a Recibida).
+-- ENTREGADO se sepa qué material ya llegó. La requisición entera ya no se
+-- cierra sola: en pantalla se ve "Pendiente a recibir" y pasa a "Recibido"
+-- cuando el solicitante confirma todos sus productos.
 --
 -- Ejecutar con:
 --   npx prisma db execute --file prisma/migracion-estado-gestion.sql --schema prisma/schema.prisma

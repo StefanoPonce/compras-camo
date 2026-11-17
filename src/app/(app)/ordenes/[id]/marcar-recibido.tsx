@@ -2,10 +2,12 @@
 // Confirmación de recibo, producto por producto, hecha por el solicitante de
 // la requisición cuando ya le llegó el material.
 //
-// Es una marca informativa: NO suma al inventario ni cambia el estado de la
-// requisición (eso lo registra el sub administrador con "Registrar entrega").
-// Por eso el botón solo aparece al solicitante de ESA requisición; los demás
-// solo ven si ya se confirmó.
+// Es una marca informativa: NO suma al inventario ni cambia el estado
+// guardado de la requisición (eso lo registra el sub administrador con
+// "Registrar entrega"), pero de ella depende la etiqueta que se muestra:
+// mientras falte alguna, la requisición se ve "Pendiente a recibir"; cuando
+// la tienen todos sus renglones, "Recibido". Por eso el botón solo aparece
+// al solicitante de ESA requisición; los demás solo ven si ya se confirmó.
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { confirmarReciboProducto } from "../../actions";
@@ -19,7 +21,9 @@ type Props = {
   confirmado: boolean;
   /** Fecha de la confirmación ya formateada; null si no hay. */
   fecha: string | null;
-  /** true solo para el solicitante de esta requisición y si ya está enviada. */
+  /** true solo para el solicitante de esta requisición, si ya está enviada y
+   *  el producto ya está gestionado o comprado (o ya lo marcó antes, para
+   *  poder deshacer). */
   puedeMarcar: boolean;
 };
 
@@ -32,7 +36,8 @@ export default function MarcarRecibido({ lineaId, material, confirmado, fecha, p
     if (nuevo) {
       const ok = window.confirm(
         `¿Confirmar que ya recibiste "${material}"?\n\n` +
-          `Es solo el registro de que te llegó: no modifica el inventario ni el estado de la requisición.`,
+          `Es solo el registro de que te llegó: no modifica el inventario ni el estado guardado de la requisición.\n` +
+          `Cuando confirmes todos los productos, la requisición se mostrará como "Recibido".`,
       );
       if (!ok) return;
     }

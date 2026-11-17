@@ -35,9 +35,10 @@ enum EstadoOrden {
 // Estado de compra de un renglón de requisición. Lo elige quien gestiona:
 //   Pendiente   → Pendiente de Compra (nace así y pasa al módulo Compras)
 //   Gestionado  → ya se resolvió por fuera, no necesita compra
-//   Entregado   → lo puso Compras cuando llegó el material; cuando TODOS los
-//                 renglones de una requisición quedan Entregados, la
-//                 requisición sola pasa a Recibida (ver actions.ts)
+//   Entregado   → lo puso Compras cuando llegó el material; no cierra la
+//                 requisición: en pantalla pasa a verse "Pendiente a
+//                 recibir" y a "Recibido" cuando el solicitante confirma
+//                 todos sus productos (ver src/lib/estado-gestion.ts)
 enum EstadoGestion {
   Pendiente
   Gestionado
@@ -221,13 +222,38 @@ model DetalleOrden {
   // Gestionado o Pendiente de Compra y en Compras se agrega Entregado. Es por
   // renglón (no por material) para que cada requisición lleve su propio
   // avance y pueda alimentarse sola.
+  //
+  // Es el RESUMEN de cantidadGestionada: "Gestionado" cuando esa cifra llegó
+  // a `cantidad`, "Pendiente" mientras quede algo por comprar.
   estadoGestion EstadoGestion @default(Pendiente)
 
+  // Cuántas unidades de ESTE renglón ya se gestionaron: de 0 a `cantidad`.
+  // Existe para poder partir un renglón a la mitad —por ejemplo, 2 CAFÉ
+  // MOLIDO de los cuales solo 1 ya se gestionó y el otro sigue en proceso de
+  // compra— cosa que estadoGestion solo no puede decir, porque ese es uno por
+  // renglón. La suma de las unidades gestionadas de todos los renglones es lo
+  // que muestran Gestión y Compras en "Cantidad consolidada".
+  //
+  // Rellénese en el despliegue para los renglones que ya están gestionados o
+  // entregados (de lo contrario aparecerían otra vez como pendientes).
+  cantidadGestionada Int @default(0)
+
+  // Cuántas unidades de ESTE renglón ya COMPRO el módulo Compras: de 0 a
+  // `cantidad` y sin pisar lo que Gestión ya gestionó. Contador aparte a
+  // propósito: si Gestión gestionó 1 de 2 CAFÉ MOLIDO y Compras compra la
+  // otra, la fila queda "Gestionado: 1 · Entregado: 1" en vez de perder la
+  // mitad que se resolvió desde Gestión. La suma de los dos contadores nunca
+  // pasa de `cantidad` (el módulo lo recorta al guardar).
+  cantidadComprada Int @default(0)
+
   // El solicitante confirma, producto por producto, que ya le llegó el
-  // material. Es una marca informativa: NO toca el inventario ni cambia el
-  // estado de la requisición (la recepción formal con la suma a la existencia
-  // la sigue registrando el sub administrador con "Registrar entrega"). Solo
-  // la pone el solicitante de ESTA requisición.
+  // material. NO toca el inventario ni el estado guardado de la requisición
+  // (la recepción formal con la suma a la existencia la sigue registrando el
+  // sub administrador con "Registrar entrega"), pero sí manda en la etiqueta
+  // que se muestra: "Pendiente a recibir" mientras falte alguna confirmación
+  // y "Recibido" cuando todos los renglones la tengan (estadoVisibleDe en
+  // src/lib/estado-gestion.ts). Solo la pone el solicitante de ESTA
+  // requisición.
   recibidoSolicitante   Boolean   @default(false)
   // Cuándo la puso: queda vacío mientras no se haya confirmado.
   recibidoSolicitanteEn DateTime?

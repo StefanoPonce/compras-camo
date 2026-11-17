@@ -2,11 +2,10 @@ import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { puede, puedeVerModulo } from "@/lib/permisos";
-import { fecha, hoy, obtenerReporte, primerDiaDelMes } from "@/lib/reportes";
+import { fecha, hoy, etiquetaFiltro, obtenerReporte, primerDiaDelMes } from "@/lib/reportes";
 import BotonImprimir from "./boton-imprimir";
 import BotonExportarExcel from "../boton-exportar-excel";
-import Image from "next/image";
-
+import EncabezadoImpresion from "../encabezado-impresion";
 
 export default async function Reportes({
   searchParams,
@@ -39,31 +38,17 @@ export default async function Reportes({
     unidadesCompradas,
   } = await obtenerReporte({ desde, hasta, estado: estadoParam });
 
-  const generado = new Date().toLocaleString("es-HN", {
-    day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit",
-  });
-
   return (
     <>
-      <div className="hidden solo-impresion mb-6">
-           <div className="flex justify-center mb-1">
-                       <Image
-                          src="/logo-camo.png"
-                          alt="Logo Fundación CAMO"
-                          width={150}
-                          height={150}
-                          priority
-                        />
-                     </div>
-        <div className="text-lg font-sora font-semibold">Fundación CAMO</div>
-        <div className="text-tinta2 text-sm">
-          {esGestionado ? "Reporte de gestión de compras" : "Reporte de insumos comprados"}
-        </div>
-        <div className="text-tinta2 text-xs mt-1">
-          Del {fecha(desde)} al {fecha(hasta)} · Generado el {generado} por {sesion.user.name}
-        </div>
-        <hr className="my-3 border-borde" />
-      </div>
+      {/* Encabezado impreso: banner de CAMO y, debajo, de qué se trata el
+          reporte, con qué filtros se armó y quién lo sacó. No se ve en
+          pantalla; aparece al imprimir o al guardar como PDF. */}
+      <EncabezadoImpresion
+        titulo={esGestionado ? "Reporte de gestión de compras" : "Reporte de insumos comprados"}
+        descripcion={`Del ${fecha(desde)} al ${fecha(hasta)}`}
+        filtros={etiquetaFiltro(estadoParam)}
+        usuario={sesion.user.name || sesion.user.usuario || undefined}
+      />
 
       <div className="flex items-start gap-3 flex-wrap mb-4 no-imprimir">
         <div>

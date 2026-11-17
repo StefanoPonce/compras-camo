@@ -8,13 +8,15 @@
 // lo que se ve en la ventana coincide con lo que se imprime en el consolidado.
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { CLASE_ESTADO, type EstadoVisible } from "@/lib/estado-gestion";
 
 export type RequisicionDelMaterial = {
   id: number;
   folio: string;
   /** Fecha ya formateada en el servidor (es-HN). */
   fecha: string;
-  estado: string;
+  /** Estado calculado de la requisición entera (ver estadoVisibleDe). */
+  estado: EstadoVisible;
   solicitante: string;
   /** Lo que pide esta requisición de este material (no la suma consolidada). */
   cantidad: number;
@@ -136,7 +138,7 @@ export default function BotonRequisicionesMaterial({ material, requisiciones }: 
                         <span className="text-tinta2">{req.unidad}</span>
                       </td>
                       <td>
-                        <span className={"etiqueta et-" + req.estado.toLowerCase()}>{req.estado}</span>
+                        <span className={"etiqueta " + CLASE_ESTADO[req.estado]}>{req.estado}</span>
                       </td>
                     </tr>
                   ))}

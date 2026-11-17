@@ -9,13 +9,14 @@ import {
   type GrupoConsolidado,
   type OrdenConsolidacion,
 } from "@/lib/consolidacion";
-import { estadoDeFila, type EstadoGestion } from "@/lib/estado-gestion";
+import DesgloseCantidades from "../desglose-cantidades";
 import { etiquetaUnidad } from "@/lib/unidades";
+import { estadoVisibleDe } from "@/lib/estado-gestion";
 
 /** Columnas, en el orden que piden Gestión y Compras:
  *  Fecha · Imagen · Código · Material · Categoría · Unidad · Cantidad
- *  consolidada · Origen · Estado (y al final, solo en pantalla, el botón que
- *  abre la lista de requisiciones del material). */
+ *  consolidada · Origen · Cantidad gestionada/comprada (y al final, solo en
+ *  pantalla, el botón que abre la lista de requisiciones del material). */
 function fecha(d: Date) {
   return new Date(d).toLocaleDateString("es-HN", { day: "2-digit", month: "short", year: "numeric" });
 }
@@ -39,7 +40,9 @@ function requisicionesDelMaterial(
         id: orden.id,
         folio: orden.folio,
         fecha: fecha(orden.fecha),
-        estado: orden.estado,
+        // Se calcula con TODOS los renglones de la requisición (no solo los
+        // de este material), igual que en la lista de requisiciones.
+        estado: estadoVisibleDe(orden.estado, orden.items),
         solicitante: orden.solicitante.nombre,
         cantidad: renglon.cantidad,
         unidad: etiquetaUnidad(renglon.unidad || renglon.material.unidad),
@@ -49,13 +52,16 @@ function requisicionesDelMaterial(
 
 export default function TablaConsolidacion({
   grupos,
-  opciones,
+  campo,
 }: {
   grupos: GrupoConsolidado[];
-  /** Estados que deja elegir la columna Estado (los de Gestión o los de Compras). */
-  opciones: EstadoGestion[];
+  /** Qué contador lleva la columna "Estado": el de Gestión
+   *  ("Cantidad gestionada") o el de Compras ("Cantidad comprada"). */
+  campo: "gestionada" | "comprada";
 }) {
   if (!grupos.length) return null;
+
+  const tituloCantidad = campo === "comprada" ? "Cantidad comprada" : "Cantidad gestionada";
 
   return (
     <>
@@ -91,7 +97,7 @@ export default function TablaConsolidacion({
           </div>
 
           <div className="overflow-x-auto">
-            <table className="w-full tabla" style={{ minWidth: 1040 }}>
+            <table className="w-full tabla" style={{ minWidth: 1120 }}>
               <thead>
                 <tr>
                   <th>Fecha</th>
@@ -102,7 +108,7 @@ export default function TablaConsolidacion({
                   <th>Unidad</th>
                   <th className="text-right">Cantidad consolidada</th>
                   <th>Origen</th>
-                  <th>Estado</th>
+                  <th>{tituloCantidad}</th>
                   {/* Columna solo en pantalla: en papel no hay botones que
                       presionar, y la lista se ve en los folios de Origen. */}
                   <th className="no-imprimir">Requisiciones</th>
@@ -112,7 +118,6 @@ export default function TablaConsolidacion({
                 {grupo.items.map((item) => {
                   const folios = [...item.folios];
                   const requisiciones = requisicionesDelMaterial(grupo.ordenes, item.material.id);
-                  const estado = estadoDeFila(item.estados);
                   return (
                     <tr key={item.material.id}>
                       <td className="whitespace-nowrap">{fecha(item.fecha)}</td>
@@ -129,8 +134,15 @@ export default function TablaConsolidacion({
                       </td>
                       <td className="[overflow-wrap:anywhere]">{item.material.categoria}</td>
                       <td>{unidadesDe(item.unidades)}</td>
-                      <td className="text-right font-semibold whitespace-nowrap">
+                      {/* La cifra grande es lo total; debajo, en qué estado
+                          del ciclo está cada unidad de eso (gestionado,
+                          comprado o todavía en proceso). Sin
+                          whitespace-nowrap a propósito: el desglose es texto
+                          largo y tiene que poder envolverse dentro de la
+                          columna. */}
+                      <td className="text-right font-semibold">
                         {numero(item.cantidad)}
+                        <DesgloseCantidades cantidades={item.cantidades} className="mt-0.5" />
                       </td>
                       <td>
                         {folios.length > 1 ? (
@@ -145,9 +157,10 @@ export default function TablaConsolidacion({
                       <td>
                         <SelectorEstadoGestion
                           lineaIds={item.lineaIds}
-                          estado={estado}
-                          opciones={opciones}
                           material={item.material.nombre}
+                          titulo={tituloCantidad}
+                          campo={campo}
+                          cantidades={item.cantidades}
                         />
                       </td>
                       <td className="no-imprimir">

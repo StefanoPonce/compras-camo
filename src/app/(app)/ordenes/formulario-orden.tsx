@@ -1,10 +1,11 @@
 "use client";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useFormState, useFormStatus } from "react-dom";
 import type { EstadoForm } from "../actions";
 import ImagenMaterial from "../imagen-material";
 import AdjuntoRenglon from "./adjunto-renglon";
 import { PROGRAMAS } from "@/lib/programas";
+import { DEPENDENCIAS, textoDependencia } from "@/lib/dependencias";
 import { UNIDADES, etiquetaUnidad, normalizarUnidad } from "@/lib/unidades";
 
 type MaterialOrden = {
@@ -177,6 +178,32 @@ export default function FormularioOrden({ accion, materiales, proveedores, inici
   function agregar() { setLineas((p) => [...p, lineaVacia()]); }
   function quitar(i: number) { setLineas((p) => (p.length > 1 ? p.filter((_, idx) => idx !== i) : p)); }
 
+  // La lista desplegable va en orden alfabético del nombre, en español y sin
+  // distinguir mayúsculas ni tildes: "agua" antes que "Agua de 12 onz" antes
+  // que "Te". El servidor ya la trae ordenada por nombre, pero esa ordenación
+  // la hace la base de datos con su propia regla; aquí se reordena para que el
+  // resultado no dependa del idioma del servidor.
+  //
+  // El catálogo trae 12 parejas de productos con el mismo nombre y código
+  // distinto: a esos se les agrega el código entre paréntesis, para que se
+  // pueda distinguir cuál se eligió. El resto se muestra solo con su nombre.
+  const materialesOrdenados = useMemo(() => {
+    const repetidos = new Set<string>();
+    const vistos = new Set<string>();
+    for (const m of materiales) {
+      const clave = m.nombre.toLocaleLowerCase("es");
+      if (vistos.has(clave)) repetidos.add(clave);
+      vistos.add(clave);
+    }
+
+    return [...materiales].sort((a, b) =>
+      a.nombre.localeCompare(b.nombre, "es", { sensitivity: "base" }),
+    ).map((m) => {
+      const clave = m.nombre.toLocaleLowerCase("es");
+      return { ...m, etiqueta: repetidos.has(clave) ? `${m.nombre} (${m.codigo})` : m.nombre };
+    });
+  }, [materiales]);
+
   // Sin importes: el resumen es la suma de unidades pedidas.
   const unidades = lineas.reduce((s, l) => s + Number(l.cantidad || 0), 0);
   const elegidos = lineas.filter((l) => l.materialId).length;
@@ -193,14 +220,17 @@ export default function FormularioOrden({ accion, materiales, proveedores, inici
           <label className="block text-sm text-tinta2 mb-1.5 font-medium">Dependencia</label>
           <select className="campo-input" name="dependencia" required defaultValue={inicial?.dependencia || ""}>
             <option value="">Selecciona una dependencia…</option>
-            <option value="direccion">Dirección</option>
-            <option value="subdireccion">Subdirección</option>
-            <option value="gerente financiero">Gerente Financiero</option>
-            <option value="gerente educacion y talento humano">Gerente Educación y Talento Humano</option>
-            <option value="gerente mercadeo">Gerente Mercadeo</option>
-            <option value="gerente biomedica">Gerente Biomédica</option>
-            <option value="gerente operaciones">Gerente Operaciones</option>
-            <option value="gerente salud">Gerente Salud</option>
+            {DEPENDENCIAS.map((d) => (
+              <option key={d.valor} value={d.valor}>
+                {d.etiqueta}
+              </option>
+            ))}
+            {/* Una dependencia vieja que no está en el catálogo (requisiciones
+                guardadas con texto libre): se muestra igual para no perderla al
+                volver a guardar. */}
+            {inicial?.dependencia && !DEPENDENCIAS.some((d) => d.valor === inicial.dependencia) && (
+              <option value={inicial.dependencia}>{textoDependencia(inicial.dependencia)}</option>
+            )}
           </select>
         </div>
         {/* El área que pide el material: texto libre, se muestra arriba de la
@@ -256,9 +286,9 @@ export default function FormularioOrden({ accion, materiales, proveedores, inici
                 onChange={(e) => alElegirMaterial(i, e.target.value)}
               >
                 <option value="">Elige un material…</option>
-                {materiales.map((m) => (
+                {materialesOrdenados.map((m) => (
                   <option key={m.id} value={m.id}>
-                    {m.codigo} · {m.nombre}
+                    {m.etiqueta}
                   </option>
                 ))}
               </select>

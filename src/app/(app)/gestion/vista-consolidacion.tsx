@@ -9,7 +9,6 @@ import {
   obtenerConsolidacion,
 } from "@/lib/consolidacion";
 import { puede, puedeVerModulo } from "@/lib/permisos";
-import { OPCIONES_GESTION } from "@/lib/estado-gestion";
 import BotonExportarExcel from "../boton-exportar-excel";
 import BotonImprimir from "../reportes/boton-imprimir";
 import TablaConsolidacion from "./tabla-consolidacion";
@@ -84,10 +83,9 @@ export default async function VistaConsolidacion({
           <h2 className="text-xl font-sora font-semibold">Consolidación de compras</h2>
           <p className="text-tinta2 text-sm mt-1 max-w-[68ch]">
             Reúne las requisiciones aprobadas por proveedor para revisar y preparar una compra consolidada. En la
-            columna <strong className="text-tinta">Estado</strong> marcas cada material como{" "}
-            <strong className="text-tinta">Gestionado</strong> o{" "}
-            <strong className="text-tinta">Pendiente de Compra</strong>: lo que queda pendiente pasa al módulo
-            Compras. Esta vista no modifica ni elimina las requisiciones originales.
+            columna <strong className="text-tinta">Cantidad gestionada</strong> indicas cuántas unidades de cada
+            material ya se resolvieron: las que queden sin gestionar pasan al módulo Compras. Esta vista no modifica
+            ni elimina las requisiciones originales.
           </p>
         </div>
         <div className="ml-auto self-center flex gap-2 flex-wrap">
@@ -123,7 +121,7 @@ export default async function VistaConsolidacion({
       </div>
 
       {grupos.length ? (
-        <TablaConsolidacion grupos={grupos} opciones={OPCIONES_GESTION} />
+        <TablaConsolidacion grupos={grupos} campo="gestionada" />
       ) : (
         <div className="tarjeta p-10 text-center text-tinta2">
           No hay requisiciones {filtro === "aprobadas" ? "aprobadas" : filtro === "pendientes" ? "pendientes" : "pendientes o aprobadas"} para consolidar con este filtro.

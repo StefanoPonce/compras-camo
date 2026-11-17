@@ -6,7 +6,6 @@ import { obtenerConsolidacion, type GrupoConsolidado } from "@/lib/consolidacion
 import { puede, puedeVerModulo } from "@/lib/permisos";
 import {
   FILTROS_COMPRAS,
-  OPCIONES_COMPRA,
   coincideFiltro,
   estadoDeFila,
   normalizarFiltroEstadoCompras,
@@ -97,12 +96,13 @@ export default async function Compras({
           <div className="text-xs font-semibold uppercase tracking-wide text-verde mb-1">Módulo de compras</div>
           <h2 className="text-xl font-sora font-semibold">Compras</h2>
           <p className="text-tinta2 text-sm mt-1 max-w-[68ch]">
-            Materiales de las requisiciones aprobadas que quedaron{" "}
-            <strong className="text-tinta">Pendiente de Compra</strong> en Gestión. Cuando el material esté
-            resuelto (compra directa, bodega, etc.), márcalo como{" "}
-            <strong className="text-tinta">Gestionado</strong>: si la requisición ya no queda con nada
-            pendiente, pasa sola a Recibida y el sub administrador registra la entrega para sumarla al inventario
-            (solo lo Gestionado entra a bodega).
+            Materiales de las requisiciones aprobadas que siguen{" "}
+            <strong className="text-tinta">En proceso de compra</strong>. Anota en{" "}
+            <strong className="text-tinta">Cantidad comprada</strong> cuántas unidades ya se compraron: al
+            completarlas el material pasa a{" "}
+            <strong className="text-tinta">Entregado</strong>. Si la requisición ya no queda con nada
+            pendiente, pasa sola a Recibida y el sub administrador registra la entrega para sumarla al
+            inventario (lo gestionado y lo comprado entran a bodega).
           </p>
         </div>
       </div>
@@ -131,7 +131,7 @@ export default async function Compras({
       </div>
 
       {filtrados.length ? (
-        <TablaConsolidacion grupos={filtrados} opciones={OPCIONES_COMPRA} />
+        <TablaConsolidacion grupos={filtrados} campo="comprada" />
       ) : (
         <div className="tarjeta p-10 text-center text-tinta2">
           {enPendientes

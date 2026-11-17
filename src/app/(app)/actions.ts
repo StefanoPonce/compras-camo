@@ -596,17 +596,31 @@ export async function resolverOrden(id: number, nuevoEstado: "Aprobada" | "Recha
   revalidatePath(`/ordenes/${id}`);
 }
 
+// La requisición ya NO se cierra sola en "Recibida" cuando se resuelven todos
+// sus renglones: se queda "Aprobada". Lo que se muestra en pantalla
+// ("Pendiente a recibir" mientras falte confirmación y "Recibido" cuando el
+// solicitante confirma todos sus productos) se calcula con estadoVisibleDe()
+// de src/lib/estado-gestion.ts. La recepción formal con la suma a la
+// existencia sigue siendo de "Registrar entrega" (recibirOrden, más abajo).
+
 /** Cambia el estado de compra de una fila de la consolidación: recibe los
  *  ids de los renglones (detalle_orden) que forman la fila y les pone el
- *  estado nuevo. Gestión y Compras ofrecen hoy los mismos dos estados
- *  (Gestionado / Pendiente de Compra), así que se acepta desde cualquiera de
- *  los dos módulos. "Entregado" ya no se ofrece en la interfaz: queda solo
- *  para los renglones marcados antes y sigue exigiendo Compras.
+ *  estado nuevo, con el contador que le corresponde (Gestionado →
+ *  cantidadGestionada, Entregado → cantidadComprada, Pendiente → ninguno de
+ *  los dos). "Entregado" sigue exigiendo Compras.
  *
  *  Cuando con esto ya no queda ningún renglón Pendiente en una requisición,
- *  esa requisición pasa sola a Recibida con la fecha de entrega. No toca el
- *  inventario: la recepción formal (nombre de quien recibe y suma a la
- *  existencia) la sigue registrando el sub administrador desde la requisición. */
+ *  esa requisición se queda Aprobada (ya no se cierra sola): en pantalla pasa
+ *  a verse "Pendiente a recibir" y a "Recibido" cuando el solicitante
+ *  confirma todos sus productos (estadoVisibleDe). No toca el inventario: la
+ *  recepción formal (nombre de quien recibe y suma a la existencia) la sigue
+ *  registrando el sub administrador desde la requisición.
+ *
+ *  NOTA: hoy la columna Estado de la consolidación no llama a esta acción,
+ *  sino a actualizarCantidadGestionada y actualizarCantidadComprada, que
+ *  pueden dejar el renglón a la mitad. Esta sigue siendo la forma de mover
+ *  TODA la fila de una vez; si ya no se quiere ofrecer, se puede eliminar
+ *  junto con su llamada. */
 export async function actualizarEstadoGestion(
   lineaIds: number[],
   nuevoEstado: EstadoGestion,
@@ -645,40 +659,25 @@ export async function actualizarEstadoGestion(
     };
   }
 
-  const ids = editables.map((l) => l.id);
   const ordenIds = [...new Set(editables.map((l) => l.orden.id))];
   const folios = [...new Set(editables.map((l) => l.orden.folio))];
   const materiales = [...new Set(editables.map((l) => l.material.nombre))];
-  const cerradas: string[] = [];
 
   await prisma.$transaction(async (tx) => {
-    await tx.detalleOrden.updateMany({
-      where: { id: { in: ids } },
-      data: { estadoGestion: nuevoEstado },
-    });
-
-    // Una requisición queda "alimentada" cuando ya no tiene ningún renglón
-    // pendiente de compra (Gestionado y ENTREGADO cuentan como resueltos):
-    // sola pasa a Recibida. La suma al inventario NO pasa aquí: la registra
-    // el sub administrador (recibidoPorTxt queda vacío hasta entonces).
-    for (const ordenId of ordenIds) {
-      const renglones = await tx.detalleOrden.findMany({
-        where: { ordenId },
-        select: { estadoGestion: true },
+    // Se guarda junto el contador que le toca al estado. Gestionado y
+    // Entregado viven en columnas aparte (cantidadGestionada y
+    // cantidadComprada) para que lo que hace un módulo no borre lo que hizo
+    // el otro: así el desglose de "Cantidad consolidada" siempre suma lo
+    // mismo que la fila.
+    for (const l of editables) {
+      await tx.detalleOrden.update({
+        where: { id: l.id },
+        data: {
+          estadoGestion: nuevoEstado,
+          cantidadGestionada: nuevoEstado === "Gestionado" ? l.cantidad : 0,
+          cantidadComprada: nuevoEstado === "Entregado" ? l.cantidad : 0,
+        },
       });
-      if (!renglones.length || !renglones.every((r) => r.estadoGestion !== "Pendiente")) continue;
-
-      const orden = await tx.ordenCompra.findUnique({
-        where: { id: ordenId },
-        select: { estado: true, folio: true },
-      });
-      if (orden?.estado !== "Aprobada") continue;
-
-      await tx.ordenCompra.update({
-        where: { id: ordenId },
-        data: { estado: "Recibida", fechaRecepcion: new Date() },
-      });
-      cerradas.push(orden.folio);
     }
   });
 
@@ -686,9 +685,7 @@ export async function actualizarEstadoGestion(
     usuarioId: Number(sesion.user.id),
     modulo: nuevoEstado === "Entregado" ? "Compras" : "Gestión",
     accion: `Marcó material como ${ETIQUETAS_GESTION[nuevoEstado]}`,
-    detalle:
-      `${folios.join(", ")} — ${materiales.join(", ")}` +
-      (cerradas.length ? ` — requisición(es) sin pendientes: ${cerradas.join(", ")}` : ""),
+    detalle: `${folios.join(", ")} — ${materiales.join(", ")}`,
   });
 
   revalidatePath("/gestion");
@@ -698,13 +695,185 @@ export async function actualizarEstadoGestion(
   return {};
 }
 
+/** Guarda cuántas unidades de una fila de la consolidación lleva UN contador
+ *  —el de Gestión o el de Compras— y devuelve cuánto queda en la fila
+ *  después de guardar. Comparten el cuerpo porque las reglas son las mismas;
+ *  lo único que cambia es la columna que escriben (cantidadGestionada o
+ *  cantidadComprada) y los permisos que lo permiten.
+ *
+ *  Esto permite partir la fila a la mitad: si CAFÉ MOLIDO se pidió 2
+ *  unidades y solo una ya se resolvió, se guarda 1 y la otra sigue en
+ *  proceso de compra. A diferencia de actualizarEstadoGestion, que pone TODO
+ *  el renglón en un estado.
+ *
+ *  Las unidades se reparten en orden sobre los renglones de la fila (el más
+ *  viejo primero) hasta completar lo pedido. Cada renglón solo admite lo que
+ *  le falta por resolver —la cantidad pedida menos lo que ya traen LOS DOS
+ *  contadores— así que lo gestionado no se puede gestionar otra vez ni lo
+ *  comprado comprar otra vez, y un renglón ya inventariado conserva su valor.
+ *  Si parte de las unidades está en renglones que no se mueven (requisición
+ *  aún no aprobada), la fila puede terminar con menos unidades de las que se
+ *  pidieron: el valor que se muestra siempre es el que quedó guardado y el
+ *  cliente avisa cuando dio menos. */
+async function guardarConteo(
+  campo: "gestionada" | "comprada",
+  permisos: Permiso[],
+  lineaIds: number[],
+  cantidad: number,
+): Promise<{ error?: string; aplicadas?: number }> {
+  const sesion = await exigirAlgunPermiso(permisos);
+
+  if (!Number.isInteger(cantidad) || cantidad < 0) {
+    return {
+      error: campo === "comprada" ? "La cantidad comprada no es válida." : "La cantidad gestionada no es válida.",
+    };
+  }
+  if (!Array.isArray(lineaIds) || !lineaIds.length || !lineaIds.every((id) => Number.isInteger(id))) {
+    return { error: "No se pudieron identificar los renglones a actualizar." };
+  }
+
+  const lineas = await prisma.detalleOrden.findMany({
+    where: { id: { in: lineaIds } },
+    include: {
+      orden: { select: { id: true, folio: true, estado: true } },
+      material: { select: { nombre: true } },
+    },
+  });
+  if (!lineas.length) return { error: "Esos renglones ya no existen." };
+
+  // Solo se registra lo que sigue aprobado, igual que con el selector.
+  const editables = lineas
+    .filter((l) => l.orden.estado === "Aprobada")
+    // El más viejo primero, que es como se reparte: así marcar "1 de 2"
+    // significa siempre lo mismo (se resuelve lo que se pidió hace más
+    // tiempo) sin depender del orden en que la base devuelva los renglones.
+    .sort((a, b) => a.id - b.id);
+  if (!editables.length) {
+    return { error: "Solo se puede registrar en los materiales de requisiciones aprobadas." };
+  }
+
+  const cambios: { id: number; gestionadas: number; compradas: number; completa: boolean }[] = [];
+  const finales = new Map<number, { gestionadas: number; compradas: number }>();
+  let resto = cantidad;
+  for (const l of editables) {
+    // Lo que el renglón ya trae en los DOS contadores, recortado al renglón
+    // por si una cifra guardada quedó fuera de rango.
+    const gestionadas = Math.min(Math.max(l.cantidadGestionada || 0, 0), l.cantidad);
+    const compradas = Math.min(Math.max(l.cantidadComprada || 0, 0), l.cantidad - gestionadas);
+    // Lo único que se puede registrar aquí es lo que falta por resolver de
+    // ESTE renglón: lo gestionado y lo comprado ya se contaron.
+    const disponibles = Math.max(l.cantidad - gestionadas - compradas, 0);
+    const bloqueado = Boolean(l.inventariado) || disponibles <= 0;
+
+    const nuevas = bloqueado
+      ? campo === "comprada"
+        ? compradas
+        : gestionadas
+      : Math.min(Math.max(resto, 0), disponibles);
+    if (!bloqueado) resto -= nuevas;
+
+    const gestionadasFinales = campo === "gestionada" ? nuevas : gestionadas;
+    const compradasFinales = campo === "comprada" ? nuevas : compradas;
+    finales.set(l.id, { gestionadas: gestionadasFinales, compradas: compradasFinales });
+    cambios.push({
+      id: l.id,
+      gestionadas: gestionadasFinales,
+      compradas: compradasFinales,
+      completa: gestionadasFinales + compradasFinales >= l.cantidad,
+    });
+  }
+
+  const ordenIds = [...new Set(editables.map((l) => l.orden.id))];
+  const folios = [...new Set(editables.map((l) => l.orden.folio))];
+  const materiales = [...new Set(editables.map((l) => l.material.nombre))];
+
+  await prisma.$transaction(async (tx) => {
+    for (const c of cambios) {
+      await tx.detalleOrden.update({
+        where: { id: c.id },
+        data: {
+          cantidadGestionada: c.gestionadas,
+          cantidadComprada: c.compradas,
+          // El estado es el resumen de los dos contadores: mientras quede
+          // algo por resolver sigue Pendiente, aunque ya tenga unidades
+          // gestionadas o compradas. Resuelto, queda Entregado si se compró
+          // algo y Gestionado si se resolvió solo con Gestión. Eso mantiene
+          // en pie las reglas de inventario, que se apoyan en el estado.
+          estadoGestion: c.completa
+            ? c.compradas > 0
+              ? "Entregado"
+              : "Gestionado"
+            : "Pendiente",
+        },
+      });
+    }
+  });
+
+  await registrarMovimiento({
+    usuarioId: Number(sesion.user.id),
+    modulo: campo === "comprada" ? "Compras" : "Gestión",
+    accion:
+      campo === "comprada"
+        ? `Registró ${cantidad} unidad(es) comprada(s)`
+        : `Registró ${cantidad} unidad(es) gestionada(s)`,
+    detalle: `${folios.join(", ")} — ${materiales.join(", ")}`,
+  });
+
+  revalidatePath("/gestion");
+  revalidatePath("/compras");
+  revalidatePath("/ordenes");
+  for (const ordenId of ordenIds) revalidatePath(`/ordenes/${ordenId}`);
+
+  // Cuánto quedó en la fila DESPUÉS de guardar: los renglones que se
+  // movieron, con su valor nuevo, y los que se quedaron como estaban. Es lo
+  // que la tabla vuelve a mostrar; si da menos de lo que se pidió (parte de
+  // las unidades estaba en renglones que no se mueven), el cliente avisa.
+  const aplicadas = lineas.reduce((suma, l) => {
+    const nuevos = finales.get(l.id);
+    if (nuevos) return suma + (campo === "comprada" ? nuevos.compradas : nuevos.gestionadas);
+    const gestionadas = Math.min(Math.max(l.cantidadGestionada || 0, 0), l.cantidad);
+    const compradas = Math.min(Math.max(l.cantidadComprada || 0, 0), l.cantidad - gestionadas);
+    return suma + (campo === "comprada" ? compradas : gestionadas);
+  }, 0);
+
+  return { aplicadas };
+}
+
+/** Registra cuántas unidades de una fila de la consolidación ya se
+ *  GESTIONARON (módulo Gestión). El reparto y las reglas están en
+ *  guardarConteo(). */
+export async function actualizarCantidadGestionada(
+  lineaIds: number[],
+  cantidad: number,
+): Promise<{ error?: string; aplicadas?: number }> {
+  return guardarConteo("gestionada", ["consolidacion.editar", "compras.editar"], lineaIds, cantidad);
+}
+
+/** Registra cuántas unidades de una fila de la consolidación ya COMPRÓ el
+ *  módulo Compras. Va en su propio contador (cantidadComprada), separado del
+ *  de Gestión, para que comprar no borre lo que Gestión ya gestionó: 2 CAFÉ
+ *  MOLIDO con 1 gestionado y 1 comprado quedan "Gestionado: 1 · Entregado: 1"
+ *  en lugar de "Entregado: 2". Al completar la cantidad pedida el renglón
+ *  queda resuelto y pasa a estado Entregado. */
+export async function actualizarCantidadComprada(
+  lineaIds: number[],
+  cantidad: number,
+): Promise<{ error?: string; aplicadas?: number }> {
+  return guardarConteo("comprada", ["compras.editar"], lineaIds, cantidad);
+}
+
 /** El solicitante confirma, producto por producto, que ya le llegó el material.
  *
- *  Es solo una marca informativa por renglón: NO suma al inventario ni cambia
- *  el estado de la requisición (la recepción formal la sigue registrando el
- *  sub administrador con "Registrar entrega"). Puede marcarlo únicamente el
- *  solicitante de ESA requisición, y solo cuando ya esté aprobada o recibida:
- *  no se recibe algo que todavía no se ha autorizado. */
+ *  Es una marca por renglón: NO suma al inventario ni cambia el estado
+ *  guardado de la requisición (la recepción formal la sigue registrando el
+ *  sub administrador con "Registrar entrega"), pero de ella sale la etiqueta
+ *  que se muestra en pantalla: "Pendiente a recibir" mientras falte alguna
+ *  confirmación y "Recibido" cuando la tengan todos los renglones
+ *  (estadoVisibleDe, en src/lib/estado-gestion.ts). Puede marcarlo únicamente
+ *  el solicitante de ESA requisición, cuando ya esté aprobada o recibida (no
+ *  se recibe algo que todavía no se ha autorizado) Y cuando el producto ya
+ *  esté gestionado o comprado: un renglón todavía "Pendiente" no ofrece el
+ *  botón. */
 export async function confirmarReciboProducto(
   lineaId: number,
   confirmado: boolean,
@@ -737,6 +906,17 @@ export async function confirmarReciboProducto(
     };
   }
 
+  // El producto debe estar resuelto (Gestionado o ENTREGADO) antes de que el
+  // solicitante confirme que le llegó: mientras siga "Pendiente" todavía ni se
+  // gestionó ni se compró, así que no hay nada que recibir. Deshacer una marca
+  // vieja sí se permite sin importar el estado.
+  if (confirmado && linea.estadoGestion === "Pendiente") {
+    return {
+      error:
+        "Este producto todavía no está gestionado ni comprado: se puede marcar como recibido cuando esté resuelto.",
+    };
+  }
+
   await prisma.detalleOrden.update({
     where: { id: linea.id },
     data: confirmado
@@ -761,9 +941,9 @@ export async function confirmarReciboProducto(
  *  persona que tomó el material: no siempre tiene cuenta en el sistema, así
  *  que se guarda como texto y es lo que aparece impreso en la hoja.
  *
- *  También sirve cuando la requisición ya está en Recibida porque el módulo
- *  Compras marcó todos sus materiales como ENTREGADOS: ahí solo falta el
- *  nombre de quien recibió y la suma al inventario. */
+ *  También sirve para registrar una entrega parcial: mientras quede material
+ *  "Pendiente de Compra" la requisición se queda Aprobada (así se registra el
+ *  resto más tarde) y solo pasa a Recibida cuando ya no falta nada. */
 export async function recibirOrden(id: number, recibioTxt: string) {
   const sesion = await exigirPermiso("ordenes.recibir");
   const nombre = String(recibioTxt || "").trim();

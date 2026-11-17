@@ -4,6 +4,12 @@ import Image from "next/image";
 // esconde en pantalla y el CSS de impresión lo muestra). Va arriba del listado
 // cuando el usuario lo guarda como PDF, para que se sepa qué reporte es, con
 // qué filtros se armó y quién lo sacó.
+//
+// Se arma siempre igual, de arriba hacia abajo: el banner de CAMO
+// (public/encabezado-camo.png) a todo el ancho de la hoja y, debajo, en una
+// sola lista vertical, el título del reporte, de qué es, con qué filtros se
+// sacó y quién lo generó. Es el encabezado de /reportes, /materiales y
+// /proveedores: los tres usan este mismo componente.
 export default function EncabezadoImpresion({
   titulo,
   descripcion,
@@ -21,12 +27,19 @@ export default function EncabezadoImpresion({
 
   return (
     <div className="solo-impresion mb-6">
-      <div className="flex justify-center mb-1">
-        <Image src="/logo-camo.png" alt="Logo Fundación CAMO" width={110} height={110} priority />
-      </div>
-      <div className="text-center text-lg font-sora font-semibold">Fundación CAMO</div>
-      <div className="text-center text-tinta2 text-sm">{titulo}</div>
-      <div className="text-center text-tinta2 text-xs mt-1">
+      {/* El banner ya trae el logo y el nombre, así que no hace falta
+          repetirlos en texto. `priority` lo descarga aunque esté oculto en
+          pantalla: si no, el navegador podría no tenerlo listo al imprimir. */}
+      <Image
+        src="/encabezado-camo.png"
+        alt="CAMO — Central American Medical Outreach"
+        width={817}
+        height={185}
+        priority
+        className="w-full h-auto"
+      />
+      <div className="text-center text-lg font-sora font-semibold mt-3">{titulo}</div>
+      <div className="text-center text-tinta2 text-sm">
         {descripcion}
         {filtros ? ` · ${filtros}` : ""}
       </div>

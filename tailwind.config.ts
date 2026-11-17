@@ -19,6 +19,11 @@ const config: Config = {
         rojoclaro: "#F6E6E4",
         azul: "#1F4E79",
         azulclaro: "#E4ECF4",
+        // "En proceso de compra": el paso que sigue a Gestión. Va aparte del
+        // ámbar (que es lo que todavía no se ha tocado) para que se distinga
+        // de un vistazo en el detalle de la requisición.
+        morado: "#5A3F8F",
+        moradoclaro: "#ECE7F5",
       },
       fontFamily: {
         sora: ["Sora", "system-ui", "sans-serif"],

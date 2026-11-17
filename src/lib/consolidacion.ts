@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import type { Prisma, Material, Proveedor, EstadoGestion } from "@prisma/client";
+import { cantidadesDeRenglon, requisicionTrabajada, type CantidadesCiclo } from "@/lib/estado-gestion";
 import { etiquetaUnidad } from "@/lib/unidades";
 
 /** "CAJA" o, si el mismo material se pidió de varias formas, "CAJA / ROLLO". */
@@ -28,12 +29,18 @@ export type ItemConsolidado = {
   /** Fecha más antigua entre las requisiciones que traen este material: es la
    *  que se muestra en la columna "Fecha" de Gestión y Compras. */
   fecha: Date;
-  /** Estado de compra de cada renglón que trae este material. La fila muestra
-   *  el combinado con estadoDeFila() de src/lib/estado-gestion.ts. */
+  /** Estado guardado en cada renglón que trae este material. La fila muestra
+   *  el combinado con estadoDeFila() de src/lib/estado-gestion.ts, que es lo
+   *  que usan los filtros del módulo Compras. */
   estados: Set<EstadoGestion>;
   /** Ids de los renglones (detalle_orden) de esta fila: son los que se
    *  actualizan cuando se cambia el Estado desde la tabla. */
   lineaIds: number[];
+  /** Unidades de esta fila en cada estado del ciclo (En proceso de gestión ·
+   *  Gestionado · En proceso de compra · Entregado). La suma de los cuatro
+   *  valores da `cantidad`, así que el desglose siempre cuadra con la cifra
+   *  de al lado y con lo que se ve en el detalle de cada requisición. */
+  cantidades: CantidadesCiclo;
 };
 
 export type GrupoConsolidado = {
@@ -120,6 +127,10 @@ export function agruparConsolidacion(ordenes: OrdenConsolidacion[]): GrupoConsol
   >();
 
   for (const orden of ordenes) {
+    // ¿La requisición ya se trabajó? Decide si lo que queda sin resolver en
+    // sus renglones se muestra como "En proceso de gestión" o como "En
+    // proceso de compra" (la regla es por requisición, no por material).
+    const trabajada = requisicionTrabajada(orden.items);
     for (const item of orden.items) {
       // El proveedor del renglón manda; las órdenes antiguas pueden no tenerlo
       // guardado y deben seguir agrupándose por el proveedor general.
@@ -145,9 +156,18 @@ export function agruparConsolidacion(ordenes: OrdenConsolidacion[]): GrupoConsol
         unidades: new Set<string>(),
         fecha: orden.fecha,
         estados: new Set<EstadoGestion>(),
+        cantidades: { EnGestion: 0, Gestionado: 0, EnCompra: 0, Entregado: 0 },
         lineaIds: [] as number[],
       };
       actual.cantidad += item.cantidad;
+      // El desglose por estado sale de las unidades gestionadas y compradas
+      // de CADA renglón, no de su estado: así una fila a la mitad (1 de 2
+      // gestionadas) se desglosa igual que una que está completa.
+      const reparto = cantidadesDeRenglon(item, trabajada);
+      actual.cantidades.EnGestion += reparto.EnGestion;
+      actual.cantidades.Gestionado += reparto.Gestionado;
+      actual.cantidades.EnCompra += reparto.EnCompra;
+      actual.cantidades.Entregado += reparto.Entregado;
       actual.folios.add(orden.folio);
       // La unidad es la del renglón, no la del catálogo: el solicitante pudo
       // pedirlo en una medida distinta a la que tiene registrada.

@@ -5,6 +5,7 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { puede, puedeVerModulo, inventarioPropio } from "@/lib/permisos";
 import { materialesSolicitadosPor, filtroMaterialesPropios } from "@/lib/materiales-solicitados";
+import { CLASE_ESTADO, estadoVisibleDe } from "@/lib/estado-gestion";
 
 function fecha(d: Date) {
   return new Date(d).toLocaleDateString("es-HN", { day: "2-digit", month: "short", year: "numeric" });
@@ -54,7 +55,9 @@ export default async function Panel() {
         // trabajo a medias personal y se sigue en /ordenes.
         estado: { not: "Borrador" },
       },
-      include: { proveedor: true, solicitante: true },
+      // La píldora del estado se calcula con los renglones (Pendiente a
+      // recibir / Recibido), así que hace falta traerlos.
+      include: { proveedor: true, solicitante: true, items: { select: { estadoGestion: true, recibidoSolicitante: true } } },
       orderBy: { fecha: "desc" },
       take: 5,
     }),
@@ -173,15 +176,18 @@ export default async function Panel() {
               <table className="w-full tabla" style={{ minWidth: 620 }}>
                 <thead><tr><th>Folio</th><th>Fecha</th><th>Proveedor</th>{muestraSolicitante && <th>Solicitante</th>}<th>Estado</th></tr></thead>
                 <tbody>
-                  {ordenesRecientes.map((o) => (
+                  {ordenesRecientes.map((o) => {
+                    const estadoVisible = estadoVisibleDe(o.estado, o.items);
+                    return (
                     <tr key={o.id}>
                       <td className="font-mono"><Link className="text-verde" href={`/ordenes/${o.id}`}>{o.folio}</Link></td>
                       <td>{fecha(o.fecha)}</td>
                       <td>{o.proveedor?.nombre || "—"}</td>
                       {muestraSolicitante && <td>{o.solicitante.nombre}</td>}
-                      <td><span className={"etiqueta et-" + o.estado.toLowerCase()}>{o.estado}</span></td>
+                      <td><span className={"etiqueta " + CLASE_ESTADO[estadoVisible]}>{estadoVisible}</span></td>
                     </tr>
-                  ))}
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

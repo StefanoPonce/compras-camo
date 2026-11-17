@@ -5,7 +5,7 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { puede, puedeVerModulo } from "@/lib/permisos";
 import { textoPrograma } from "@/lib/programas";
-import { claseEstadoGestion, estadoDeFila, ETIQUETAS_REQUISICION } from "@/lib/estado-gestion";
+import { CLASE_CICLO, CLASE_ESTADO, ETIQUETAS_CICLO, estadoDeRequisicion, estadoVisibleDe } from "@/lib/estado-gestion";
 
 function fecha(d: Date) {
   return new Date(d).toLocaleDateString("es-HN", { day: "2-digit", month: "short", year: "numeric" });
@@ -90,10 +90,17 @@ export default async function Ordenes({ searchParams }: { searchParams: { estado
             <tbody>
               {ordenes.map((o) => {
                 const programas = programasDe(o.items);
-                // Estado de compra consolidado de SUS productos: si alguno
-                // sigue pendiente, la requisición aparece como pendiente
-                // (misma regla que las filas de Gestión y Compras).
-                const estadoCompra = estadoDeFila(o.items.map((it) => it.estadoGestion));
+                // Ciclo de vida de SUS materiales: mientras nada se haya
+                // tocado está "En proceso de gestión"; en cuanto Gestión
+                // registra unidades pasa a "En proceso de compra"; si ya no
+                // falta nada, Gestionado o Entregado (misma regla que las
+                // filas de Gestión y Compras y que el detalle de la
+                // requisición).
+                const estadoCompra = estadoDeRequisicion(o.items);
+                // Píldora del estado de la requisición: se calcula con sus
+                // renglones ("Pendiente a recibir" / "Recibido") en vez de
+                // leer la columna guardada.
+                const estadoVisible = estadoVisibleDe(o.estado, o.items);
                 return (
                 <tr key={o.id}>
                   <td className="font-mono">{o.folio}</td>
@@ -107,12 +114,13 @@ export default async function Ordenes({ searchParams }: { searchParams: { estado
                   {/* Un borrador puede no tener proveedor todavía: se elige al enviar. */}
                   <td>{o.proveedor?.nombre || "—"}</td>
                   {muestraSolicitante && <td>{o.solicitante.nombre}</td>}
-                  <td><span className={"etiqueta et-" + o.estado.toLowerCase()}>{o.estado}</span></td>
-                  {/* Estado de compra del renglón: lo marcan Gestión y
-                      Compras. Se dice como lo vería quien lo pidió. */}
+                  <td><span className={"etiqueta " + CLASE_ESTADO[estadoVisible]}>{estadoVisible}</span></td>
+                  {/* Ciclo de vida de los materiales de la requisición: lo
+                      marcan Gestión y Compras. Se dice como lo vería quien
+                      lo pidió. */}
                   <td>
-                    <span className={"etiqueta " + claseEstadoGestion(estadoCompra)}>
-                      {ETIQUETAS_REQUISICION[estadoCompra]}
+                    <span className={"etiqueta " + CLASE_CICLO[estadoCompra]}>
+                      {ETIQUETAS_CICLO[estadoCompra]}
                     </span>
                   </td>
                   <td>

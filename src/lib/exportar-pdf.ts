@@ -1,4 +1,6 @@
-import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from "pdf-lib";
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
+import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFImage, type PDFPage } from "pdf-lib";
 
 /**
  * Exportación a PDF de los listados (Proveedores, Materiales…).
@@ -6,8 +8,9 @@ import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from "pdf
  * A diferencia del botón de imprimir —que depende del diálogo del navegador y
  * de que el equipo tenga una impresora "Guardar como PDF"— aquí se arma el
  * archivo en el servidor y llega a la carpeta de descargas como cualquier
- * otro archivo: título, encabezado verde de tabla, filas alternas, colores
- * de estado y paginación con el encabezado repetido en cada página.
+ * otro archivo: banner de CAMO en la primera página, título, encabezado verde
+ * de tabla, filas alternas, colores de estado y paginación con el encabezado
+ * repetido en cada página.
  *
  * Hoja: A4 apaisado, como las hojas de Excel del mismo listado.
  */
@@ -76,6 +79,24 @@ function seguro(texto: string): string {
     .replace(/[^\u0020-\u007E\u00A0-\u00FF]/g, "?");
 }
 
+/**
+ * Banner de cabecera (public/encabezado-camo.png), listo para dibujar.
+ *
+ * Devuelve null si el archivo no está o no se puede leer: en ese caso el
+ * listado se arma igual, sin el banner. Un reporte no puede fallar por una
+ * imagen.
+ */
+async function cargarBanner(pdf: PDFDocument): Promise<{ imagen: PDFImage; proporcion: number } | null> {
+  try {
+    const bytes = await readFile(join(process.cwd(), "public", "encabezado-camo.png"));
+    const imagen = await pdf.embedPng(bytes);
+    return { imagen, proporcion: imagen.height / imagen.width };
+  } catch (e) {
+    console.warn("crearListadoPdf: no se pudo cargar public/encabezado-camo.png", e);
+    return null;
+  }
+}
+
 /** Parte un texto en renglones que caben en el ancho dado. */
 function partir(texto: string, ancho: number, fuente: PDFFont, tamano: number): string[] {
   const salida: string[] = [];
@@ -134,6 +155,9 @@ export async function crearListadoPdf(datos: ListadoPdf): Promise<Uint8Array> {
   const normal = await pdf.embedFont(StandardFonts.Helvetica);
   const negrita = await pdf.embedFont(StandardFonts.HelveticaBold);
 
+  // Banner de la primera página (ver cargarBanner).
+  const banner = await cargarBanner(pdf);
+
   const ANCHO = 841.89; // A4 apaisado
   const ALTO = 595.28;
   const MARGEN = 32;
@@ -153,7 +177,18 @@ export async function crearListadoPdf(datos: ListadoPdf): Promise<Uint8Array> {
   function cabeceraDocumento(p: PDFPage, continuacion: boolean): number {
     const titulo = continuacion ? `${datos.titulo} (continuación)` : datos.titulo;
     const tamanoTitulo = continuacion ? 11 : 15;
-    let y = ALTO - MARGEN - tamanoTitulo;
+    let y = ALTO - MARGEN;
+
+    // La primera página abre con el banner de CAMO a todo el ancho útil de
+    // la hoja (el mismo encabezado que sale al imprimir). Las páginas de
+    // continuación no lo repiten: se ahorraría media hoja en cada página.
+    if (!continuacion && banner) {
+      const altoBanner = banner.proporcion * ANCHO_UTIL;
+      p.drawImage(banner.imagen, { x: MARGEN, y: y - altoBanner, width: ANCHO_UTIL, height: altoBanner });
+      y -= altoBanner + 16;
+    }
+
+    y -= tamanoTitulo;
     p.drawText(seguro(titulo), { x: MARGEN, y, size: tamanoTitulo, font: negrita, color: VERDE });
     if (!continuacion) {
       y -= 15;

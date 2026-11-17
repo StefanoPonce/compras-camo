@@ -39,7 +39,9 @@ export default async function EditarOrden({ params }: { params: { id: string } }
   const esBorrador = o.estado === "Borrador";
 
   const [materiales, proveedores] = await Promise.all([
-    prisma.material.findMany({ include: { proveedor: true }, orderBy: { codigo: "asc" } }),
+    // El orden por nombre es la base; el orden definitivo de la lista
+    // desplegable lo aplica el formulario (ver ahí el porqué).
+    prisma.material.findMany({ include: { proveedor: true }, orderBy: { nombre: "asc" } }),
     prisma.proveedor.findMany({ orderBy: { nombre: "asc" } }),
   ]);
 
@@ -81,7 +83,11 @@ export default async function EditarOrden({ params }: { params: { id: string } }
         proveedores={proveedores}
         inicial={{ dependencia: o.dependencia || "", area: o.area || "", lugar: o.lugar || "", justificacion: o.justificacion || "", lineas }}
         cancelarHref={`/ordenes/${id}`}
-        textoEnviar="Enviar requisición"
+        // Un borrador todavía no se ha enviado: ese botón lo envía por primera
+        // vez, así que sigue diciendo "Enviar". Una requisición que ya salió
+        // (pendiente, rechazada, aprobada…) solo se corrige, y ahí decir
+        // "Enviar" confundía: lo que hace es actualizar la existente.
+        textoEnviar={esBorrador ? "Enviar requisición" : "Actualizar requisición"}
         // Una requisición aprobada ya no vuelve a borrador: al corregirla
         // conserva su estado. Los borradores y las pendientes sí pueden
         // seguir guardándose sin completar.

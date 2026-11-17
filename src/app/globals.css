@@ -19,14 +19,20 @@ body {
    confundirla con el ambar del Sub Administrador ni el verde del Jefe. */
 .et-gestion { @apply bg-superficie2 text-azul border border-borde; }
 .et-usuario { @apply bg-verdeclaro text-verde; }
-.et-pendiente { @apply bg-ambarclaro text-ambar; }
 .et-aprobada { @apply bg-verdeclaro text-verde; }
-/* Estados de compra de un material (módulos Gestión y Compras). */
+/* Ciclo de vida de un material dentro de la requisición (los cuatro estados
+   que ven el detalle, Gestión, Compras y la lista de requisiciones). */
+.et-pendiente { @apply bg-ambarclaro text-ambar; }        /* En proceso de gestión */
+.et-compra { @apply bg-moradoclaro text-morado; }         /* En proceso de compra */
 .et-gestionado { @apply bg-azulclaro text-azul; }
 .et-entregado { @apply bg-verdeclaro text-verde; }
 /* Producto que el solicitante confirmó que ya le llegó (detalle de la
    requisición): se distingue de ENTREGADO, que lo marca Compras. */
 .et-recibido { @apply bg-azulclaro text-azul; }
+/* Estado calculado de la requisición entera: ya hay material gestionado o
+   comprado y el solicitante todavía no confirmó que le llegó todo. Ámbar
+   porque todavía espera algo, igual que "Pendiente". */
+.et-pendiente-recibir { @apply bg-ambarclaro text-ambar; }
 .et-rechazada { @apply bg-rojoclaro text-rojo; }
 .et-recibida { @apply bg-azulclaro text-azul; }
 /* Píldora neutra: el borrador es un trabajo a medias, no una requisición en juego. */

@@ -4,9 +4,11 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { puede, puedeVerModulo } from "@/lib/permisos";
 import { textoPrograma } from "@/lib/programas";
+import { textoDependencia } from "@/lib/dependencias";
 import { etiquetaUnidad } from "@/lib/unidades";
 import ImagenLogo from "./imagen-logo";
 import BotonImprimirRequisicion from "./boton-imprimir";
+import Link from "next/link";
 
 function fecha(d: Date) {
   return new Date(d).toLocaleDateString("es-HN", { day: "2-digit", month: "long", year: "numeric" });
@@ -42,7 +44,12 @@ export default async function Requisicion({ params }: { params: { id: string } }
 
   return (
     <div className="max-w-3xl mx-auto">
-      <div className="flex justify-end mb-4 no-imprimir">
+      {/* Los dos botones de esta fila no se imprimen: en papel solo va la
+          hoja. "Regresar" devuelve a la requisición de la que se vino. */}
+      <div className="flex items-center justify-between gap-2 flex-wrap mb-4 no-imprimir">
+        <Link href={`/ordenes/${o.id}`} className="btn-secundario">
+          Regresar
+        </Link>
         <BotonImprimirRequisicion />
       </div>
 
@@ -61,7 +68,7 @@ export default async function Requisicion({ params }: { params: { id: string } }
           <tbody>
             <tr>
               <td className="py-1 pr-2 font-medium whitespace-nowrap">Dependencia:</td>
-              <td className="py-1 border-b border-tinta">{o.dependencia || "—"}</td>
+              <td className="py-1 border-b border-tinta">{textoDependencia(o.dependencia) || "—"}</td>
               <td className="py-1 pl-4 pr-2 font-medium whitespace-nowrap">Fecha:</td>
               <td className="py-1 border-b border-tinta">{fecha(o.fecha)}</td>
             </tr>
