@@ -13,6 +13,7 @@ import {
   type Permiso,
   type Rol,
 } from "@/lib/permisos";
+import { textoDependencia } from "@/lib/dependencias";
 import estilos from "./nav-cliente.module.css";
 
 type IconoMenu = "panel" | "ordenes" | "proveedores" | "materiales" | "gestion" | "compras" | "inventario" | "reportes" | "bitacora" | "usuarios";
@@ -111,10 +112,13 @@ function IconoSalir() {
 export default function NavCliente({
   nombre,
   rol,
+  area,
   modulos,
 }: {
   nombre: string;
   rol: Rol;
+  /** Gerencia asignada a la cuenta (usuarios.area); null si no tiene. */
+  area: string | null;
   modulos: Modulo[];
 }) {
   const ruta = usePathname();
@@ -178,9 +182,15 @@ export default function NavCliente({
             <span aria-hidden="true" />
             Sesión activa
           </span>
-          <div className={estilos.identidad} title={nombre}>
+          <div
+            className={estilos.identidad}
+            title={area ? `${nombre} — ${textoDependencia(area)}` : nombre}
+          >
             <span className={estilos.nombreUsuario}>{nombre}</span>
             <span className={`${claseRol(rol)} ${estilos.rol}`}>{nombreRol(rol)}</span>
+            {/* La gerencia de la cuenta, siempre a la vista: es el área a la
+                que pertenece la persona y la que manda sus requisiciones. */}
+            {area && <span className={estilos.area}>{textoDependencia(area)}</span>}
           </div>
           <button
             type="button"

@@ -1,6 +1,5 @@
 import Link from "next/link";
 import ImagenMaterial from "../imagen-material";
-import SelectorEstadoGestion from "../selector-estado-gestion";
 import BotonRequisicionesMaterial, {
   type RequisicionDelMaterial,
 } from "./boton-requisiciones-material";
@@ -15,8 +14,9 @@ import { estadoVisibleDe } from "@/lib/estado-gestion";
 
 /** Columnas, en el orden que piden Gestión y Compras:
  *  Fecha · Imagen · Código · Material · Categoría · Unidad · Cantidad
- *  consolidada · Origen · Cantidad gestionada/comprada (y al final, solo en
- *  pantalla, el botón que abre la lista de requisiciones del material). */
+ *  consolidada · Origen (y al final, solo en pantalla, el botón que abre la
+ *  lista de requisiciones del material, que es donde se registra lo
+ *  gestionado o comprado de cada solicitante). */
 function fecha(d: Date) {
   return new Date(d).toLocaleDateString("es-HN", { day: "2-digit", month: "short", year: "numeric" });
 }
@@ -26,8 +26,10 @@ function numero(n: number) {
 }
 
 /** Las requisiciones del grupo que solicitan este material, con lo que pide
- *  cada una: es la lista que abre el botón del renglón y coincide con los
- *  folios de la columna "Origen". */
+ *  cada una Y su propio renglón: es la lista que abre el botón del renglón y
+ *  coincide con los folios de la columna "Origen". El renglón viaja en la
+ *  lista porque la ventana es donde el encargado indica a quién se le
+ *  gestionó (o compró), campo por campo. */
 function requisicionesDelMaterial(
   ordenes: OrdenConsolidacion[],
   materialId: number,
@@ -36,6 +38,21 @@ function requisicionesDelMaterial(
     .filter((orden) => orden.items.some((renglon) => renglon.material.id === materialId))
     .map((orden) => {
       const renglon = orden.items.find((r) => r.material.id === materialId)!;
+      // Contadores del renglón, recortados al propio renglón: son los que
+      // alimentan el campo de ESTE solicitante en la ventana y dicen hasta
+      // cuánto puede aceptar (la cantidad pedida menos el otro contador).
+      const gestionadas = Math.min(Math.max(renglon.cantidadGestionada || 0, 0), renglon.cantidad);
+      const compradas = Math.min(Math.max(renglon.cantidadComprada || 0, 0), renglon.cantidad - gestionadas);
+      // Las mismas reglas que actualizarConteoRenglon(): solo lo de una
+      // requisición aprobada se puede mover, y un material ya inventariado
+      // queda congelado. Si no, se pasa el motivo para que la ventana lo diga
+      // en vez de mostrar un campo que no sirve.
+      const bloqueo =
+        orden.estado !== "Aprobada"
+          ? "Requisición aún no aprobada"
+          : renglon.inventariado
+            ? "Material ya en inventario"
+            : null;
       return {
         id: orden.id,
         folio: orden.folio,
@@ -46,6 +63,10 @@ function requisicionesDelMaterial(
         solicitante: orden.solicitante.nombre,
         cantidad: renglon.cantidad,
         unidad: etiquetaUnidad(renglon.unidad || renglon.material.unidad),
+        lineaId: renglon.id,
+        gestionadas,
+        compradas,
+        bloqueo,
       };
     });
 }
@@ -55,8 +76,10 @@ export default function TablaConsolidacion({
   campo,
 }: {
   grupos: GrupoConsolidado[];
-  /** Qué contador lleva la columna "Estado": el de Gestión
-   *  ("Cantidad gestionada") o el de Compras ("Cantidad comprada"). */
+  /** Qué contador registra este módulo: el de Gestión ("Cantidad gestionada")
+   *  o el de Compras ("Cantidad comprada"). No es una columna de la tabla
+   *  (la tabla ya no lleva conteo): es el nombre que usa la ventana de
+   *  requisiciones para el campo de cada solicitante. */
   campo: "gestionada" | "comprada";
 }) {
   if (!grupos.length) return null;
@@ -97,7 +120,10 @@ export default function TablaConsolidacion({
           </div>
 
           <div className="overflow-x-auto">
-            <table className="w-full tabla" style={{ minWidth: 1120 }}>
+            {/* Nueve columnas: la de conteo ya no existe, así que sobra el
+                ancho que ocupaba. Se deja redondo para que no salga scroll
+                de más en pantallas comunes. */}
+            <table className="w-full tabla" style={{ minWidth: 1040 }}>
               <thead>
                 <tr>
                   <th>Fecha</th>
@@ -108,7 +134,6 @@ export default function TablaConsolidacion({
                   <th>Unidad</th>
                   <th className="text-right">Cantidad consolidada</th>
                   <th>Origen</th>
-                  <th>{tituloCantidad}</th>
                   {/* Columna solo en pantalla: en papel no hay botones que
                       presionar, y la lista se ve en los folios de Origen. */}
                   <th className="no-imprimir">Requisiciones</th>
@@ -154,19 +179,12 @@ export default function TablaConsolidacion({
                           <div className="text-xs text-tinta2 font-mono mt-1">{folios.join(", ")}</div>
                         )}
                       </td>
-                      <td>
-                        <SelectorEstadoGestion
-                          lineaIds={item.lineaIds}
-                          material={item.material.nombre}
-                          titulo={tituloCantidad}
-                          campo={campo}
-                          cantidades={item.cantidades}
-                        />
-                      </td>
                       <td className="no-imprimir">
                         <BotonRequisicionesMaterial
                           material={{ nombre: item.material.nombre, codigo: item.material.codigo }}
                           requisiciones={requisiciones}
+                          campo={campo}
+                          titulo={tituloCantidad}
                         />
                       </td>
                     </tr>

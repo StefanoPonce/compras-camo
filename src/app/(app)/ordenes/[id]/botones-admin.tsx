@@ -55,7 +55,14 @@ export default function BotonesOrden({
     if (!ok) return;
     setOcupado(true);
     try {
-      await resolverOrden(id, nuevo, comentario.trim());
+      const resultado = await resolverOrden(id, nuevo, comentario.trim());
+      // El servidor explica por qué no pudo autorizar (requisición de otra
+      // área, jefe sin área asignada, ya revisada…): ese motivo es el que se
+      // le muestra, en vez de un error genérico.
+      if (resultado?.error) {
+        alert(resultado.error);
+        return;
+      }
       router.refresh();
     } catch {
       alert("No se pudo actualizar la requisición. Intenta de nuevo.");

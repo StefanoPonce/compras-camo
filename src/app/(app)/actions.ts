@@ -18,6 +18,8 @@ import {
   type Permiso,
 } from "@/lib/permisos";
 import { materialesSolicitadosPor } from "@/lib/materiales-solicitados";
+import { esDependenciaValida, normalizarDependencia, textoDependencia } from "@/lib/dependencias";
+import { errorDeAutorizacion } from "@/lib/alcance-area";
 import { leerImagenAdjunta, subirImagenMaterial, borrarImagenMaterial } from "@/lib/imagenes";
 import { borrarAdjunto } from "@/lib/adjuntos";
 import { normalizarUnidad } from "@/lib/unidades";
@@ -384,7 +386,12 @@ export async function crearOrden(_prev: EstadoForm, datos: FormData): Promise<Es
   // El mismo formulario sirve para dejar la requisición a medias y para
   // enviarla. El botón que se apretó lo dice el campo "intento".
   const esBorrador = datos.get("intento") === "borrador";
-  const dependencia = String(datos.get("dependencia") || "").trim();
+  // La dependencia la manda la cuenta del solicitante: si tiene gerencia
+  // asignada, la requisición nace SIEMPRE en esa área y el valor del
+  // formulario se ignora. Solo quien no tiene área (por ejemplo el
+  // administrador) elige en el desplegable.
+  const dependenciaPropia = normalizarDependencia(sesion.user.area);
+  const dependencia = dependenciaPropia || normalizarDependencia(datos.get("dependencia"));
   const area = String(datos.get("area") || "").trim();
   const justificacion = String(datos.get("justificacion") || "").trim();
   const items = leerItems(datos, { borrador: esBorrador });
@@ -445,33 +452,33 @@ export async function editarOrden(id: number, _prev: EstadoForm, datos: FormData
   if (!puedeVerModulo(sesion.user.rol, sesion.user.modulosPermitidos, "ordenes")) {
     return { error: "No tienes acceso al módulo de requisiciones." };
   }
-  const puedeTodas = puede(sesion.user.rol, "ordenes.editarTodas");
-  const puedeAprobadas = puede(sesion.user.rol, "ordenes.editarAprobadas");
-
-  const orden = await prisma.ordenCompra.findUniqueOrThrow({ where: { id } });
+  // La edición NO es un permiso del rol: es un derecho de QUIEN LA SOLICITÓ.
+  // Ni el jefe inmediato, ni la administración, ni ningún otro rol la corrige;
+  // si hace falta un cambio se le pide al solicitante.
+  const orden = await prisma.ordenCompra.findUniqueOrThrow({
+    where: { id },
+    include: { solicitante: { select: { area: true, nombre: true } } },
+  });
   const esPropia = orden.solicitanteId === Number(sesion.user.id);
-  const eraBorrador = orden.estado === "Borrador";
 
-  if (orden.estado === "Recibida") {
-    return { error: "Una requisición recibida ya no puede editarse." };
+  if (!esPropia) {
+    return {
+      error:
+        "Solo quien solicitó esta requisición puede editarla. " +
+        `Pídele a ${orden.solicitante.nombre || "el solicitante"} que haga el cambio.`,
+    };
   }
-  // Un borrador es trabajo en curso personal: solo quien lo empezó lo
-  // continúa, aunque su rol pueda editar requisiciones ajenas.
-  if (eraBorrador && !esPropia) {
-    return { error: "Este borrador es de otro usuario: no puedes continuarlo." };
+  // Y solo mientras el estado la deja corregir: Borrador, Pendiente o
+  // Rechazada. Una aprobada o recibida ya no se toca desde el sistema.
+  if (orden.estado !== "Borrador" && orden.estado !== "Pendiente" && orden.estado !== "Rechazada") {
+    return { error: `Una requisición en estado "${orden.estado}" ya no puede editarse.` };
   }
-  if (orden.estado === "Aprobada" && !puedeAprobadas) {
-    return { error: "Solo el administrador o el sub administrador pueden editar una requisición aprobada." };
-  }
-  if (orden.estado !== "Aprobada" && !puedeTodas && !esPropia) {
-    return { error: "Solo el solicitante o un rol con permiso de edición pueden editar esta requisición." };
-  }
-  const eraAprobada = orden.estado === "Aprobada";
 
   // Mientras siga siendo borrador se guarda aunque falten datos. Al enviarlo
   // pasa a "Pendiente" y entra a revisión como cualquier requisición nueva.
   const esBorrador = datos.get("intento") === "borrador";
-  const dependencia = String(datos.get("dependencia") || "").trim();
+  const dependenciaPropia = normalizarDependencia(orden.solicitante.area);
+  const dependencia = dependenciaPropia || normalizarDependencia(datos.get("dependencia"));
   const area = String(datos.get("area") || "").trim();
   const justificacion = String(datos.get("justificacion") || "").trim();
   const items = leerItems(datos, { borrador: esBorrador });
@@ -507,16 +514,15 @@ export async function editarOrden(id: number, _prev: EstadoForm, datos: FormData
         prisma.detalleOrden.create({ data: { ordenId: id, ...datosRenglon(it) } })
       ),
       prisma.ordenCompra.update({
-        where: { id },
+        // El estado se vuelve a comprobar dentro de la transacción: si entre
+        // la lectura y este punto pasó a aprobada o recibida, no se guarda nada.
+        where: { id, estado: { in: ["Borrador", "Pendiente", "Rechazada"] } },
         data: {
           proveedorId, dependencia, area: area || null, justificacion,
-          ...(eraAprobada
-            ? {}
-            : // Una requisición que no estaba aprobada vuelve a quedar
-              // pendiente de revisión, salvo que se esté guardando como
-              // borrador: entonces se queda esperando en ese estado.
-              { estado: esBorrador ? "Borrador" : "Pendiente",
-                revisorId: null, fechaRevision: null, comentario: null }),
+          // Al corregirla vuelve a quedar pendiente de revisión, salvo que se
+          // esté guardando como borrador: entonces se queda en ese estado.
+          estado: esBorrador ? "Borrador" : "Pendiente",
+          revisorId: null, fechaRevision: null, comentario: null,
         },
       }),
     ]);
@@ -528,7 +534,7 @@ export async function editarOrden(id: number, _prev: EstadoForm, datos: FormData
       detalle: esBorrador
         ? `${orden.folio} — quedó en borrador (${items.length} material(es)).`
         : `${orden.folio} — se actualizaron los materiales y quedó ` +
-          (eraAprobada ? "aprobada." : "pendiente de revisión."),
+          "pendiente de revisión.",
     });
   } catch {
     // La requisición no cambió, así que los archivos nuevos sobran.
@@ -559,8 +565,10 @@ export async function eliminarBorrador(id: number) {
     throw new Error("Solo se puede borrar una requisición que sigue en borrador.");
   }
   const esPropia = orden.solicitanteId === Number(sesion.user.id);
-  if (!esPropia && !puede(sesion.user.rol, "ordenes.editarTodas")) {
-    throw new Error("Solo quien creó el borrador o un administrador pueden borrarlo.");
+  // Como con la edición: el borrador es trabajo personal en curso, solo lo
+  // borra quien lo empezó (ni el jefe de área, ni la administración).
+  if (!esPropia) {
+    throw new Error("Solo quien creó este borrador puede borrarlo.");
   }
 
   // Los renglones se van en cascada con la orden; los adjuntos que el
@@ -575,11 +583,30 @@ export async function eliminarBorrador(id: number) {
   revalidatePath("/ordenes");
 }
 
-export async function resolverOrden(id: number, nuevoEstado: "Aprobada" | "Rechazada", comentario: string) {
+/** Autoriza o rechaza una requisición pendiente.
+ *
+ *  Además del permiso "ordenes.autorizar", el jefe inmediato solo puede
+ *  hacerlo con las requisiciones de SU gerencia (ver src/lib/alcance-area.ts):
+ *  si no es de su área —o si su cuenta todavía no tiene área— se devuelve el
+ *  motivo en `error` y no se toca la requisición. Administrador y sub
+ *  administrador autorizan cualquier área, porque son el respaldo.
+ *
+ *  Devuelve `{ error }` en vez de lanzar la excepción para que el motivo llegue
+ *  completo al navegador: los errores lanzados dentro de una server action no
+ *  se muestran en producción. */
+export async function resolverOrden(
+  id: number,
+  nuevoEstado: "Aprobada" | "Rechazada",
+  comentario: string,
+): Promise<{ error?: string }> {
   const sesion = await exigirPermiso("ordenes.autorizar");
   const actual = await prisma.ordenCompra.findUniqueOrThrow({ where: { id } });
+
+  const motivoArea = errorDeAutorizacion(sesion.user, actual);
+  if (motivoArea) return { error: motivoArea };
+
   if (actual.estado !== "Pendiente") {
-    throw new Error("Esta requisición ya fue revisada (aprobada o rechazada).");
+    return { error: "Esta requisición ya fue revisada (aprobada o rechazada)." };
   }
 
   const orden = await prisma.ordenCompra.update({
@@ -594,6 +621,7 @@ export async function resolverOrden(id: number, nuevoEstado: "Aprobada" | "Recha
   });
   revalidatePath("/ordenes");
   revalidatePath(`/ordenes/${id}`);
+  return {};
 }
 
 // La requisición ya NO se cierra sola en "Recibida" cuando se resuelven todos
@@ -616,11 +644,11 @@ export async function resolverOrden(id: number, nuevoEstado: "Aprobada" | "Recha
  *  recepción formal (nombre de quien recibe y suma a la existencia) la sigue
  *  registrando el sub administrador desde la requisición.
  *
- *  NOTA: hoy la columna Estado de la consolidación no llama a esta acción,
- *  sino a actualizarCantidadGestionada y actualizarCantidadComprada, que
- *  pueden dejar el renglón a la mitad. Esta sigue siendo la forma de mover
- *  TODA la fila de una vez; si ya no se quiere ofrecer, se puede eliminar
- *  junto con su llamada. */
+ *  NOTA: hoy ninguna columna de la consolidación llama a esta acción: la
+ *  ventana "Ver requisiciones" usa actualizarConteoRenglon(), que mueve UN
+ *  renglón (una requisición, un solicitante) y puede dejarlo a la mitad.
+ *  Esta sigue siendo la forma de mover TODA la fila de una vez; si ya no se
+ *  quiere ofrecer, se puede eliminar junto con su llamada. */
 export async function actualizarEstadoGestion(
   lineaIds: number[],
   nuevoEstado: EstadoGestion,
@@ -695,171 +723,99 @@ export async function actualizarEstadoGestion(
   return {};
 }
 
-/** Guarda cuántas unidades de una fila de la consolidación lleva UN contador
- *  —el de Gestión o el de Compras— y devuelve cuánto queda en la fila
- *  después de guardar. Comparten el cuerpo porque las reglas son las mismas;
- *  lo único que cambia es la columna que escriben (cantidadGestionada o
- *  cantidadComprada) y los permisos que lo permiten.
+/** Guarda cuántas unidades de UN SOLO renglón lleva este contador. Un renglón
+ *  es una requisición pidiendo un material, o sea UN solicitante: es el
+ *  control por persona que ofrece la ventana "Ver requisiciones".
  *
- *  Esto permite partir la fila a la mitad: si CAFÉ MOLIDO se pidió 2
- *  unidades y solo una ya se resolvió, se guarda 1 y la otra sigue en
- *  proceso de compra. A diferencia de actualizarEstadoGestion, que pone TODO
- *  el renglón en un estado.
+ *  Aquí manda el encargado, no el sistema: si dos personas pidieron el mismo
+ *  material y solo se gestionó el de una, se guarda 1 en el renglón de Erick
+ *  y 0 en el de Luis, y el de Luis queda sin resolver y sigue en proceso,
+ *  tal como se decidió.
  *
- *  Las unidades se reparten en orden sobre los renglones de la fila (el más
- *  viejo primero) hasta completar lo pedido. Cada renglón solo admite lo que
- *  le falta por resolver —la cantidad pedida menos lo que ya traen LOS DOS
- *  contadores— así que lo gestionado no se puede gestionar otra vez ni lo
- *  comprado comprar otra vez, y un renglón ya inventariado conserva su valor.
- *  Si parte de las unidades está en renglones que no se mueven (requisición
- *  aún no aprobada), la fila puede terminar con menos unidades de las que se
- *  pidieron: el valor que se muestra siempre es el que quedó guardado y el
- *  cliente avisa cuando dio menos. */
-async function guardarConteo(
+ *  Por eso acá además se puede BAJAR un valor (de 1 a 0), algo que un reparto
+ *  automático de la fila no permite, y por eso las reglas se revisan UNA vez
+ *  sobre el renglón en cuestión en vez de repartir: un error apunta a la
+ *  requisición exacta en vez de avisar que "parte de la fila" no se pudo
+ *  mover.
+ *
+ *  Límites: solo requisiciones aprobadas, nada que ya esté en inventario, y
+ *  el contador nunca pasa de lo que falta por resolver restando al otro
+ *  contador. */
+export async function actualizarConteoRenglon(
   campo: "gestionada" | "comprada",
-  permisos: Permiso[],
-  lineaIds: number[],
+  lineaId: number,
   cantidad: number,
 ): Promise<{ error?: string; aplicadas?: number }> {
-  const sesion = await exigirAlgunPermiso(permisos);
+  const sesion = await exigirAlgunPermiso(
+    campo === "comprada" ? ["compras.editar"] : ["consolidacion.editar", "compras.editar"],
+  );
 
   if (!Number.isInteger(cantidad) || cantidad < 0) {
     return {
       error: campo === "comprada" ? "La cantidad comprada no es válida." : "La cantidad gestionada no es válida.",
     };
   }
-  if (!Array.isArray(lineaIds) || !lineaIds.length || !lineaIds.every((id) => Number.isInteger(id))) {
-    return { error: "No se pudieron identificar los renglones a actualizar." };
+  if (!Number.isInteger(lineaId)) {
+    return { error: "No se pudo identificar el renglón a actualizar." };
   }
 
-  const lineas = await prisma.detalleOrden.findMany({
-    where: { id: { in: lineaIds } },
+  const linea = await prisma.detalleOrden.findUnique({
+    where: { id: lineaId },
     include: {
       orden: { select: { id: true, folio: true, estado: true } },
       material: { select: { nombre: true } },
     },
   });
-  if (!lineas.length) return { error: "Esos renglones ya no existen." };
+  if (!linea) return { error: "Ese renglón ya no existe." };
 
-  // Solo se registra lo que sigue aprobado, igual que con el selector.
-  const editables = lineas
-    .filter((l) => l.orden.estado === "Aprobada")
-    // El más viejo primero, que es como se reparte: así marcar "1 de 2"
-    // significa siempre lo mismo (se resuelve lo que se pidió hace más
-    // tiempo) sin depender del orden en que la base devuelva los renglones.
-    .sort((a, b) => a.id - b.id);
-  if (!editables.length) {
-    return { error: "Solo se puede registrar en los materiales de requisiciones aprobadas." };
+  if (linea.orden.estado !== "Aprobada") {
+    return { error: `Solo se puede registrar en los materiales de requisiciones aprobadas (${linea.orden.folio}).` };
+  }
+  if (linea.inventariado) {
+    return { error: `${linea.material.nombre} de ${linea.orden.folio} ya está en inventario: no se puede modificar.` };
   }
 
-  const cambios: { id: number; gestionadas: number; compradas: number; completa: boolean }[] = [];
-  const finales = new Map<number, { gestionadas: number; compradas: number }>();
-  let resto = cantidad;
-  for (const l of editables) {
-    // Lo que el renglón ya trae en los DOS contadores, recortado al renglón
-    // por si una cifra guardada quedó fuera de rango.
-    const gestionadas = Math.min(Math.max(l.cantidadGestionada || 0, 0), l.cantidad);
-    const compradas = Math.min(Math.max(l.cantidadComprada || 0, 0), l.cantidad - gestionadas);
-    // Lo único que se puede registrar aquí es lo que falta por resolver de
-    // ESTE renglón: lo gestionado y lo comprado ya se contaron.
-    const disponibles = Math.max(l.cantidad - gestionadas - compradas, 0);
-    const bloqueado = Boolean(l.inventariado) || disponibles <= 0;
+  const gestionadas = Math.min(Math.max(linea.cantidadGestionada || 0, 0), linea.cantidad);
+  const compradas = Math.min(Math.max(linea.cantidadComprada || 0, 0), linea.cantidad - gestionadas);
+  // Hasta cuánto admite ESTE contador en este renglón: lo que no resolvió el
+  // otro. Lo gestionado no se puede comprar otra vez ni lo comprado gestionar
+  // otra vez, y el valor pedido se recorta a ese tope.
+  const tope = campo === "comprada" ? linea.cantidad - gestionadas : linea.cantidad - compradas;
+  const nuevas = Math.min(Math.max(cantidad, 0), tope);
 
-    const nuevas = bloqueado
-      ? campo === "comprada"
-        ? compradas
-        : gestionadas
-      : Math.min(Math.max(resto, 0), disponibles);
-    if (!bloqueado) resto -= nuevas;
+  const gestionadasFinales = campo === "gestionada" ? nuevas : gestionadas;
+  const compradasFinales = campo === "comprada" ? nuevas : compradas;
+  const completa = gestionadasFinales + compradasFinales >= linea.cantidad;
 
-    const gestionadasFinales = campo === "gestionada" ? nuevas : gestionadas;
-    const compradasFinales = campo === "comprada" ? nuevas : compradas;
-    finales.set(l.id, { gestionadas: gestionadasFinales, compradas: compradasFinales });
-    cambios.push({
-      id: l.id,
-      gestionadas: gestionadasFinales,
-      compradas: compradasFinales,
-      completa: gestionadasFinales + compradasFinales >= l.cantidad,
-    });
-  }
-
-  const ordenIds = [...new Set(editables.map((l) => l.orden.id))];
-  const folios = [...new Set(editables.map((l) => l.orden.folio))];
-  const materiales = [...new Set(editables.map((l) => l.material.nombre))];
-
-  await prisma.$transaction(async (tx) => {
-    for (const c of cambios) {
-      await tx.detalleOrden.update({
-        where: { id: c.id },
-        data: {
-          cantidadGestionada: c.gestionadas,
-          cantidadComprada: c.compradas,
-          // El estado es el resumen de los dos contadores: mientras quede
-          // algo por resolver sigue Pendiente, aunque ya tenga unidades
-          // gestionadas o compradas. Resuelto, queda Entregado si se compró
-          // algo y Gestionado si se resolvió solo con Gestión. Eso mantiene
-          // en pie las reglas de inventario, que se apoyan en el estado.
-          estadoGestion: c.completa
-            ? c.compradas > 0
-              ? "Entregado"
-              : "Gestionado"
-            : "Pendiente",
-        },
-      });
-    }
+  await prisma.detalleOrden.update({
+    where: { id: linea.id },
+    data: {
+      cantidadGestionada: gestionadasFinales,
+      cantidadComprada: compradasFinales,
+      // El estado es el RESUMEN de los dos contadores: mientras quede algo
+      // por resolver sigue Pendiente, aunque ya tenga unidades gestionadas o
+      // compradas. Resuelto, queda Entregado si se compró algo y Gestionado
+      // si se resolvió solo con Gestión. Eso mantiene en pie las reglas de
+      // inventario, que se apoyan en el estado.
+      estadoGestion: completa ? (compradasFinales > 0 ? "Entregado" : "Gestionado") : "Pendiente",
+    },
   });
 
   await registrarMovimiento({
     usuarioId: Number(sesion.user.id),
     modulo: campo === "comprada" ? "Compras" : "Gestión",
-    accion:
-      campo === "comprada"
-        ? `Registró ${cantidad} unidad(es) comprada(s)`
-        : `Registró ${cantidad} unidad(es) gestionada(s)`,
-    detalle: `${folios.join(", ")} — ${materiales.join(", ")}`,
+    accion: `Registró ${nuevas} unidad(es) ${campo === "comprada" ? "comprada(s)" : "gestionada(s)"}`,
+    detalle: `${linea.orden.folio} — ${linea.material.nombre}`,
   });
 
   revalidatePath("/gestion");
   revalidatePath("/compras");
   revalidatePath("/ordenes");
-  for (const ordenId of ordenIds) revalidatePath(`/ordenes/${ordenId}`);
+  revalidatePath(`/ordenes/${linea.orden.id}`);
 
-  // Cuánto quedó en la fila DESPUÉS de guardar: los renglones que se
-  // movieron, con su valor nuevo, y los que se quedaron como estaban. Es lo
-  // que la tabla vuelve a mostrar; si da menos de lo que se pidió (parte de
-  // las unidades estaba en renglones que no se mueven), el cliente avisa.
-  const aplicadas = lineas.reduce((suma, l) => {
-    const nuevos = finales.get(l.id);
-    if (nuevos) return suma + (campo === "comprada" ? nuevos.compradas : nuevos.gestionadas);
-    const gestionadas = Math.min(Math.max(l.cantidadGestionada || 0, 0), l.cantidad);
-    const compradas = Math.min(Math.max(l.cantidadComprada || 0, 0), l.cantidad - gestionadas);
-    return suma + (campo === "comprada" ? compradas : gestionadas);
-  }, 0);
-
-  return { aplicadas };
-}
-
-/** Registra cuántas unidades de una fila de la consolidación ya se
- *  GESTIONARON (módulo Gestión). El reparto y las reglas están en
- *  guardarConteo(). */
-export async function actualizarCantidadGestionada(
-  lineaIds: number[],
-  cantidad: number,
-): Promise<{ error?: string; aplicadas?: number }> {
-  return guardarConteo("gestionada", ["consolidacion.editar", "compras.editar"], lineaIds, cantidad);
-}
-
-/** Registra cuántas unidades de una fila de la consolidación ya COMPRÓ el
- *  módulo Compras. Va en su propio contador (cantidadComprada), separado del
- *  de Gestión, para que comprar no borre lo que Gestión ya gestionó: 2 CAFÉ
- *  MOLIDO con 1 gestionado y 1 comprado quedan "Gestionado: 1 · Entregado: 1"
- *  en lugar de "Entregado: 2". Al completar la cantidad pedida el renglón
- *  queda resuelto y pasa a estado Entregado. */
-export async function actualizarCantidadComprada(
-  lineaIds: number[],
-  cantidad: number,
-): Promise<{ error?: string; aplicadas?: number }> {
-  return guardarConteo("comprada", ["compras.editar"], lineaIds, cantidad);
+  // Lo que quedó guardado, que puede ser menos de lo pedido si se pasó del
+  // tope: el cliente avisa en vez de dejar el campo diciendo algo que no quedó.
+  return { aplicadas: nuevas };
 }
 
 /** El solicitante confirma, producto por producto, que ya le llegó el material.
@@ -1032,9 +988,23 @@ export async function crearUsuario(_prev: EstadoForm, datos: FormData): Promise<
   const clave = String(datos.get("clave") || "");
   const rol = rolValido(datos.get("rol"));
   const modulosPermitidos = modulosDelFormulario(datos, rol);
+  // Gerencia a la que pertenece la persona (catálogo de dependencias). De ahí
+  // salen las requisiciones que verá y, si es jefe inmediato, las que puede
+  // autorizar.
+  const area = normalizarDependencia(datos.get("area"));
 
   if (!nombre || !usuario) return { error: "El nombre y la cuenta son obligatorios." };
   if (clave.length < 6) return { error: "La contraseña debe tener al menos 6 caracteres." };
+  if (!esDependenciaValida(area)) {
+    return { error: "El área (gerencia) debe ser una del catálogo. Elige una de la lista o déjala vacía." };
+  }
+  if (rol === "jefe_inmediato" && !area) {
+    return {
+      error:
+        "Un jefe inmediato necesita un área asignada: elige la gerencia que va a dirigir " +
+        "(sin ella no verá ni podrá autorizar las requisiciones de esa área).",
+    };
+  }
 
   // Reviso antes de insertar para poder decirle cuál cuenta ya está ocupada
   // (el error de la base no trae el valor y suena muy genérico).
@@ -1050,10 +1020,15 @@ export async function crearUsuario(_prev: EstadoForm, datos: FormData): Promise<
 
   try {
     const claveHash = await bcrypt.hash(clave, 10);
-    await prisma.usuario.create({ data: { nombre, usuario, claveHash, rol, modulosPermitidos } });
+    await prisma.usuario.create({
+      data: { nombre, usuario, claveHash, rol, modulosPermitidos, area: area || null },
+    });
     await registrarMovimiento({
       usuarioId: Number(sesion.user.id), modulo: "Usuarios", accion: "Creó usuario",
-      detalle: `${nombre} (${usuario}) con rol ${rol} — módulos: ${modulosPermitidos.join(", ") || "ninguno"}`,
+      detalle:
+        `${nombre} (${usuario}) con rol ${rol}` +
+        (area ? ` — área: ${textoDependencia(area)}` : " — sin área asignada") +
+        ` — módulos: ${modulosPermitidos.join(", ") || "ninguno"}`,
     });
   } catch (e) {
     return { error: mensajeSiEsDuplicado(e, { usuario: "nombre de cuenta" }) };
@@ -1070,9 +1045,22 @@ export async function editarUsuario(id: number, _prev: EstadoForm, datos: FormDa
   const rol = rolValido(datos.get("rol"));
   const modulosPermitidos = modulosDelFormulario(datos, rol);
   const clave = String(datos.get("clave") || "");
+  // Cambiar de área lo hace el administrador desde aquí: es el único sitio
+  // donde se asigna la gerencia de una cuenta.
+  const area = normalizarDependencia(datos.get("area"));
   if (!nombre) return { error: "El nombre es obligatorio." };
   if (!usuario) return { error: "La cuenta de acceso es obligatoria." };
   if (clave && clave.length < 6) return { error: "La contraseña debe tener al menos 6 caracteres." };
+  if (!esDependenciaValida(area)) {
+    return { error: "El área (gerencia) debe ser una del catálogo. Elige una de la lista o déjala vacía." };
+  }
+  if (rol === "jefe_inmediato" && !area) {
+    return {
+      error:
+        "Un jefe inmediato necesita un área asignada: elige la gerencia que va a dirigir " +
+        "(sin ella no verá ni podrá autorizar las requisiciones de esa área).",
+    };
+  }
 
   try {
     const anterior = await prisma.usuario.findUniqueOrThrow({ where: { id } });
@@ -1080,6 +1068,7 @@ export async function editarUsuario(id: number, _prev: EstadoForm, datos: FormDa
       nombre: string;
       usuario?: string;
       rol: typeof rol;
+      area: string | null;
       modulosPermitidos: string[];
       claveHash?: string;
       sesionToken?: null;
@@ -1087,6 +1076,7 @@ export async function editarUsuario(id: number, _prev: EstadoForm, datos: FormDa
     } = {
       nombre,
       rol,
+      area: area || null,
       modulosPermitidos,
     };
     // La cuenta de acceso se puede corregir. Si se deja igual, no se toca.
@@ -1103,6 +1093,10 @@ export async function editarUsuario(id: number, _prev: EstadoForm, datos: FormDa
       detalle: nombre +
         (anterior.usuario !== usuario ? ` (cuenta ${anterior.usuario} → ${usuario})` : "") +
         (anterior.rol !== rol ? ` (rol ${anterior.rol} → ${rol})` : "") +
+        (normalizarDependencia(anterior.area) !== area
+          ? ` (área ${normalizarDependencia(anterior.area) ? textoDependencia(anterior.area) : "sin área"}` +
+            ` → ${area ? textoDependencia(area) : "sin área"})`
+          : "") +
         ` — módulos: ${modulosPermitidos.join(", ") || "ninguno"}` +
         (clave ? " — se cambió la contraseña" : ""),
     });

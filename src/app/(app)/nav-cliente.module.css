@@ -127,6 +127,23 @@
   white-space: nowrap;
 }
 
+/* Gerencia (área) de la cuenta: se ve junto al rol para que cada quien sepa
+   de qué dependencia es la que le corresponde revisar. */
+.area {
+  max-width: 180px;
+  overflow: hidden;
+  padding: 5px 9px;
+  border: 1px solid #cfe1db;
+  border-radius: 999px;
+  background: #f1f7f5;
+  color: #0b6c74;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1.15;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .botonSalir {
   height: 35px;
   display: inline-flex;
@@ -326,6 +343,12 @@
 
   .rol {
     max-width: 145px;
+    padding: 4px 7px;
+    font-size: 9px;
+  }
+
+  .area {
+    max-width: 130px;
     padding: 4px 7px;
     font-size: 9px;
   }

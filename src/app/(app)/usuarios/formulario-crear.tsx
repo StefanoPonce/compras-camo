@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useFormState, useFormStatus } from "react-dom";
 import { crearUsuario } from "../actions";
 import { MODULOS_POR_ROL, ROLES, type Modulo, type Rol } from "@/lib/permisos";
+import { DEPENDENCIAS } from "@/lib/dependencias";
 import PanelModulos from "./panel-modulos";
 
 function BotonGuardar() {
@@ -97,6 +98,22 @@ export default function FormularioCrearUsuario() {
           >
             {ROLES.map((r) => (
               <option key={r.valor} value={r.valor}>{r.etiqueta}</option>
+            ))}
+          </select>
+        </Campo>
+        <Campo name="area" etiqueta="Área (gerencia)" ayuda="Marca a qué gerencia pertenece: de ahí salen las requisiciones que verá y, si es jefe inmediato, las que podrá autorizar.">
+          <select
+            id="area"
+            className="campo-input"
+            name="area"
+            defaultValue=""
+            // Un jefe sin área no vería ni autorizaría nada de su gerencia,
+            // así que el sistema exige elegirla (también lo revisa el servidor).
+            required={rol === "jefe_inmediato"}
+          >
+            <option value="">Sin área asignada</option>
+            {DEPENDENCIAS.map((d) => (
+              <option key={d.valor} value={d.valor}>{d.etiqueta}</option>
             ))}
           </select>
         </Campo>

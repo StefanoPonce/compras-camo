@@ -2,10 +2,12 @@
 //
 // El estado vive en cada renglón de detalle_orden (ver prisma/schema.prisma)
 // en DOS contadores: cantidadGestionada (lo que resolvió Gestión) y
-// cantidadComprada (lo que compró Compras). De esos dos salen los CUATRO
-// estados del ciclo que se muestran en el detalle de la requisición, en la
-// lista de requisiciones y en el desglose de "Cantidad consolidada":
+// cantidadComprada (lo que compró Compras). De esos dos salen los estados
+// del ciclo que se muestran en el detalle de la requisición, en la lista de
+// requisiciones y en el desglose de "Cantidad consolidada":
 //
+//   Sin aprobar            → requisición todavía NO autorizada: no hay nada
+//                            que gestionar ni que comprar (estadoCompraDe).
 //   En proceso de gestión → material de una requisición recién aprobada que
 //                           todavía nadie ha tocado.
 //   Gestionado            → unidades que resolvió Gestión (compra directa,
@@ -21,6 +23,11 @@
 // material de una requisición, lo que quede sin resolver en TODA esa
 // requisición pasa a "En proceso de compra". Mientras nadie toque nada,
 // todo el material se queda en "En proceso de gestión".
+//
+// Nada de esto se pinta antes de la aprobación: una requisición en
+// Borrador, Pendiente o Rechazada muestra "Sin aprobar" (estadoCompraDe),
+// porque nadie la ha tomado todavía y "En proceso de gestión" haría
+// creer lo contrario.
 //
 // El enum EstadoGestion (la columna estadoGestion) sigue siendo el RESUMEN
 // de los dos contadores, para los filtros y el inventario: "Pendiente"
@@ -45,8 +52,9 @@ export const ETIQUETAS_GESTION: Record<EstadoGestion, string> = {
 };
 
 /** Estados que maneja el módulo Gestión. La columna Estado ya no ofrece un
- *  desplegable: lleva un contador de unidades gestionadas
- *  (src/app/(app)/selector-estado-gestion.tsx). */
+ *  desplegable: la consolidación no tiene columna de conteo, el registro por
+ *  solicitante vive en la ventana "Ver requisiciones"
+ *  (src/app/(app)/gestion/boton-requisiciones-material.tsx). */
 export const OPCIONES_GESTION: EstadoGestion[] = ["Pendiente", "Gestionado"];
 
 /** Estados que maneja el módulo Compras: hoy los mismos dos que en Gestión,
@@ -55,24 +63,30 @@ export const OPCIONES_GESTION: EstadoGestion[] = ["Pendiente", "Gestionado"];
 export const OPCIONES_COMPRA: EstadoGestion[] = ["Pendiente", "Gestionado"];
 
 /* ------------------------------------------------------------------ *
- *  Los cuatro estados del ciclo: lo que se muestra en pantalla.
+ *  Los estados del ciclo: lo que se muestra en pantalla.
  * ------------------------------------------------------------------ */
 
 /** Ciclo de vida de un material dentro de una requisición. No es el enum de
  *  la base (EstadoGestion tiene tres estados y vive por renglón): son los
- *  cuatro estados que ven el solicitante y los supervisores. */
-export type EstadoCiclo = "EnGestion" | "Gestionado" | "EnCompra" | "Entregado";
+ *  que ven el solicitante y los supervisores. Los cuatro primeros son el
+ *  ciclo de compra como tal; "SinAprobar" es el estado PREVIO, el que lleva
+ *  una requisición mientras nadie la ha autorizado (ver estadoCompraDe). */
+export type EstadoCiclo = "SinAprobar" | "EnGestion" | "Gestionado" | "EnCompra" | "Entregado";
 
 /** Nombre que se muestra en pantalla para cada estado del ciclo. */
 export const ETIQUETAS_CICLO: Record<EstadoCiclo, string> = {
+  SinAprobar: "Sin aprobar",
   EnGestion: "En proceso de gestión",
   Gestionado: "Gestionado",
   EnCompra: "En proceso de compra",
   Entregado: "Entregado",
 };
 
-/** Clase de la píldora del estado (ver .et-* en src/app/globals.css). */
+/** Clase de la píldora del estado (ver .et-* en src/app/globals.css).
+ *  "Sin aprobar" va gris, como un dato que todavía no arrancó: NO en ámbar,
+ *  porque en esta app el ámbar ya significa "en proceso de gestión". */
 export const CLASE_CICLO: Record<EstadoCiclo, string> = {
+  SinAprobar: "et-borrador",
   EnGestion: "et-pendiente",
   Gestionado: "et-gestionado",
   EnCompra: "et-compra",
@@ -80,12 +94,14 @@ export const CLASE_CICLO: Record<EstadoCiclo, string> = {
 };
 
 /** Orden en el que se lista el desglose de cantidades: primero lo que ya se
- *  resolvió, al final lo que apenas empieza. */
-export const ORDEN_CICLO: EstadoCiclo[] = ["Gestionado", "Entregado", "EnCompra", "EnGestion"];
+ *  resolvió, al final lo que apenas empieza. "SinAprobar" cierra la lista
+ *  porque ni siquiera ha arrancado. */
+export const ORDEN_CICLO: EstadoCiclo[] = ["Gestionado", "Entregado", "EnCompra", "EnGestion", "SinAprobar"];
 
 /** Mismo color que la píldora del estado, pero sin fondo: en el desglose la
  *  cifra va suelta debajo del total y un fondo la volvería ruidosa. */
 export function colorDeCiclo(estado: EstadoCiclo): string {
+  if (estado === "SinAprobar") return "text-tinta2";
   if (estado === "Gestionado") return "text-azul";
   if (estado === "Entregado") return "text-verde";
   if (estado === "EnCompra") return "text-morado";
@@ -101,13 +117,13 @@ export type RenglonCiclo = {
   inventariado?: boolean | null;
 };
 
-/** Unidades de un material en cada estado del ciclo. Sus cuatro valores
- *  siempre suman la cantidad pedida, así que la suma del desglose coincide
- *  con la cifra que tiene al lado. */
+/** Unidades de un material en cada estado del ciclo. Sus valores siempre
+ *  suman la cantidad pedida, así que la suma del desglose coincide con la
+ *  cifra que tiene al lado. */
 export type CantidadesCiclo = Record<EstadoCiclo, number>;
 
 function cantidadesEnCero(): CantidadesCiclo {
-  return { EnGestion: 0, Gestionado: 0, EnCompra: 0, Entregado: 0 };
+  return { SinAprobar: 0, EnGestion: 0, Gestionado: 0, EnCompra: 0, Entregado: 0 };
 }
 
 /**
@@ -126,19 +142,25 @@ export function requisicionTrabajada(renglones: Iterable<RenglonCiclo>): boolean
 }
 
 /**
- * Reparto de UN renglón entre los cuatro estados del ciclo. `trabajada` es el
- * indicador de SU requisición (ver requisicionTrabajada).
+ * Reparto de UN renglón entre los estados del ciclo. `trabajada` es el
+ * indicador de SU requisición (ver requisicionTrabajada) y `aprobada` si esa
+ * requisición ya fue autorizada.
  *
  * Un renglón puede quedar a la mitad: uno de 2 unidades con
  * cantidadGestionada = 1 aporta 1 a Gestionado y deja 1 para el resto, que
- * va a "En proceso de compra" si la requisición ya se trabajó y a "En proceso
- * de gestión" si todavía no.
+ * va a "En proceso de compra" si la requisición ya se trabajó, a "En proceso
+ * de gestión" si todavía no, y a "Sin aprobar" si la requisición ni siquiera
+ * fue autorizada.
  *
  * Los dos contadores se recortan al renglón: una cifra mal guardada no puede
  * hacer que la suma del desglose dé más que la cantidad pedida, ni que lo
  * comprado pise lo gestionado.
  */
-export function cantidadesDeRenglon(r: RenglonCiclo, trabajada: boolean): CantidadesCiclo {
+export function cantidadesDeRenglon(
+  r: RenglonCiclo,
+  trabajada: boolean,
+  aprobada = true,
+): CantidadesCiclo {
   const total = cantidadesEnCero();
   const gestionadas = Math.min(Math.max(r.cantidadGestionada || 0, 0), r.cantidad);
   const compradas = Math.min(Math.max(r.cantidadComprada || 0, 0), r.cantidad - gestionadas);
@@ -157,41 +179,76 @@ export function cantidadesDeRenglon(r: RenglonCiclo, trabajada: boolean): Cantid
 
   total.Gestionado += gestionadas;
   total.Entregado += compradas;
-  if (trabajada) total.EnCompra += restante;
+  // Lo que falta sin resolver: mientras la requisición no esté aprobada no
+  // hay ciclo que recorrer, así que va a "Sin aprobar" y no a ninguno de los
+  // dos "en proceso".
+  if (!aprobada) total.SinAprobar += restante;
+  else if (trabajada) total.EnCompra += restante;
   else total.EnGestion += restante;
   return total;
 }
 
 /** Reparto de TODOS los renglones de una misma requisición: calcula sola si
- *  esa requisición ya se trabajó. Es lo que muestra el detalle. */
-export function cantidadesDeRequisicion(renglones: Iterable<RenglonCiclo>): CantidadesCiclo {
+ *  esa requisición ya se trabajó. Es lo que muestra el detalle. `aprobada`
+ *  la pasa quien sabe el estado de la requisición (ver estadoCompraDe). */
+export function cantidadesDeRequisicion(
+  renglones: Iterable<RenglonCiclo>,
+  aprobada = true,
+): CantidadesCiclo {
   const lista = [...renglones];
   const trabajada = requisicionTrabajada(lista);
   const total = cantidadesEnCero();
   for (const r of lista) {
-    const reparto = cantidadesDeRenglon(r, trabajada);
+    const reparto = cantidadesDeRenglon(r, trabajada, aprobada);
     for (const estado of ORDEN_CICLO) total[estado] += reparto[estado];
   }
   return total;
 }
 
+/** ¿Esta requisición ya fue autorizada? Es la puerta del ciclo de compra:
+ *  los estados que se calculan al pintar ("Pendiente a recibir", "Recibido")
+ *  salen de una aprobada, así que también pasan. */
+export function esRequisicionAprobada(estado: EstadoOrden): boolean {
+  return estado === "Aprobada" || estado === "Recibida";
+}
+
 /**
  * Estado que se muestra en la lista de requisiciones (una sola píldora para
- * toda la requisición). Mientras queden unidades sin resolver, manda el
- * ciclo: "En proceso de gestión" si nadie la ha tocado y "En proceso de
- * compra" si ya se empezó a trabajar. Cuando ya no falta nada se resuelve
- * como las filas de Compras: Gestionado si algún renglón lo está, Entregado
- * solo si todo se compró.
+ * toda la requisición) y en el detalle.
+ *
+ * Si todavía NO está aprobada la respuesta es "SinAprobar": nadie la ha
+ * tomado en cuenta y "En proceso de gestión" haría creer lo contrario.
+ *
+ * Ya aprobada, manda el ciclo: "En proceso de gestión" si nadie la ha tocado
+ * y "En proceso de compra" si ya se empezó a trabajar. Cuando ya no falta
+ * nada se resuelve como las filas de Compras: Gestionado si algún renglón lo
+ * está, Entregado solo si todo se compró.
  */
-export function estadoDeRequisicion(renglones: Iterable<RenglonCiclo>): EstadoCiclo {
+export function estadoDeRequisicion(
+  renglones: Iterable<RenglonCiclo>,
+  aprobada = true,
+): EstadoCiclo {
+  if (!aprobada) return "SinAprobar";
+
   const lista = [...renglones];
   if (!lista.length) return "EnGestion";
 
-  const c = cantidadesDeRequisicion(lista);
+  const c = cantidadesDeRequisicion(lista, aprobada);
   if (c.EnGestion > 0) return "EnGestion";
   if (c.EnCompra > 0) return "EnCompra";
   if (lista.some((r) => r.estadoGestion === "Gestionado")) return "Gestionado";
   return "Entregado";
+}
+
+/**
+ * Estado de compra que se pinta para una requisición entera, según SU estado
+ * guardado (Borrador, Pendiente, Aprobada, Rechazada, Recibida).
+ *
+ * Es la única regla que decide si el ciclo existe o no, así que la lista de
+ * requisiciones, el detalle y la consolidación de Gestión dicen lo mismo.
+ */
+export function estadoCompraDe(estado: EstadoOrden, renglones: Iterable<RenglonCiclo>): EstadoCiclo {
+  return estadoDeRequisicion(renglones, esRequisicionAprobada(estado));
 }
 
 /* ------------------------------------------------------------------ *

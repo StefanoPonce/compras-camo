@@ -82,10 +82,12 @@ export default async function VistaConsolidacion({
           <div className="text-xs font-semibold uppercase tracking-wide text-verde mb-1">Módulo de gestión</div>
           <h2 className="text-xl font-sora font-semibold">Consolidación de compras</h2>
           <p className="text-tinta2 text-sm mt-1 max-w-[68ch]">
-            Reúne las requisiciones aprobadas por proveedor para revisar y preparar una compra consolidada. En la
-            columna <strong className="text-tinta">Cantidad gestionada</strong> indicas cuántas unidades de cada
-            material ya se resolvieron: las que queden sin gestionar pasan al módulo Compras. Esta vista no modifica
-            ni elimina las requisiciones originales.
+            Reúne las requisiciones aprobadas por proveedor para revisar y preparar una compra consolidada. La columna{" "}
+            <strong className="text-tinta">Cantidad consolidada</strong> muestra cuánto se pidió de cada material y en
+            qué estado está. Para anotar cuántas unidades ya se resolvieron, el botón{" "}
+            <strong className="text-tinta">Ver requisiciones</strong> de cada fila abre la lista de quién lo pidió y allí
+            decides cuántas unidades se le gestionaron a cada solicitante: las que dejes sin gestionar pasan al módulo
+            Compras. Esta vista no modifica ni elimina las requisiciones originales.
           </p>
         </div>
         <div className="ml-auto self-center flex gap-2 flex-wrap">

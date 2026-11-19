@@ -145,7 +145,9 @@ async function crearUsuarios() {
   const usuarios = [
     { usuario: "admin", nombre: "Administrador del sistema", rol: "administrador" as const, claveHash: claveAdmin },
     { usuario: "subadmin", nombre: "Sub Administrador de compras", rol: "sub_administrador" as const, claveHash: claveDemo },
-    { usuario: "jefe", nombre: "Jefe inmediato", rol: "jefe_inmediato" as const, claveHash: claveDemo },
+    // El jefe inmediato nace con gerencia asignada: sin área no vería ni
+    // autorizaría las requisiciones de su dependencia.
+    { usuario: "jefe", nombre: "Jefe inmediato", rol: "jefe_inmediato" as const, area: "gerente mercadeo", claveHash: claveDemo },
     { usuario: "compras", nombre: "Responsable de solicitar", rol: "responsable_solicitante" as const, claveHash: claveDemo },
   ];
   for (const u of usuarios) {

@@ -52,6 +52,16 @@ model Usuario {
   nombre         String
   correo         String?
   rol            Rol           @default(responsable_solicitante)
+  // Gerencia (dependencia) a la que pertenece este usuario: guarda el `valor`
+  // del catálogo de src/lib/dependencias.ts ("gerente mercadeo"). Vacío cuando
+  // el administrador aún no le asigna una.
+  //
+  // De aquí salen dos reglas del sistema:
+  //   · las requisiciones de un usuario con área nacen en SU gerencia
+  //     (la dependencia no se puede elegir en el formulario);
+  //   · un jefe inmediato solo ve y autoriza las requisiciones de su gerencia.
+  // Solo el administrador la cambia, desde la edición de usuarios.
+  area           String?
   // "__rol__" significa que el usuario hereda los módulos de su rol.
   // Una lista vacía significa que no tiene módulos personalizados habilitados.
   modulosPermitidos String[]   @default(["__rol__"])

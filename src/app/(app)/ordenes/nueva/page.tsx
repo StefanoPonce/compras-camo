@@ -36,6 +36,9 @@ export default async function NuevaOrden() {
         accion={crearOrden}
         materiales={materiales}
         proveedores={proveedores}
+        // La dependencia sale de la gerencia asignada a la cuenta: quien tiene
+        // área no la puede cambiar en el formulario.
+        dependenciaFija={sesion.user.area}
       />
     </>
   );

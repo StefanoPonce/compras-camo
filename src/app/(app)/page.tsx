@@ -5,6 +5,8 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { puede, puedeVerModulo, inventarioPropio } from "@/lib/permisos";
 import { materialesSolicitadosPor, filtroMaterialesPropios } from "@/lib/materiales-solicitados";
+import { textoDependencia } from "@/lib/dependencias";
+import { alcanceRequisiciones, areaDe, veTodasLasAreas } from "@/lib/alcance-area";
 import { CLASE_ESTADO, estadoVisibleDe } from "@/lib/estado-gestion";
 
 function fecha(d: Date) {
@@ -34,6 +36,12 @@ export default async function Panel() {
   // "Solicitante" solo repite su nombre, así que se oculta en ese rol.
   const muestraSolicitante = sesion.user.rol !== "responsable_solicitante";
 
+  // Qué le toca ver a ESTE usuario en el panel: todas las áreas
+  // (administración y gestión), las de su gerencia o solo las suyas.
+  const alcance = alcanceRequisiciones({ id: uid, rol: sesion.user.rol, area: sesion.user.area });
+  const areaPropia = areaDe(sesion.user);
+  const veSoloSuArea = veTodas && !veTodasLasAreas(sesion.user.rol) && areaPropia !== "";
+
   // El responsable de solicitar solo ve SU inventario: los materiales de las
   // requisiciones que él envió. Los demás roles ven el catálogo completo.
   const soloPropio = inventarioPropio(sesion.user.rol);
@@ -41,7 +49,9 @@ export default async function Panel() {
   const filtroPropios = filtroMaterialesPropios(propios);
 
   const [pendientes, proveedoresActivos, totalMateriales, bajos, ordenesRecientes] = await Promise.all([
-    prisma.ordenCompra.count({ where: { estado: "Pendiente" } }),
+    // Pendientes de aprobar: para un jefe inmediato cuentan solo las de su
+    // gerencia, que son las que realmente puede autorizar.
+    prisma.ordenCompra.count({ where: { estado: "Pendiente", ...alcance } }),
     prisma.proveedor.count({ where: { activo: true } }),
     prisma.material.count({ where: filtroPropios }),
     prisma.material.findMany({
@@ -50,7 +60,7 @@ export default async function Panel() {
     }).then((ms) => ms.filter((m) => m.existencia <= m.minimo)),
     prisma.ordenCompra.findMany({
       where: {
-        ...(veTodas ? {} : { solicitanteId: uid }),
+        ...alcance,
         // El panel resume lo que está en juego. Un borrador no cuenta: es un
         // trabajo a medias personal y se sigue en /ordenes.
         estado: { not: "Borrador" },
@@ -75,10 +85,16 @@ export default async function Panel() {
         <div>
           <h2 className="text-xl font-sora font-semibold">
             Hola, {(sesion!.user.name || "").split(" ")[0]}
+            {/* La gerencia de la cuenta: el usuario siempre ve de qué área es. */}
+            {areaPropia && (
+              <span className="text-tinta2 font-normal text-base"> · {textoDependencia(areaPropia)}</span>
+            )}
           </h2>
           <p className="text-tinta2 text-sm mt-1 max-w-[60ch]">
             {vePendientes
-              ? `Tienes ${pendientes} requisición(es) esperando tu revisión.`
+              ? veSoloSuArea
+                ? `Tienes ${pendientes} requisición(es) de ${textoDependencia(areaPropia)} esperando tu revisión.`
+                : `Tienes ${pendientes} requisición(es) esperando tu revisión.`
               : veOrdenes
                 ? "Desde aquí solicitas productos y sigues el estado de tus requisiciones."
                 : "Consulta los módulos disponibles desde el menú."}
@@ -170,7 +186,13 @@ export default async function Panel() {
 
       {veOrdenes && (
         <>
-          <h3 className="text-base font-sora font-semibold mb-2.5">{veTodas ? "Últimas requisiciones" : "Mis últimas requisiciones"}</h3>
+          <h3 className="text-base font-sora font-semibold mb-2.5">
+            {veSoloSuArea
+              ? "Últimas requisiciones de tu área"
+              : veTodas
+                ? "Últimas requisiciones"
+                : "Mis últimas requisiciones"}
+          </h3>
           {ordenesRecientes.length ? (
             <div className="tarjeta overflow-x-auto">
               <table className="w-full tabla" style={{ minWidth: 620 }}>

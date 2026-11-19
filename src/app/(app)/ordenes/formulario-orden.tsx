@@ -57,6 +57,11 @@ type FormularioProps = {
   /** Muestra el botón de guardar como borrador. Se oculta al editar una
    *  requisición que ya se envió (aprobada), porque esa no vuelve a borrador. */
   permitirBorrador?: boolean;
+  /** Gerencia asignada a la cuenta del solicitante (usuarios.area). Si trae
+   *  valor, la dependencia queda fija en el formulario: la requisición nace en
+   *  la gerencia de quien la pide y solo el administrador la cambia editando
+   *  el usuario. Sin valor (cuentas sin área), se elige en el desplegable. */
+  dependenciaFija?: string | null;
 };
 
 function lineaVacia(): LineaOrden {
@@ -132,7 +137,7 @@ function SelectPrograma({
   );
 }
 
-export default function FormularioOrden({ accion, materiales, proveedores, inicial, cancelarHref = "/ordenes", textoEnviar = "Enviar requisición", permitirBorrador = true }: FormularioProps) {
+export default function FormularioOrden({ accion, materiales, proveedores, inicial, cancelarHref = "/ordenes", textoEnviar = "Enviar requisición", permitirBorrador = true, dependenciaFija = null }: FormularioProps) {
   const [estado, envia] = useFormState(accion, { error: null });
   // Un borrador puede haberse guardado sin ningún material, y `[]` es
   // verdadero en JavaScript: sin el largo, una lista vacía dejaría la tabla
@@ -218,20 +223,40 @@ export default function FormularioOrden({ accion, materiales, proveedores, inici
       <div className="grid sm:grid-cols-2 gap-3.5">
         <div>
           <label className="block text-sm text-tinta2 mb-1.5 font-medium">Dependencia</label>
-          <select className="campo-input" name="dependencia" required defaultValue={inicial?.dependencia || ""}>
-            <option value="">Selecciona una dependencia…</option>
-            {DEPENDENCIAS.map((d) => (
-              <option key={d.valor} value={d.valor}>
-                {d.etiqueta}
-              </option>
-            ))}
-            {/* Una dependencia vieja que no está en el catálogo (requisiciones
-                guardadas con texto libre): se muestra igual para no perderla al
-                volver a guardar. */}
-            {inicial?.dependencia && !DEPENDENCIAS.some((d) => d.valor === inicial.dependencia) && (
-              <option value={inicial.dependencia}>{textoDependencia(inicial.dependencia)}</option>
-            )}
-          </select>
+          {/* Quien ya tiene gerencia asignada en su cuenta no elige: la
+              dependencia queda fija en SU área (el servidor además la impone,
+              así que ni cambiando el formulario se puede mover). */}
+          {dependenciaFija ? (
+            <>
+              <input type="hidden" name="dependencia" value={dependenciaFija} />
+              <input
+                className="campo-input bg-superficie2"
+                value={textoDependencia(dependenciaFija)}
+                readOnly
+                tabIndex={-1}
+                aria-readonly="true"
+                title="Viene de la gerencia asignada a tu cuenta: solo el administrador puede cambiarla, desde Usuarios."
+              />
+              <p className="text-xs text-tinta2 mt-1">
+                Es tu gerencia (viene de tu cuenta). Solo el administrador la cambia, desde Usuarios.
+              </p>
+            </>
+          ) : (
+            <select className="campo-input" name="dependencia" required defaultValue={inicial?.dependencia || ""}>
+              <option value="">Selecciona una dependencia…</option>
+              {DEPENDENCIAS.map((d) => (
+                <option key={d.valor} value={d.valor}>
+                  {d.etiqueta}
+                </option>
+              ))}
+              {/* Una dependencia vieja que no está en el catálogo (requisiciones
+                  guardadas con texto libre): se muestra igual para no perderla al
+                  volver a guardar. */}
+              {inicial?.dependencia && !DEPENDENCIAS.some((d) => d.valor === inicial.dependencia) && (
+                <option value={inicial.dependencia}>{textoDependencia(inicial.dependencia)}</option>
+              )}
+            </select>
+          )}
         </div>
         {/* El área que pide el material: texto libre, se muestra arriba de la
             requisición cuando se visualiza. */}

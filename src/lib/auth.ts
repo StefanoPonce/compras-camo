@@ -95,6 +95,10 @@ export const authOptions: NextAuthOptions = {
           name: encontrado.nombre,
           usuario: encontrado.usuario,
           rol: encontrado.rol,
+          // La gerencia viaja en la sesión: de ahí salen el área que muestran
+          // las requisiciones y el filtro con el que un jefe inmediato solo
+          // ve las de su propia área.
+          area: encontrado.area,
           modulosPermitidos: normalizarModulos(encontrado.modulosPermitidos, encontrado.rol),
           sesionToken,
         };
@@ -107,6 +111,7 @@ export const authOptions: NextAuthOptions = {
         token.id = user.id;
         token.usuario = user.usuario;
         token.rol = user.rol;
+        token.area = user.area;
         token.modulosPermitidos = normalizarModulos(user.modulosPermitidos, user.rol);
         token.sesionToken = user.sesionToken;
         return token;
@@ -120,6 +125,10 @@ export const authOptions: NextAuthOptions = {
         id: true,
         usuario: true,
         rol: true,
+        // El área se relee en cada petición: si el administrador la cambia en
+        // la edición de usuarios, el usuario la nota sin tener que cerrar
+        // sesión (es la que manda qué requisiciones ve y cuáles autoriza).
+        area: true,
         modulosPermitidos: true,
         activo: true,
         sesionToken: true,
@@ -173,6 +182,7 @@ export const authOptions: NextAuthOptions = {
       token.id = String(actual.id);
       token.usuario = actual.usuario;
       token.rol = actual.rol;
+      token.area = actual.area;
       token.modulosPermitidos = normalizarModulos(actual.modulosPermitidos, actual.rol);
       return token;
     },
@@ -185,6 +195,7 @@ export const authOptions: NextAuthOptions = {
         session.user.id = String(token.id);
         session.user.usuario = String(token.usuario);
         session.user.rol = token.rol;
+        session.user.area = token.area ?? null;
         session.user.modulosPermitidos = normalizarModulos(token.modulosPermitidos, token.rol);
       }
       return session;

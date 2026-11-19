@@ -97,10 +97,10 @@ export default async function Compras({
           <h2 className="text-xl font-sora font-semibold">Compras</h2>
           <p className="text-tinta2 text-sm mt-1 max-w-[68ch]">
             Materiales de las requisiciones aprobadas que siguen{" "}
-            <strong className="text-tinta">En proceso de compra</strong>. Anota en{" "}
-            <strong className="text-tinta">Cantidad comprada</strong> cuántas unidades ya se compraron: al
-            completarlas el material pasa a{" "}
-            <strong className="text-tinta">Entregado</strong>. Si la requisición ya no queda con nada
+            <strong className="text-tinta">En proceso de compra</strong>. El botón{" "}
+            <strong className="text-tinta">Ver requisiciones</strong> de cada fila abre la lista de quién pidió el
+            material y allí anotas cuántas unidades ya se compraron a cada solicitante: al completarlas el material pasa
+            a <strong className="text-tinta">Entregado</strong>. Si la requisición ya no queda con nada
             pendiente, pasa sola a Recibida y el sub administrador registra la entrega para sumarla al
             inventario (lo gestionado y lo comprado entran a bodega).
           </p>

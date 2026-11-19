@@ -5,7 +5,9 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { puede, puedeVerModulo } from "@/lib/permisos";
 import { textoPrograma } from "@/lib/programas";
-import { CLASE_CICLO, CLASE_ESTADO, ETIQUETAS_CICLO, estadoDeRequisicion, estadoVisibleDe } from "@/lib/estado-gestion";
+import { textoDependencia } from "@/lib/dependencias";
+import { alcanceRequisiciones, areaDe, veTodasLasAreas } from "@/lib/alcance-area";
+import { CLASE_CICLO, CLASE_ESTADO, ETIQUETAS_CICLO, estadoCompraDe, estadoVisibleDe } from "@/lib/estado-gestion";
 
 function fecha(d: Date) {
   return new Date(d).toLocaleDateString("es-HN", { day: "2-digit", month: "short", year: "numeric" });
@@ -23,9 +25,19 @@ export default async function Ordenes({ searchParams }: { searchParams: { estado
   const uid = Number(sesion!.user.id);
   const filtro = searchParams.estado || "";
 
+  // Qué le corresponde ver a ESTE usuario: todas las áreas (administración y
+  // gestión), las de su gerencia (jefe inmediato) o solo las suyas.
+  const alcance = alcanceRequisiciones({ id: uid, rol: sesion.user.rol, area: sesion.user.area });
+  const areaPropia = areaDe(sesion.user);
+  // Un jefe de área (o cualquier rol limitado por área) solo revisa lo de su
+  // gerencia: conviene decirlo en la cabecera para que no busque en vano.
+  const veSoloSuArea =
+    veTodas && !veTodasLasAreas(sesion.user.rol) && areaPropia !== "";
+  const incluyeColumnaDependencia = veTodas;
+
   const ordenes = await prisma.ordenCompra.findMany({
     where: {
-      ...(veTodas ? {} : { solicitanteId: uid }),
+      ...alcance,
       // Un borrador es un trabajo a medias personal: aunque el rol vea todas
       // las requisiciones, los borradores ajenos no le aparecen. El filtro de
       // estado los muestra solo si se piden explícitamente y son del usuario.
@@ -63,7 +75,9 @@ export default async function Ordenes({ searchParams }: { searchParams: { estado
         <div>
           <h2 className="text-xl font-sora font-semibold">Requisiciones</h2>
           <p className="text-tinta2 text-sm mt-1 max-w-[62ch]">
-            {veTodas
+            {veSoloSuArea
+              ? `Solo ves las requisiciones de tu área: ${textoDependencia(areaPropia)}. Aprueba o rechaza las que estén pendientes.`
+              : veTodas
               ? "Revisa, aprueba o rechaza las requisiciones. Al marcar una requisición como recibida se suma la cantidad al inventario."
               : "Aquí aparecen las requisiciones que tú has solicitado y en qué estado van."}
           </p>
@@ -85,18 +99,17 @@ export default async function Ordenes({ searchParams }: { searchParams: { estado
 
       {ordenes.length ? (
         <div className="tarjeta overflow-x-auto">
-          <table className="w-full tabla" style={{ minWidth: 780 }}>
-            <thead><tr><th>Folio</th><th>Fecha</th><th>Programa</th><th>Proveedor</th>{muestraSolicitante && <th>Solicitante</th>}<th>Estado</th><th>Estado de compra</th><th></th></tr></thead>
+          <table className="w-full tabla" style={{ minWidth: incluyeColumnaDependencia ? 900 : 780 }}>
+            <thead><tr><th>Folio</th><th>Fecha</th><th>Programa</th><th>Proveedor</th>{muestraSolicitante && <th>Solicitante</th>}{incluyeColumnaDependencia && <th>Dependencia</th>}<th>Estado</th><th>Estado de compra</th><th></th></tr></thead>
             <tbody>
               {ordenes.map((o) => {
                 const programas = programasDe(o.items);
-                // Ciclo de vida de SUS materiales: mientras nada se haya
-                // tocado está "En proceso de gestión"; en cuanto Gestión
-                // registra unidades pasa a "En proceso de compra"; si ya no
-                // falta nada, Gestionado o Entregado (misma regla que las
-                // filas de Gestión y Compras y que el detalle de la
-                // requisición).
-                const estadoCompra = estadoDeRequisicion(o.items);
+                // Estado de compra: el ciclo de sus materiales (En proceso
+                // de gestión · gestionado · en proceso de compra ·
+                // entregado), con la misma regla que las filas de Gestión y
+                // Compras y que el detalle. Pero SOLO si ya fue aprobada:
+                // antes dice "Sin aprobar", porque nadie la ha tomado.
+                const estadoCompra = estadoCompraDe(o.estado, o.items);
                 // Píldora del estado de la requisición: se calcula con sus
                 // renglones ("Pendiente a recibir" / "Recibido") en vez de
                 // leer la columna guardada.
@@ -114,10 +127,15 @@ export default async function Ordenes({ searchParams }: { searchParams: { estado
                   {/* Un borrador puede no tener proveedor todavía: se elige al enviar. */}
                   <td>{o.proveedor?.nombre || "—"}</td>
                   {muestraSolicitante && <td>{o.solicitante.nombre}</td>}
+                  {/* La gerencia de la que viene la requisición: es lo que usa
+                      el jefe inmediato para saber si le corresponde. */}
+                  {incluyeColumnaDependencia && (
+                    <td className="whitespace-nowrap">{textoDependencia(o.dependencia) || "—"}</td>
+                  )}
                   <td><span className={"etiqueta " + CLASE_ESTADO[estadoVisible]}>{estadoVisible}</span></td>
-                  {/* Ciclo de vida de los materiales de la requisición: lo
-                      marcan Gestión y Compras. Se dice como lo vería quien
-                      lo pidió. */}
+                  {/* Estado de compra de la requisición: lo marcan Gestión
+                      y Compras, pero solo desde que la aprueban; antes dice
+                      "Sin aprobar". */}
                   <td>
                     <span className={"etiqueta " + CLASE_CICLO[estadoCompra]}>
                       {ETIQUETAS_CICLO[estadoCompra]}

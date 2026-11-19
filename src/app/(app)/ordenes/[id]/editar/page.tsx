@@ -2,7 +2,8 @@ import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { puede, puedeVerModulo } from "@/lib/permisos";
+import { puedeVerModulo } from "@/lib/permisos";
+import { veLaRequisicion } from "@/lib/alcance-area";
 import FormularioOrden, { type LineaOrden } from "../../formulario-orden";
 import { editarOrden } from "../../../actions";
 import { normalizarUnidad } from "@/lib/unidades";
@@ -10,8 +11,6 @@ import { normalizarUnidad } from "@/lib/unidades";
 export default async function EditarOrden({ params }: { params: { id: string } }) {
   const sesion = await getServerSession(authOptions);
   if (!sesion || !puedeVerModulo(sesion.user.rol, sesion.user.modulosPermitidos, "ordenes")) redirect("/");
-  const puedeTodas = puede(sesion.user.rol, "ordenes.editarTodas");
-  const puedeAprobadas = puede(sesion.user.rol, "ordenes.editarAprobadas");
   const id = Number(params.id);
 
   const o = await prisma.ordenCompra.findUniqueOrThrow({
@@ -23,16 +22,20 @@ export default async function EditarOrden({ params }: { params: { id: string } }
     },
   });
 
-  // Recibida nunca se edita; aprobada solo si el rol tiene ese permiso
-  // (administrador y sub administrador); pendiente/rechazada, su solicitante
-  // o quien puede editar todas. Un borrador solo lo continúa quien lo empezó:
-  // es un trabajo a medias personal y el resto de la lista ni lo ve.
-  if (o.estado === "Recibida") redirect(`/ordenes/${id}`);
-  if (o.estado === "Borrador" && o.solicitanteId !== Number(sesion?.user.id)) {
-    redirect("/ordenes");
-  }
-  if (o.estado === "Aprobada" && !puedeAprobadas) redirect(`/ordenes/${id}`);
-  if (o.estado !== "Aprobada" && !puedeTodas && o.solicitanteId !== Number(sesion?.user.id)) {
+  const esPropia = o.solicitanteId === Number(sesion.user.id);
+
+  // Primer filtro: la requisición le tiene que ser visible (su propia área o
+  // la de su gerencia, según veLaRequisicion).
+  if (!veLaRequisicion(sesion.user, o)) redirect("/ordenes");
+  // Un borrador es un trabajo a medias personal: solo su autor lo continúa.
+  if (o.estado === "Borrador" && !esPropia) redirect("/ordenes");
+  // Segundo filtro: la edición es exclusiva de QUIEN LA SOLICITÓ. Ningún otro
+  // rol —ni el jefe inmediato, ni la administración— llega a este formulario,
+  // ni siquiera para las de su propia área.
+  if (!esPropia) redirect(`/ordenes/${id}`);
+  // Y solo mientras el estado la deja corregir: Pendiente o Rechazada. Una
+  // aprobada o recibida manda de vuelta a la vista de la requisición.
+  if (o.estado !== "Borrador" && o.estado !== "Pendiente" && o.estado !== "Rechazada") {
     redirect(`/ordenes/${id}`);
   }
 
@@ -73,25 +76,23 @@ export default async function EditarOrden({ params }: { params: { id: string } }
       <p className="text-tinta2 text-sm mb-4">
         {esBorrador
           ? "Esta requisición quedó en borrador la última vez. Está todo lo que habías escrito; complétala y envíala cuando esté lista."
-          : o.estado === "Aprobada"
-          ? "La requisición está aprobada. Al guardar se conserva el estado Aprobada y sigue lista para recibirse."
           : "La requisición está " + o.estado.toLowerCase() + " y puede corregirse. Al guardar quedará pendiente de revisión otra vez."}
       </p>
       <FormularioOrden
         accion={editarOrden.bind(null, id)}
         materiales={materiales}
         proveedores={proveedores}
+        // La dependencia la manda la cuenta del SOLICITANTE: si tiene gerencia
+        // asignada, ese campo queda fijo en el formulario (el administrador es
+        // quien la cambia, desde la edición de usuarios).
+        dependenciaFija={o.solicitante.area}
         inicial={{ dependencia: o.dependencia || "", area: o.area || "", lugar: o.lugar || "", justificacion: o.justificacion || "", lineas }}
         cancelarHref={`/ordenes/${id}`}
         // Un borrador todavía no se ha enviado: ese botón lo envía por primera
         // vez, así que sigue diciendo "Enviar". Una requisición que ya salió
-        // (pendiente, rechazada, aprobada…) solo se corrige, y ahí decir
-        // "Enviar" confundía: lo que hace es actualizar la existente.
+        // (pendiente o rechazada) solo se corrige, y ahí decir "Enviar"
+        // confundía: lo que hace es actualizar la existente.
         textoEnviar={esBorrador ? "Enviar requisición" : "Actualizar requisición"}
-        // Una requisición aprobada ya no vuelve a borrador: al corregirla
-        // conserva su estado. Los borradores y las pendientes sí pueden
-        // seguir guardándose sin completar.
-        permitirBorrador={o.estado !== "Aprobada"}
       />
     </>
   );

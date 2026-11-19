@@ -20,8 +20,9 @@ body {
 .et-gestion { @apply bg-superficie2 text-azul border border-borde; }
 .et-usuario { @apply bg-verdeclaro text-verde; }
 .et-aprobada { @apply bg-verdeclaro text-verde; }
-/* Ciclo de vida de un material dentro de la requisición (los cuatro estados
-   que ven el detalle, Gestión, Compras y la lista de requisiciones). */
+/* Ciclo de vida de un material dentro de la requisición (los estados que ven
+   el detalle, Gestión, Compras y la lista de requisiciones). "Sin aprobar"
+   reutiliza .et-borrador: es gris porque todavía no arrancó. */
 .et-pendiente { @apply bg-ambarclaro text-ambar; }        /* En proceso de gestión */
 .et-compra { @apply bg-moradoclaro text-morado; }         /* En proceso de compra */
 .et-gestionado { @apply bg-azulclaro text-azul; }

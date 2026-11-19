@@ -7,15 +7,21 @@
 //   Administrador           → acceso total (usuarios, bitácora, reportes,
 //                             proveedores, materiales, órdenes, inventario,
 //                             gestión, compras)
-//   Sub Administrador       → reportes, crear/modificar/autorizar órdenes,
+//   Sub Administrador       → reportes, crear y autorizar órdenes,
 //                             alimentar la BD y consultar Gestión y Compras
-//   Jefe inmediato          → crear/modificar/autorizar órdenes, reportes y
+//   Jefe inmediato          → crear y autorizar órdenes de SU área, reportes y
 //                             consultar Gestión y Compras
 //   Responsable de gestión  → consultar todas las requisiciones, la
 //                             consolidación de Gestión, el módulo Compras,
 //                             descargar inventario y ver reportes (no autoriza
 //                             ni recibe)
 //   Responsable de solicitar→ crear requisiciones y descargar inventario
+//
+// EDICIÓN DE UNA REQUISICIÓN: no es un permiso del rol, es un derecho de su
+// solicitante. Solo quien la pidió la corrige, y solo mientras esté en
+// Borrador, Pendiente o Rechazada (una aprobada o recibida ya no se toca).
+// Ningún otro rol llega a editarla —ni el jefe inmediato, ni la
+// administración—: si hace falta un cambio, se le pide al solicitante.
 //
 // Gestión y Compras trabajan sobre los mismos renglones: en Gestión se marca
 // cada material como Gestionado o Pendiente de Compra y lo que queda pendiente
@@ -57,10 +63,8 @@ export type Permiso =
   | "materiales.gestionar"
   /** Crear requisiciones (órdenes de compra) */
   | "ordenes.crear"
-  /** Editar órdenes de otros solicitantes */
-  | "ordenes.editarTodas"
-  /** Editar una requisición ya aprobada (solo administración) */
-  | "ordenes.editarAprobadas"
+  // No existe "editar" como permiso: una requisición solo la corrige su
+  // solicitante y solo en Borrador, Pendiente o Rechazada (ver cabecera).
   /** Aprobar o rechazar órdenes */
   | "ordenes.autorizar"
   /** Marcar órdenes como recibidas (suma al inventario) */
@@ -150,8 +154,6 @@ export const MODULO_DE_PERMISO: Partial<Record<Permiso, Modulo>> = {
   "proveedores.gestionar": "proveedores",
   "materiales.gestionar": "materiales",
   "ordenes.crear": "ordenes",
-  "ordenes.editarTodas": "ordenes",
-  "ordenes.editarAprobadas": "ordenes",
   "ordenes.autorizar": "ordenes",
   "ordenes.recibir": "ordenes",
   "ordenes.verTodas": "ordenes",
@@ -169,8 +171,6 @@ const ADMIN: Permiso[] = [
   "proveedores.gestionar",
   "materiales.gestionar",
   "ordenes.crear",
-  "ordenes.editarTodas",
-  "ordenes.editarAprobadas",
   "ordenes.autorizar",
   // "ordenes.recibir" no va aquí: registrar la entrega es tarea exclusiva
   // del sub administrador, quien además escribe el nombre de quien recibe.
@@ -178,6 +178,9 @@ const ADMIN: Permiso[] = [
   "inventario.descargar",
 ];
 
+// Ningún rol trae permiso de edición de requisiciones: corregirla es un
+// derecho de SU solicitante y solo mientras esté en Borrador, Pendiente o
+// Rechazada (ver la cabecera de este archivo).
 export const PERMISOS_POR_ROL: Record<Rol, Permiso[]> = {
   administrador: ADMIN,
   sub_administrador: [
@@ -189,8 +192,6 @@ export const PERMISOS_POR_ROL: Record<Rol, Permiso[]> = {
     "proveedores.gestionar",
     "materiales.gestionar",
     "ordenes.crear",
-    "ordenes.editarTodas",
-    "ordenes.editarAprobadas",
     "ordenes.autorizar",
     // Único rol que registra la entrega de una requisición: marca la orden
     // como recibida (suma al inventario) y escribe quién recibió el material.
@@ -205,7 +206,6 @@ export const PERMISOS_POR_ROL: Record<Rol, Permiso[]> = {
     "compras.ver",
     "compras.editar",
     "ordenes.crear",
-    "ordenes.editarTodas",
     "ordenes.autorizar",
     "ordenes.verTodas",
   ],

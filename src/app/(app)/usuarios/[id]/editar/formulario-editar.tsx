@@ -10,6 +10,7 @@ import {
   type Modulo,
   type Rol,
 } from "@/lib/permisos";
+import { DEPENDENCIAS } from "@/lib/dependencias";
 import PanelModulos from "../../panel-modulos";
 
 type Usuario = {
@@ -17,6 +18,8 @@ type Usuario = {
   nombre: string;
   usuario: string;
   rol: Rol;
+  /** Gerencia de la cuenta (valor de src/lib/dependencias.ts). */
+  area: string | null;
   modulosPermitidos: string[];
 };
 
@@ -98,6 +101,26 @@ export default function FormularioEditarUsuario({ u }: { u: Usuario }) {
           >
             {ROLES.map((r) => (
               <option key={r.valor} value={r.valor}>{r.etiqueta}</option>
+            ))}
+          </select>
+        </Campo>
+        <Campo
+          name="area"
+          etiqueta="Área (gerencia)"
+          ayuda="Es la gerencia de la persona: sus requisiciones nacen en esa área y, si es jefe inmediato, solo ve y autoriza las de ahí. Si se cambia de gerencia, se cambia aquí."
+        >
+          <select
+            id="area"
+            className="campo-input"
+            name="area"
+            defaultValue={u.area || ""}
+            // Un jefe sin área no vería ni autorizaría nada de su gerencia:
+            // el sistema exige elegirla (también lo revisa el servidor).
+            required={rol === "jefe_inmediato"}
+          >
+            <option value="">Sin área asignada</option>
+            {DEPENDENCIAS.map((d) => (
+              <option key={d.valor} value={d.valor}>{d.etiqueta}</option>
             ))}
           </select>
         </Campo>

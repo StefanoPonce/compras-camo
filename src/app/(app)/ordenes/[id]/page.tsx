@@ -9,10 +9,12 @@ import BorrarBorrador from "./borrar-borrador";
 import MarcarRecibido from "./marcar-recibido";
 import ImagenMaterial from "../../imagen-material";
 import { textoPrograma } from "@/lib/programas";
+import { textoDependencia } from "@/lib/dependencias";
 import { etiquetaUnidad } from "@/lib/unidades";
 import {
   cantidadesDeRequisicion,
   cantidadesDeRenglon,
+  esRequisicionAprobada,
   requisicionTrabajada,
   CLASE_CICLO,
   CLASE_ESTADO,
@@ -21,6 +23,7 @@ import {
   estadoVisibleDe,
   type CantidadesCiclo,
 } from "@/lib/estado-gestion";
+import { errorDeAutorizacion, veLaRequisicion } from "@/lib/alcance-area";
 import DesgloseCantidades from "../../desglose-cantidades";
 
 function fecha(d: Date) {
@@ -61,11 +64,8 @@ function PildorasEstado({ reparto }: { reparto: CantidadesCiclo }) {
 export default async function DetalleOrden({ params }: { params: { id: string } }) {
   const sesion = await getServerSession(authOptions);
   if (!sesion || !puedeVerModulo(sesion.user.rol, sesion.user.modulosPermitidos, "ordenes")) redirect("/");
-  const veTodas = puede(sesion.user.rol, "ordenes.verTodas");
-  const puedeAutorizar = puede(sesion!.user.rol, "ordenes.autorizar");
+  const puedeAutorizarRol = puede(sesion.user.rol, "ordenes.autorizar");
   const puedeRecibir = puede(sesion!.user.rol, "ordenes.recibir");
-  const puedeEditar = puede(sesion!.user.rol, "ordenes.editarTodas");
-  const puedeEditarAprobada = puede(sesion!.user.rol, "ordenes.editarAprobadas");
 
   const o = await prisma.ordenCompra.findUniqueOrThrow({
     where: { id: Number(params.id) },
@@ -80,18 +80,24 @@ export default async function DetalleOrden({ params }: { params: { id: string } 
   const esPropia = o.solicitanteId === Number(sesion!.user.id);
   const esBorrador = o.estado === "Borrador";
 
-  // Quien no ve todas las órdenes solo puede consultar las suyas propias. Un
+  // Quien no ve todas las órdenes solo puede consultar las suyas propias; un
+  // jefe inmediato además solo las de SU gerencia (veLaRequisicion). Un
   // borrador es personal: ni siquiera quien ve todas puede abrir el de otro.
-  if (!veTodas && !esPropia) redirect("/ordenes");
+  if (!veLaRequisicion(sesion.user, o)) redirect("/ordenes");
   if (esBorrador && !esPropia) redirect("/ordenes");
 
-  // Recibida: nadie la edita. Aprobada: solo administración. Borrador: solo su
-  // autor. Las demás: su solicitante o quien puede editar todas.
-  const puedeModificar =
-    o.estado === "Recibida" ? false
-    : esBorrador ? esPropia
-    : o.estado === "Aprobada" ? puedeEditarAprobada
-    : (puedeEditar || esPropia);
+  // El jefe inmediato autoriza únicamente las de su área; si no tiene área
+  // asignada, no autoriza ninguna (lo dice el motivo). Administración no está
+  // limitada por área: es el respaldo de cualquier gerencia.
+  const motivoArea = errorDeAutorizacion(sesion.user, o);
+  const puedeAutorizar = puedeAutorizarRol && !motivoArea;
+
+  // Quién edita esta requisición: SOLO su solicitante, y solo mientras el
+  // estado lo deja (Borrador, Pendiente o Rechazada). Ningún otro rol llega
+  // aquí —ni el jefe inmediato, ni la administración—: una aprobada o
+  // recibida ya no se corrige desde el sistema.
+  const editablePorEstado = o.estado === "Pendiente" || o.estado === "Rechazada";
+  const puedeModificar = esPropia && (esBorrador || editablePorEstado);
 
   // Marcar un producto como recibido lo hace, producto por producto, el
   // solicitante de ESA requisición (y solo cuando ya esté enviada: no se
@@ -110,7 +116,7 @@ export default async function DetalleOrden({ params }: { params: { id: string } 
     .map((it) => it.material.nombre);
   const pendientes = o.items.filter((it) => it.estadoGestion === "Pendiente").length;
 
-  // El ciclo de vida de ESTA requisición: en qué estado de los cuatro (en
+  // El ciclo de vida de ESTA requisición: en qué estado (sin aprobar · en
   // proceso de gestión · gestionado · en proceso de compra · entregado) está
   // cada unidad de lo pedido. Sale de los renglones de la tabla de abajo, así
   // que es el mismo dato que alimenta la consolidación de Gestión y Compras
@@ -118,8 +124,14 @@ export default async function DetalleOrden({ params }: { params: { id: string } 
   // falta sigue en gestión o ya pasó a compra: basta que Gestión registre
   // unidades en un material para que todo lo pendiente de la requisición
   // cambie de estado.
+  // ¿La requisición ya fue autorizada? El ciclo de compra solo existe a
+  // partir de ahí: mientras esté en Borrador, Pendiente o Rechazada no hay
+  // nada que gestionar ni que comprar, y decir "En proceso de gestión" haría
+  // creer que Gestión ya la tomó. En esos casos la píldora dice "Sin aprobar".
+  const enCiclo = esRequisicionAprobada(o.estado);
+
   const trabajada = requisicionTrabajada(o.items);
-  const cantidades = cantidadesDeRequisicion(o.items);
+  const cantidades = cantidadesDeRequisicion(o.items, enCiclo);
   const unidades = o.items.reduce((suma, it) => suma + it.cantidad, 0);
 
   // La píldora del estado de la requisición entera. No es la columna
@@ -140,6 +152,12 @@ export default async function DetalleOrden({ params }: { params: { id: string } 
       <p className="text-sm mt-1">
         <span className="text-tinta2">Área de:</span>{" "}
         <strong className="font-medium">{o.area || "—"}</strong>
+      </p>
+      {/* La gerencia responsable: es el dato con el que se decide quién
+          autoriza esta requisición, así que también se muestra arriba. */}
+      <p className="text-sm mt-0.5">
+        <span className="text-tinta2">Dependencia:</span>{" "}
+        <strong className="font-medium">{textoDependencia(o.dependencia) || "—"}</strong>
       </p>
       <p className="text-tinta2 text-sm mt-1 mb-4">
         {o.proveedor?.nombre || "Sin proveedor"} · {fecha(o.fecha)} · <span className={"etiqueta " + CLASE_ESTADO[estadoVisible]}>{estadoVisible}</span>
@@ -168,11 +186,39 @@ export default async function DetalleOrden({ params }: { params: { id: string } 
           Este es un borrador: todavía no se ha enviado. Solo tú lo ves y no entra en revisión hasta que lo envíes.
         </p>
       )}
-      {o.estado === "Aprobada" && !puedeModificar && (
-        <p className="text-xs text-tinta2 mb-4">Una vez aprobada, solo el administrador o el sub administrador pueden editarla.</p>
+      {/* Un jefe de área que no puede autorizar esta requisición (no es de su
+          gerencia, o su cuenta todavía no tiene área) lo ve dicho aquí, en vez
+          de encontrar la página sin los botones y sin explicación. */}
+      {o.estado === "Pendiente" && puedeAutorizarRol && motivoArea && (
+        <p className="text-xs text-rojo mb-4">{motivoArea}</p>
       )}
-      {o.estado === "Aprobada" && puedeModificar && (
-        <p className="text-xs text-tinta2 mb-4">La requisición está aprobada: puedes corregirla y conservará su estado.</p>
+      {/* La edición es exclusiva del solicitante: a los demás (jefe de área,
+          administración, gestión) se les dice quién puede corregirla, en vez
+          de encontrar la página sin botones y sin explicación. */}
+      {!esPropia && !esBorrador && editablePorEstado && (
+        <p className="text-xs text-tinta2 mb-4">
+          La puede editar únicamente {o.solicitante.nombre}, que es quien la solicitó.
+        </p>
+      )}
+      {o.estado === "Aprobada" && (
+        <p className="text-xs text-tinta2 mb-4">
+          Una vez aprobada ya no puede editarse: solo el solicitante la corrige mientras esté pendiente o
+          rechazada.
+        </p>
+      )}
+      {o.estado === "Rechazada" && esPropia && (
+        <p className="text-xs text-tinta2 mb-4">
+          Fue rechazada: puedes corregirla con "Editar requisición" y al guardar volverá a quedar pendiente
+          de revisión.
+        </p>
+      )}
+      {/* Aviso de que todavía no hay ciclo de compra: es lo que evita que
+          quien consulta crea que Gestión ya está trabajando en ella. */}
+      {o.estado === "Pendiente" && (
+        <p className="text-xs text-tinta2 mb-4">
+          Todavía no se aprueba: mientras siga pendiente no se gestiona ni se compra nada. El estado de
+          compra aparece en cuanto el jefe de área la autorice.
+        </p>
       )}
       {o.estado === "Recibida" && o.recibidoPorTxt && (
         <p className="text-xs text-tinta2 mb-4">Requisición recibida: ya no puede editarse.</p>
@@ -204,11 +250,21 @@ export default async function DetalleOrden({ params }: { params: { id: string } 
       {/* Lo pedido, desglosado por el ciclo de vida de cada material: en qué
           estado (en proceso de gestión · gestionado · en proceso de compra ·
           entregado) está cada unidad. Sale de los renglones de la tabla de
-          abajo, así que siempre suma lo mismo que ellas. */}
+          abajo, así que siempre suma lo mismo que ellas. Si todavía no se
+          aprueba no hay ciclo que desglosar. */}
       <div className="flex items-baseline gap-1.5 flex-wrap text-xs mb-3">
         <span className="text-tinta2">Unidades solicitadas:</span>
         <strong className="font-sora text-sm">{numero(unidades)}</strong>
-        <DesgloseCantidades cantidades={cantidades} />
+        {enCiclo ? (
+          <DesgloseCantidades cantidades={cantidades} />
+        ) : (
+          <>
+            <span className={"etiqueta " + CLASE_CICLO.SinAprobar}>{ETIQUETAS_CICLO.SinAprobar}</span>
+            <span className="text-tinta2">
+              · el ciclo de compra empieza cuando se autorice.
+            </span>
+          </>
+        )}
       </div>
 
       {/* Ancho mínimo con holgura: las columnas de texto largo (categoría,
@@ -263,9 +319,16 @@ export default async function DetalleOrden({ params }: { params: { id: string } 
                 </td>
                 {/* Estado de compra del renglón: lo marcan Gestión y Compras.
                     Se ve el ciclo completo del material, con cuántas unidades
-                    va en cada paso. */}
+                    va en cada paso; mientras no se apruebe no hay ciclo y la
+                    píldora dice "Sin aprobar". */}
                 <td>
-                  <PildorasEstado reparto={cantidadesDeRenglon(it, trabajada)} />
+                  {enCiclo ? (
+                    <PildorasEstado reparto={cantidadesDeRenglon(it, trabajada)} />
+                  ) : (
+                    <span className={"etiqueta " + CLASE_CICLO.SinAprobar}>
+                      {ETIQUETAS_CICLO.SinAprobar}
+                    </span>
+                  )}
                 </td>
                 {/* El solicitante confirma, renglón por renglón, que ya le
                     llegó el material. Solo él puede poner esta marca, y solo

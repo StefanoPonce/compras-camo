@@ -14,6 +14,7 @@ export default async function LayoutApp({ children }: { children: React.ReactNod
       <NavCliente
         nombre={sesion.user.name || sesion.user.usuario}
         rol={sesion.user.rol}
+        area={sesion.user.area}
         modulos={sesion.user.modulosPermitidos}
       />
       {/* El contenido usa el mismo ancho que la barra de navegación (1480px) para

@@ -2,9 +2,10 @@ import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { puede, puedeVerModulo } from "@/lib/permisos";
+import { puedeVerModulo } from "@/lib/permisos";
 import { textoPrograma } from "@/lib/programas";
 import { textoDependencia } from "@/lib/dependencias";
+import { veLaRequisicion } from "@/lib/alcance-area";
 import { etiquetaUnidad } from "@/lib/unidades";
 import ImagenLogo from "./imagen-logo";
 import BotonImprimirRequisicion from "./boton-imprimir";
@@ -33,8 +34,9 @@ export default async function Requisicion({ params }: { params: { id: string } }
   if (o.estado === "Borrador") redirect(`/ordenes/${o.id}/editar`);
 
   // La hoja es parte de la requisición: solo la abre su solicitante o quien
-  // tiene el historial completo (los roles que autorizan).
-  if (!puede(sesion.user.rol, "ordenes.verTodas") && o.solicitanteId !== Number(sesion.user.id)) {
+  // tenga visibilidad de esa área (administración, gestión o el jefe de la
+  // gerencia de la que viene la requisición).
+  if (!veLaRequisicion(sesion.user, o)) {
     redirect("/ordenes");
   }
 
